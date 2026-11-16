@@ -1,0 +1,17 @@
+.git
+.github
+.agents
+.codex
+docs
+**/bin
+**/obj
+**/node_modules
+**/.next
+**/dist
+**/build
+**/*.tsbuildinfo
+.env
+.env.*
+*.log
+TestResults
+coverage
