@@ -4,11 +4,11 @@
 - Clone repository and copy your real `.md` files recursively into `docs/spec/`.
 - Preserve filenames, links, and directory structure. Never replace the real spec with AI summaries.
 - Keep sensitive business/client information out of this PUBLIC repository or change visibility before committing.
-- Create a branch `docs/import-v2-spec`; commit and open a PR for the specs.
-- `docs/spec/README.md` is only a placeholder/instructions and is not a business requirement.
+- Commit and push spec changes directly to `main` if you want, or create a docs branch/PR when peer review is useful. There is no mandatory repository validation step for spec updates.
+- `docs/spec/00-README.md` is part of the provided V2 document set; analyze its actual contents rather than assuming a fixed placeholder filename.
 
 ## 1. Spec audit (no code)
-Ask Codex: "Use the spec-audit skill. Read every docs/spec/**/*.md file except the placeholder README. Inventory requirements, identify contradictions, omissions, implicit assumptions, risks, and traceability. Do not code or modify my specs."
+Ask Codex: "Use `$spec-audit`. Read all applicable docs/spec/**/*.md files, including 00-README.md, and inspect supporting schema.sql. Inventory requirements, identify contradictions, omissions, implicit assumptions, risks, and traceability. Do not code or modify my specs."
 
 Expected artifacts:
 - `docs/analysis/spec-inventory.md`: spec source map (file, heading, requirement ID, summary).
@@ -33,7 +33,7 @@ Recommended PR size: one domain capability or a narrowly-scoped cross-layer feat
 ## 4. Review and converge
 Ask a fresh Codex review context or another reviewer: "Use review-gate on this PR. Check actual diff against specs and tasks; prioritize correctness, authorization, validation, data safety, edge cases, and missing tests. Classify P0-P3 findings, include file:line, and distinguish tested vs unverified."
 
-Re-run real tests after fixes; review CI status, migrations and security assumptions. Human approval required to merge. If P0/P1 remains, do not merge.
+Re-run actual tests after fixes, review migrations and security assumptions; review CI results only for workflows that are actually configured. Human approval is required to merge application changes. If P0/P1 remains, do not merge.
 
 ## 5. Tools worth evaluating
 - `github/spec-kit`: optional built-in spec/plan/task process; if installed, align its generated specs with `docs/spec/` instead of replacing the user's originals.
@@ -45,9 +45,13 @@ These are third-party or optional installations, not prerequisites for this repo
 - Audit: all spec files listed; high-impact ambiguities flagged; no invented facts.
 - Plan: requirements traced to deliverables and acceptance tests; unknowns called out; architectural choices reviewed.
 - Slice: behavior + failing/passing tests documented, error/bad-case coverage, migrations assessed.
-- Review: no unresolved P0/P1, CI and tests reviewed, evidence and known limitations attached.
+- Review: no unresolved P0/P1; tests reviewed and, when relevant workflows exist, CI results reviewed; evidence and known limitations attached.
 
-## Local checks
-`python scripts/verify_repository.py`
+## Updating specifications
 
-The repository guard validates tooling/doc structure only. It does NOT replace .NET, frontend, E2E, security, or acceptance tests after application code is introduced.
+1. Change or replace the required files inside `docs/spec/` without moving their referenced relative paths unexpectedly.
+2. Commit and push. There is no `verify_repository.py` command and no repository-guard GitHub Actions job.
+3. Run `$spec-audit` when requirements change, update the gap register and traceability, and revisit any affected decisions/plans.
+4. Application CI and tests, when added later, should target application correctness and security rather than block spec uploads based on hard-coded filenames.
+
+The spec-audit and design gates are process reviews performed through Codex, **not** automated GitHub push protection.

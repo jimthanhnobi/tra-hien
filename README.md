@@ -2,16 +2,15 @@
 
 Spec-first rebuild of **Trà Hiên**. This repository is independent from prior implementations.
 
-> **State:** Repository preparation only. Business specifications will be added under `docs/spec/**/*.md`. **No application architecture or feature is approved yet.**
+> **State:** V2 specifications are stored in `docs/spec/`. Architecture and implementation should follow spec audit and explicit decision gates. There is no automatic repo-structure CI blocking specification updates.
 
 ## Getting started
 
 1. Clone: `git clone https://github.com/jimthanhnobi/tra-hien.git`
-2. Put the authoritative Markdown specification files under `docs/spec/`; preserve filenames and hierarchy.
-3. Commit specs on a dedicated branch and open a PR.
-4. Start Codex at the repository root. Ask it to run the `spec-audit` skill. Fix contradictions and confirm the source of truth.
-5. Run `architecture-plan` to produce a reviewable architecture and phased delivery plan.
-6. Implement small vertical slices using `implementation-slice`; run `review-gate` before merging.
+2. Add or replace your authoritative Markdown specs under `docs/spec/` and preserve filenames, hierarchy, and links. Commit/push to `main` or use a separate documentation branch and PR as you prefer. No repository-guard script or Actions workflow is required to push specs.
+3. Open Codex at the repository root. Run `$spec-audit` after any substantial spec change; review conflicts and decisions before coding.
+4. Run `$architecture-plan` to produce a reviewable architecture and phased delivery plan once blocking questions are resolved.
+5. Implement small vertical slices using `$implementation-slice` and run `$review-gate` before merging code.
 
 **Don't build the app until the specification audit and architecture decision are reviewed.**
 
@@ -24,7 +23,7 @@ Spec-first rebuild of **Trà Hiên**. This repository is independent from prior 
 - `docs/plans/`: phased implementation plans and tasks
 - `docs/reviews/`: review findings and proof of verification
 - `.agents/skills/`: Trà Hiên-specific Codex skills
-- `.github/`: PR and CI safeguards
+- `.github/`: optional PR/issue templates (no repository-guard Actions job)
 
 ## External tooling
 

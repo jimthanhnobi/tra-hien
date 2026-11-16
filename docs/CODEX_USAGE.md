@@ -73,8 +73,8 @@ Find P0/P1 issues first. List tests actually verified versus not run. Do not mer
 
 Trong Codex CLI, `/subagents` cho phép xem các thread agent. Trong ứng dụng/IDE, theo dõi subagent từ giao diện thread hoặc panel khi hỗ trợ. Subagents có thể tiêu tốn thêm token.
 
-## Khi chưa có spec thực
+## Khi cập nhật bộ spec
 
-`docs/spec/README.md` là placeholder. Không được dùng nó để đoán nghiệp vụ. Đến khi các Markdown spec được import, chỉ kiểm thử việc Codex đã đọc hướng dẫn và danh sách skill/agent thành công; không chạy implementation.
+Các file spec thật hiện nằm trong `docs/spec/`, gồm các tài liệu Markdown và `schema.sql`. Có thể commit/push thay đổi spec mà không cần chạy script xác minh repo hay GitHub Actions guard. Sau khi push, chạy lại `$spec-audit` để cập nhật phát hiện và traceability; chỉ triển khai code sau khi các quyết định quan trọng được duyệt.
 
 Xem: https://learn.chatgpt.com/docs/build-skills và https://learn.chatgpt.com/docs/agent-configuration/subagents

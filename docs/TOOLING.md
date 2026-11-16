@@ -20,7 +20,7 @@ After importing actual `docs/spec/**/*.md`:
 1. Run `$spec-audit`. Resolve architecture-blocking gaps without modifying the original specs.
 2. Run `$architecture-plan` and review the ADR + implementation task list.
 3. Implement one task with `$implementation-slice`.
-4. Review changes with `$review-gate`. Verify actual tests/CI before merge.
+4. Review changes with `$review-gate`. Verify actual tests and any CI that is configured for application changes before merging.
 
 Codex CLI/IDE supports repo-level skills at `.agents/skills/<skill-name>/SKILL.md`. If skills do not appear, restart Codex or inspect its skills listing.
 
