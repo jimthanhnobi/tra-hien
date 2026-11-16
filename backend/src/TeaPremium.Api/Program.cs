@@ -2,6 +2,7 @@ using TeaPremium.Api.Middleware;
 using TeaPremium.Application.Time;
 using TeaPremium.Application.UseCases;
 using TeaPremium.Infrastructure;
+using TeaPremium.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
@@ -12,6 +13,7 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing.EndpointMiddleware", Log
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
+builder.Services.AddPlatformPersistence(builder.Configuration);
 var app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
