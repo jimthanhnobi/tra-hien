@@ -17,7 +17,7 @@ Có thể mở thư mục `tra-hien` bằng Codex desktop hoặc Codex extension
 - Codex đọc `AGENTS.md` ở gốc repository tự động.
 - Các skill nằm ở `.agents/skills/<name>/SKILL.md`; trong ô chat Codex, dùng `/skills` hoặc nhập `$` để chọn skill.
 - Các custom subagent nằm ở `.codex/agents/*.toml` và được bật bằng `.codex/config.toml`.
-- Nếu chưa thấy skill/agent, khởi động lại phiên Codex. Kiểm tra folder gốc, các file thực sự có mặt và tình trạng tin cậy/trust của workspace.
+- Nếu chưa thấy skill/agent, kiểm tra project đã được trust và khởi động lại phiên Codex. Kiểm tra folder gốc, các file thực sự có mặt và tình trạng tin cậy/trust của workspace.
 
 ## Các skill hiện có
 
@@ -41,7 +41,7 @@ Các file agent kế thừa permission/sandbox của phiên Codex cha. Chỉ ghi
 
 ~~~text
 Use $spec-audit. Delegate the requirements inventory to spec_analyst.
-Read every actual docs/spec/**/*.md; do not change source specs.
+Read docs/spec/00-README.md, all 01–09 Markdown and schema.sql; preserve existing FR/BR/NFR/AC/DEC IDs and the 07-roadmap P0–P6 task list. Do not change source specs.
 Produce docs/analysis/spec-inventory.md, spec-gaps.md, traceability.md.
 Report BLOCKER questions first. Do not design architecture or write application code yet.
 ~~~
@@ -49,16 +49,16 @@ Report BLOCKER questions first. Do not design architecture or write application 
 **Lập plan:**
 
 ~~~text
-Use $architecture-plan. Delegate independent architecture trade-off review to planner.
-Ground every decision in docs/spec, the completed spec audit and approved decisions.
-Produce proposal/ADRs, milestones and reviewable tasks.
-Do not implement until I approve the plan.
+Use $architecture-plan. Delegate an independent conformance review to planner.
+Respect the decisions in 00-README.md and the P0-P6 roadmap in 07-roadmap.md.
+Write docs/architecture/conformance-review.md and docs/plans/task-readiness.md;
+do not redesign or invent TASK-XXX. Assess readiness for P0-01. No code yet.
 ~~~
 
 **Code theo task:**
 
 ~~~text
-Use $implementation-slice. Delegate TASK-001 to implementer only if the task and gates are approved.
+Use $implementation-slice. Delegate P0-01 in docs/spec/07-roadmap.md to implementer only after approval.
 Restrict changes to that task; add tests and execute checks.
 Return exact commands/results and a PR-ready summary. Do not merge.
 ~~~
@@ -75,6 +75,6 @@ Trong Codex CLI, `/subagents` cho phép xem các thread agent. Trong ứng dụn
 
 ## Khi cập nhật bộ spec
 
-Các file spec thật hiện nằm trong `docs/spec/`, gồm các tài liệu Markdown và `schema.sql`. Có thể commit/push thay đổi spec mà không cần chạy script xác minh repo hay GitHub Actions guard. Sau khi push, chạy lại `$spec-audit` để cập nhật phát hiện và traceability; chỉ triển khai code sau khi các quyết định quan trọng được duyệt.
+Các file spec thật hiện nằm trong `docs/spec/`, gồm `00-README.md`, `01`–`09` Markdown và `schema.sql`. `08-chatgpt-playbook.md` là mẫu giao việc, không phải chỉ dẫn buộc Codex xuất toàn bộ nội dung file vào chat. Có thể commit/push thay đổi spec mà không cần chạy script xác minh repo hay GitHub Actions guard. Sau khi push, chạy lại `$spec-audit` để cập nhật phát hiện và traceability; chỉ triển khai code sau khi các quyết định quan trọng được duyệt.
 
 Xem: https://learn.chatgpt.com/docs/build-skills và https://learn.chatgpt.com/docs/agent-configuration/subagents

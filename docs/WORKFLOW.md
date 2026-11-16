@@ -1,57 +1,68 @@
-# Working agreement: spec -> plan -> code -> review
+# Trà Hiên V2 – workflow Codex dựa trên spec đã chốt
 
-## 0. Import the specification
-- Clone repository and copy your real `.md` files recursively into `docs/spec/`.
-- Preserve filenames, links, and directory structure. Never replace the real spec with AI summaries.
-- Keep sensitive business/client information out of this PUBLIC repository or change visibility before committing.
-- Commit and push spec changes directly to `main` if you want, or create a docs branch/PR when peer review is useful. There is no mandatory repository validation step for spec updates.
-- `docs/spec/00-README.md` is part of the provided V2 document set; analyze its actual contents rather than assuming a fixed placeholder filename.
+**Nguồn sự thật:** `docs/spec/00-README.md` + `01`–`09` Markdown + `schema.sql` ở commit đã kiểm tra. Giữ mã FR/BR/NFR/AC/DEC và `P0-01`…`P6-*`. Quyết định SEO có quy tắc ưu tiên riêng (DEC-21).
 
-## 1. Spec audit (no code)
-Ask Codex: "Use `$spec-audit`. Read all applicable docs/spec/**/*.md files, including 00-README.md, and inspect supporting schema.sql. Inventory requirements, identify contradictions, omissions, implicit assumptions, risks, and traceability. Do not code or modify my specs."
+## 1. Import / cập nhật spec
 
-Expected artifacts:
-- `docs/analysis/spec-inventory.md`: spec source map (file, heading, requirement ID, summary).
-- `docs/analysis/spec-gaps.md`: OPEN and BLOCKER questions with recommended options.
-- `docs/analysis/traceability.md`: requirement -> acceptance tests -> proposed implementation.
-Review this audit and record decisions. Repeat after spec updates.
+- Có thể sửa và push `docs/spec/` như bình thường. Không có repository-guard CI.
+- Xem `git status`, `git log -1 --oneline` để đảm bảo dùng đúng phiên bản.
+- Không tự ý sửa spec bằng agent. Nếu có conflict, ghi riêng vào gap register; thay đổi spec phải được người dùng duyệt.
 
-## 2. Architecture and implementation plan (no code)
-Ask Codex: "Use architecture-plan. Rely ONLY on the audited V2 specs, approved decisions, and documented constraints. Compare viable designs with trade-offs, prepare ADR proposals, module boundaries, data/API contracts, deployment/security/SEO considerations, milestones and vertical-slice tasks. Do not code."
+## 2. Audit (đọc-only đối với spec; chưa code)
 
-Expected artifacts:
-- `docs/architecture/proposal.md`
-- `docs/decisions/ADR-XXXX-....md` for material choices
-- `docs/plans/implementation-plan.md`
-- `docs/plans/tasks.md` with IDs, dependency and acceptance criteria.
+Trong Codex chat:
+```text
+Use $spec-audit. Have spec_analyst review the authoritative V2 specifications:
+docs/spec/00-README.md through 09-seo.md and schema.sql.
+Preserve FR/BR/NFR/AC/DEC and P0-P6 IDs. Check cross-file consistency,
+SQL model compatibility, auth/CSRF, SEO and roadmap dependencies.
+Write docs/analysis/spec-inventory.md, spec-gaps.md, traceability.md.
+Separate blockers for P0-01 from P3+ go-live decisions.
+Do not edit docs/spec or implement code.
+```
 
-## 3. Code in slices
-Ask Codex: "Use implementation-slice for TASK-XXX from docs/plans/tasks.md. Before coding show spec references, scope, negative cases and tests. Implement only the task. Run available tests and give exact outcomes. Open a PR; do not merge."
+Thẩm định kết quả audit; quyết định các blocker ảnh hưởng P0 trước khi bắt đầu P0-01. Không buộc mọi Q1–Q8 phải chốt ngay khi chưa liên quan.
 
-Recommended PR size: one domain capability or a narrowly-scoped cross-layer feature; avoid giant all-at-once changes. Keep change history reviewable.
+## 3. Architecture conformance review (chưa code)
 
-## 4. Review and converge
-Ask a fresh Codex review context or another reviewer: "Use review-gate on this PR. Check actual diff against specs and tasks; prioritize correctness, authorization, validation, data safety, edge cases, and missing tests. Classify P0-P3 findings, include file:line, and distinguish tested vs unverified."
+```text
+Use $architecture-plan with planner. Review existing DEC-01..DEC-24,
+02-architecture.md, schema.sql and 07-roadmap.md.
+Do not create an alternative architecture or duplicate task IDs.
+Create docs/architecture/conformance-review.md and
+docs/plans/task-readiness.md with specific gaps and dependencies.
+Return GO/HOLD for P0-01; no implementation.
+```
 
-Re-run actual tests after fixes, review migrations and security assumptions; review CI results only for workflows that are actually configured. Human approval is required to merge application changes. If P0/P1 remains, do not merge.
+Nếu cần đổi thiết kế đã chốt, viết đề xuất nhỏ và lý do, để chủ dự án phê duyệt.
 
-## 5. Tools worth evaluating
-- `github/spec-kit`: optional built-in spec/plan/task process; if installed, align its generated specs with `docs/spec/` instead of replacing the user's originals.
-- `obra/superpowers`: optional structured brainstorming, TDD, execution and reviews. Avoid duplicating/conflicting instructions; project `AGENTS.md` wins for business boundaries.
-- `openai/plugins`: current official examples for Codex plugins/skills.
-These are third-party or optional installations, not prerequisites for this repository. Review permissions and code before using them.
+## 4. Implement ONE roadmap task
 
-## Exit criteria by phase
-- Audit: all spec files listed; high-impact ambiguities flagged; no invented facts.
-- Plan: requirements traced to deliverables and acceptance tests; unknowns called out; architectural choices reviewed.
-- Slice: behavior + failing/passing tests documented, error/bad-case coverage, migrations assessed.
-- Review: no unresolved P0/P1; tests reviewed and, when relevant workflows exist, CI results reviewed; evidence and known limitations attached.
+Tạo branch từ main sạch: `git switch -c feature/p0-01-foundation`. Sau khi chủ dự án duyệt, trong Codex:
 
-## Updating specifications
+```text
+Use $implementation-slice. Implement only P0-01 in docs/spec/07-roadmap.md.
+Use existing architectural decisions and business requirements.
+Delegate the bounded coding work to implementer.
+Run real build/tests available for the new scaffold; report commands and results.
+Do not modify docs/spec. Do not implement P0-02 or merge.
+```
 
-1. Change or replace the required files inside `docs/spec/` without moving their referenced relative paths unexpectedly.
-2. Commit and push. There is no `verify_repository.py` command and no repository-guard GitHub Actions job.
-3. Run `$spec-audit` when requirements change, update the gap register and traceability, and revisit any affected decisions/plans.
-4. Application CI and tests, when added later, should target application correctness and security rather than block spec uploads based on hard-coded filenames.
+## 5. Review trước merge
 
-The spec-audit and design gates are process reviews performed through Codex, **not** automated GitHub push protection.
+```text
+Use $review-gate. Have reviewer inspect the diff of this branch versus main
+against P0-01, FR/BR/NFR/AC/DEC and actual tests.
+Report findings P0–P3 with file/line and reproduction; don't modify code
+or claim unrun tests passed. Human review before merge.
+```
+
+Gắn phát hiện vào PR; tự chạy lại build/tests; chỉ merge khi không còn P0/P1 và đã xác nhận đủ bằng chứng. Một task ≈ một PR.
+
+## 6. Sau khi spec thay đổi
+
+Chạy lại spec-audit với `git diff` giữa hai phiên bản spec và đánh giá tác động lên task/code/test đã triển khai. Update traceability; đừng tự đổi code không liên quan.
+
+## Công cụ tùy chọn
+
+`github/spec-kit`, `obra/superpowers`, `CodeRabbit` có thể hỗ trợ, nhưng không phải điều kiện bắt buộc. Đừng bật đồng thời nhiều bộ workflow tạo bản sao spec và roadmap.

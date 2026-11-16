@@ -4,32 +4,33 @@
 Rebuild Trà Hiên V2 based on user-provided Markdown specifications. The old implementations are NOT a source of requirements. Work as a careful engineer: inspect, plan, implement, prove, and review.
 
 ## Sources and precedence
-1. `docs/spec/**/*.md` are the canonical *proposed* business specifications after they are committed.
-2. Decisions explicitly approved by the user in `docs/decisions/` resolve ambiguities without silently rewriting the specification.
-3. `docs/analysis/` and `docs/plans/` are AI-generated working artifacts, not new requirements.
-4. Existing code describes implementation behavior, not necessarily correct business behavior.
+1. The committed **TeaPremium v2** specification set under `docs/spec/` is the source of truth: `00-README.md`, `01`–`09` Markdown, and `schema.sql`. Read `00-README.md` for terminology, spec IDs, and `DEC-*` decisions.
+2. For SEO, `09-seo.md` takes precedence over conflicting SEO guidance elsewhere (DEC-21). For schema shape, `schema.sql` is the DDL target; reconcile its meaning with `03-database.md` and domain rules.
+3. Existing spec IDs `FR-*`, `BR-*`, `NFR-*`, `AC-*`, `DEC-*` and task IDs `P0-01`…`P6-*` must be reused. Do NOT invent a parallel `REQ-###` scheme or new roadmap.
+4. `docs/analysis/`, `docs/architecture/`, `docs/plans/`, and `docs/decisions/` contain audit notes, review proposals or separately approved amendments; they do not silently override `docs/spec/`.
+5. Existing code and old Trà Hiên implementations are context only, never source requirements.
 
 If two specifications disagree, DO NOT choose one silently. Report the exact file, heading, and conflicting statements in a gap register. Do not treat this README or older Trà Hiên code as authority for new features.
 
 ## Hard gates
-- G0: No spec? Only repository/tooling setup. Do not scaffold application modules, schema, API, UI, or integrations.
-- G1: Once specs arrive, run `spec-audit`. Produce inventory, contradictions, open questions, requirement traceability, and a risk assessment.
-- G2: User reviews major product ambiguities and architecture choice. Draft architecture and plan with `architecture-plan`.
-- G3: Implement ONE small, reviewable vertical slice per branch/PR using `implementation-slice`. Include tests and migration safety as applicable.
-- G4: Review independently using `review-gate`. Do not approve/merge changes on your own or assert unrun checks passed.
+- G0: V2 spec is present. Verify version, scope, and input commit; do not assume all external claims in generated specs have been executed or legally verified.
+- G1: Run `$spec-audit`, read **all** specs including `00-README.md` and `schema.sql`. Produce file/ID inventory, inconsistencies, risk register, task/acceptance traceability. Never change source specs automatically.
+- G2: Run `$architecture-plan` as a **conformance and feasibility review** of the ALREADY-SPECIFIED modular monolith, DEC-01..DEC-24 and `07-roadmap.md`. Do not re-design or create an alternate task numbering scheme. Flag only evidence-backed changes for user approval. Q1–Q8 in `00-README.md` are not automatically blockers for P0–P2; restrict blocking to genuinely affected tasks.
+- G3: Execute ONE user-approved `P*-*` task at a time with `$implementation-slice` (start with P0-01), on a branch/PR; include tests and migrations where applicable.
+- G4: Review independently using `$review-gate`, compare actual diff to FR/BR/AC and tests. Do not auto-merge or assert unrun checks passed.
 
 ## Coding rules
 - Before edits: read specs applicable to the task, existing decisions, and relevant code/tests.
-- In every task record: goal; scope; spec file + heading; acceptance criteria; dependencies; test plan; rollback/operability.
+- In every task record: existing `P*-*` ID; linked FR/BR/NFR/AC/DEC IDs; scope; source paths/lines; dependencies; failure cases; tests; migration and rollback.
 - If a requirement cannot be tied to a spec, label it `ASSUMPTION` and request a decision; do not add it as a product feature.
 - Prefer minimal changes; no speculative framework, microservice, queue, CMS, vendor, or data model.
 - Protect secrets and PII. Never commit .env, tokens, real customer datasets, credentials, DB backups.
-- Validate untrusted input; least privilege; protect admin operations; sanitize rich content when relevant; assess GDPR/local privacy obligations without guessing applicable law.
+- Validate untrusted input; least privilege; protect admin operations; sanitize rich content when relevant; raise applicable Vietnamese privacy/e-commerce/legal questions for professional verification, do not invent compliance conclusions.
 - When specs require SEO, check crawlability, canonical URL, metadata, redirects, sitemap, structured data, indexability, and SSR behavior in tests.
 - DB changes require forward migration and rollback or recovery plan; never execute destructive changes against real data.
 - Avoid breaking external APIs, auth flows, and analytics measurement.
 - Use tests before claiming behavior works. Never fabricate logs, performance, review approval, or coverage.
-- No changes to `docs/spec/` without explicit user direction. Propose corrections separately.
+- No changes to `docs/spec/` without explicit user direction. Propose corrections as issue/gap entries with exact file/line and options. Treat `08-chatgpt-playbook.md` as legacy AI collaboration guidance: in Codex edit files directly; do not paste full file bodies into chat unless requested.
 - On task completion report changed files, tests with exact command/result, known gaps, risk, next safe step.
 
 ## Skill routing
@@ -47,3 +48,6 @@ Findings must cite paths/lines, reproduction, consequence, and practical fix. Do
 
 ## Operating language
 Use Vietnamese in working reports and issue comments. Keep identifiers and code idioms in their normal technical language.
+
+## First-run workflow
+Read `docs/WORKFLOW.md` and `docs/CODEX_USAGE.md`. Before starting P0-01, conduct spec audit and task-scoped feasibility review; keep unresolved P3/production details from stalling unrelated P0 work.
