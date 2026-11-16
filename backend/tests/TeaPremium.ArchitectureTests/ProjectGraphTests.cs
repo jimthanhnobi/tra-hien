@@ -35,6 +35,33 @@ public sealed class ProjectGraphTests
         Assert.Empty(domain.Descendants("PackageReference"));
         Assert.DoesNotContain(application.Descendants("PackageReference"), package =>
             ((string?)package.Attribute("Include"))?.Contains("EntityFrameworkCore", StringComparison.OrdinalIgnoreCase) == true);
+        var allowed = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "FluentValidation", "Microsoft.Extensions.DependencyInjection.Abstractions"
+        };
+        Assert.All(application.Descendants("PackageReference"), package =>
+        {
+            var name = (string?)package.Attribute("Include");
+            Assert.NotNull(name);
+            Assert.Contains(name, allowed);
+        });
+    }
+
+    [Fact]
+    public void DomainAndApplicationDoNotReadSystemClockDirectly()
+    {
+        foreach (var project in new[] { "Domain", "Application" })
+        {
+            var root = Path.Combine(Backend, "src", $"TeaPremium.{project}");
+            foreach (var file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+                         .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                             && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)))
+            {
+                var source = File.ReadAllText(file);
+                Assert.DoesNotContain("DateTime.Now", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("DateTimeOffset.UtcNow", source, StringComparison.Ordinal);
+            }
+        }
     }
 
     private static string FindBackend()
