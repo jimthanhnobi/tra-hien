@@ -70,8 +70,9 @@ git diff --check
 |---|---|---|
 | **P0-01** | Không dependency; **GO về spec/kiến trúc**, chờ duyệt G2 rồi làm một slice G3. | Layout/layer/commands ở trên. Không có blocker xác nhận cho scaffold (`07-roadmap.md:17`; `spec-gaps.md` §Gate trước P0-01). |
 | **P0-02, P0-03** | Đều sau P0-01 (`07-roadmap.md:18–19`). | Compose dev và cross-cutting chỉ bắt đầu sau foundation build được; không ép vào PR P0-01. |
-| **P0-04** | Sau P0-03 (`07-roadmap.md:20`). **HOLD riêng cho P0-04** đến khi G26/G01 được chốt. | G26: text-key settings vs uuid audit (`schema.sql:36–41,58–69`, AC-P0-04 `07:36`); G01: migration seed vs CLI (`03-database.md:81,143`). Chia migration platform từ schema đích, kiểm DB rỗng. |
-| **P0-05…P0-10** | P0-05/06/07/08/09/10 sau P0-04 (`07-roadmap.md:21–26`). | Audit AC-P0-04/FR-PLT-01 ở P0-05/P0-09; Identity/permission/CSRF P0-08; migration + ArchitectureTests P0-10. G26/G01 lan theo dependency, không ngược lên P0-01. |
+| **P0-04** | Sau P0-03 (`07-roadmap.md:20`). G26/G01 amendment đã qua G4 và được owner chấp nhận; **implementation chưa được phép** nếu chưa có giao việc G3 riêng. | Migration platform từ schema đích, kiểm DB rỗng. F-01: owner đã duyệt ma trận 19 constraint tại `docs/plans/p0-04-readiness.md`; DDL đích đã sửa và qua G4 độc lập. EF mapping/migration sau này phải khớp, chưa được phép tạo ở bước này. |
+| **P0-05…P0-08, P0-10** | Sau P0-04 (`07-roadmap.md:21–24,26`). | Audit AC-P0-04/FR-PLT-01 ở P0-05; Identity/permission/CSRF P0-08; migration + ArchitectureTests P0-10. |
+| **P0-09 — F-02** | Sau P0-04 (`07-roadmap.md:25`); **điều kiện riêng trước CLI**, không chặn migration cấu trúc P0-04. | `03-database.md:81–85` yêu cầu provenance, version/effective date/checksum, full snapshot/delta và rollback. Trước khi code CLI phải chốt nơi/định dạng lưu metadata, cách so thứ tự phiên bản đã xác minh, thao tác recovery, CSV province không ward và kiểm lại địa chỉ khi ward đổi tỉnh; xác minh nguồn dataset thực tế. Không mở rộng P0-04 sang nhập CSV. |
 | **P0-11, P0-12** | P0-11 sau P0-10; P0-12 sau P0-08 (`07-roadmap.md:27–28`). | CI phải chứng minh restore, migration, generated OpenAPI client và FE checks (`06-infrastructure.md:226–230`); admin skeleton sau IAM. |
 | **P1-01…P1-14** | P1-01 sau P0; chuỗi CRUD → kho/UI/store API theo `07-roadmap.md:45–58`. | G21: hoãn `catalog.product_reviews` FK sales/CRM; G02: redirect tối thiểu trước P1-04/P1-05; G32: P1-05 publish cần media P1-02 (`BR-CAT-04`, `07:46,49`). G05 upload evidence video cần chốt trước P1-02. Tồn độc bản P1-08 cần test atomic/unique (G15); UI kho P1-13 sau P1-09, store API P1-14 sau P1-05/P1-08. |
 | **P2-01…P2-16** | P2-01 sau P1; order P2-05 cần P1-08; UI đơn P2-15 sau P2-05…10, dashboard P2-16 sau P2-15 (`07-roadmap.md:78–93`). | G03: FK marketing tại P2-01; G04/G27/G29/G30: quyền và chính sách refund/replacement trước P2-10; G17/G28: merge CRM trước P2-12; G22: side effect Delivered phân pha. AC-P2-01 (`07:98`) kiểm 20 yêu cầu đồng thời trên hàng độc bản, không hoãn sang FE. |
@@ -83,7 +84,11 @@ git diff --check
 ## Việc cần người dùng quyết định
 
 1. Duyệt kết luận kiến trúc và scope P0-01 của hai tài liệu này theo G2; sau đó mới giao `P0-01` qua `implementation-slice` (G3). **Không có blocker kỹ thuật xác nhận cho P0-01.**
-2. Trước P0-04: chọn mô hình định danh audit G26 trong ADR-PROPOSAL và trách nhiệm seed/CLI G01; đây là quyết định sản phẩm/dữ liệu, chưa tự chọn.
+2. G26/G01 Option B và bản sửa spec đã được owner chấp nhận sau G4 ngày 16/11/2026. F-01 được owner duyệt và DDL đích đã sửa đúng chín bảng; bản sửa F-01 đã qua G4 độc lập, P0-04 implementation vẫn cần giao việc riêng.
 3. Trước các task sau: chốt các hợp đồng tương ứng ở bảng P1–P6, đặc biệt G02/G03 và hai rủi ro SEO; không trì hoãn P0-01 vì chúng.
 
-**Bước tiếp theo duy nhất:** sau khi duyệt G2, triển khai đúng `P0-01` trên một nhánh/PR nhỏ, chạy và ghi kết quả thật của checklist trên.
+**Bước tiếp theo duy nhất tại thời điểm lập hồ sơ P0-01:** sau khi duyệt G2, triển khai đúng `P0-01` trên một nhánh/PR nhỏ, chạy và ghi kết quả thật của checklist trên. Trạng thái hiện hành cho P0-04 nằm ở cập nhật bên dưới.
+
+## Cập nhật gate P0-04 tại `origin/main` 9cc5429 (16/11/2026)
+
+P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi tại thời điểm lập kế hoạch. Ngày 16/11/2026, owner duyệt G26 Option B/G01 Option B và chấp nhận bản sửa `docs/spec/` sau G4 GO. Hai ADR trong `docs/decisions/` giữ lịch sử đề xuất. **G26/G01 SPEC AMENDMENT — OWNER ACCEPTED (G4 GO); F-01 DDL AMENDMENT — OWNER APPROVED (G4 GO); P0-04 IMPLEMENTATION — NOT AUTHORIZED.** `docs/plans/p0-04-readiness.md` ghi ma trận F-01 đã duyệt và DDL đã qua G4 độc lập. F-02 là điều kiện riêng của P0-09/CRM; AC-P0-04 chỉ kiểm được khi P0-05/P0-09 triển khai cùng schema đã chốt.

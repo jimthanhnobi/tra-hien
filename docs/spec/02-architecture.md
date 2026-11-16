@@ -104,6 +104,7 @@ public sealed class ConfirmOrderHandler(IOrderRepository orders, IUnitOfWork uow
 
 ### 5.2 Giao dịch và đồng thời
 - Mỗi command chạy trong **một transaction** (`IUnitOfWork.ExecuteAsync`).
+- Adapter DB của P0-04 dùng cùng `DbContext`/transaction cho command, cho phép nhiều `SaveChanges` trong transaction; trước commit Result thành công phải lưu các thay đổi EF còn pending. Result lỗi, exception hoặc cancellation phải rollback cả thay đổi đã save trong transaction. Giữ nguyên contract `IUnitOfWork` của P0-03.
 - Khóa lạc quan: các aggregate sửa được từ Admin (`products`, `variants`, `orders`, `customers`, `campaigns`) dùng `xmin` làm concurrency token; client gửi `rowVersion`; lệch → HTTP 409 `concurrency_conflict`.
 - Tồn kho dùng **UPDATE có điều kiện nguyên tử**, không đọc-rồi-ghi:
   ```sql
@@ -120,7 +121,10 @@ public sealed class ConfirmOrderHandler(IOrderRepository orders, IUnitOfWork uow
 
 ### 5.4 Audit
 - `SaveChanges` interceptor ghi `platform.audit_logs` cho mọi entity đánh dấu `[Audited]`: entity, id, action, actor (staff/customer/system), thay đổi trước/sau theo field, correlation id.
-- Field PII (`phone`, `email`, `address_*`, `full_name`, `receiver_*`, `notes`) ghi `"[redacted]"`; field tiền, trạng thái, giá, giá vốn ghi giá trị thật.
+- Định danh audit: entity có khóa chính UUID dùng `entity_id`; khóa chính TEXT dùng `entity_key`; **đúng một** trường có giá trị, `entity_key` không rỗng. Không tự ép UUID sang TEXT. `entity_type` là tên bảng ổn định gồm schema, ví dụ `platform.settings`, không phải tên lớp C#; đổi tên lớp không đổi lịch sử audit. Đổi tên bảng DB phải có chính sách tương thích truy vấn lịch sử được duyệt trước. Audit là tham chiếu lịch sử đa loại, không đặt FK chung tới mọi bảng nguồn.
+- Nếu về sau một entity khóa ghép được đánh dấu `[Audited]`, biểu diễn khóa trong `entity_key` phải xác định, không va chạm và tương thích với log cũ qua các phiên bản; task đánh dấu entity đó phải định nghĩa định dạng và test tương ứng. P0-04 không xây framework serialize khóa ghép.
+- Field PII (`phone`, `email`, `address_*`, `full_name`, `receiver_*`, `notes`) ghi `"[redacted]"`; field tiền, trạng thái, giá, giá vốn được ghi giá trị thật khi không chứa PII/secret. Giá trị `changes` trước/sau, kể cả object/array JSON lồng nhau, phải được lọc theo field/path trước khi lưu; field chưa được phân loại an toàn để audit thì mặc định không ghi giá trị nguyên văn. Setting chứa thông tin ngân hàng, token hoặc credential cần chính sách che riêng; P0-05 xác định danh sách/path và kiểm thử bảo mật, không để P0-04 triển khai redaction.
+- Thay đổi nghiệp vụ được audit và bản ghi audit phải nằm cùng transaction: audit thất bại thì không commit thay đổi nghiệp vụ. Tuân theo `IUnitOfWork.ExecuteAsync` (commit chỉ khi Result thành công; rollback khi Result lỗi, exception hoặc cancellation). Raw SQL ngoài interceptor không tự có audit, nên thao tác trên bảng `[Audited]` phải đi qua đường có audit hoặc cơ chế được đặc tả riêng.
 - Cấm `ExecuteUpdate/ExecuteDelete` trên bảng có audit, **trừ** `stock_levels` (đã có sổ `stock_movements`) và các job dọn dẹp ghi rõ trong spec.
 - DB: role ứng dụng không có quyền `UPDATE/DELETE/TRUNCATE` trên `platform.audit_logs` và `inventory.stock_movements`.
 

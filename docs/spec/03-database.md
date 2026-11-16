@@ -7,7 +7,7 @@ DDL đích: `schema.sql` (đã chạy thử trên PostgreSQL 16/17: 78 bảng, 1
 | Hạng mục | Quy ước |
 |---|---|
 | Schema | Một schema mỗi module: `platform, media, catalog, inventory, pricing, crm, sales, marketing, content, finance, iam`. |
-| Khóa chính | `uuid` v7 do app sinh (`Guid.CreateVersion7()`), có thứ tự theo thời gian nên index không bị phân mảnh. |
+| Khóa chính | Mặc định `uuid` v7 do app sinh (`Guid.CreateVersion7()`), có thứ tự theo thời gian. Ngoại lệ đã có trong DDL: `platform.settings.key`, `platform.provinces.code`, `platform.wards.code` là `text`; `platform.idempotency_keys(scope, key)` là khóa ghép; `platform.data_protection_keys.id` là `serial`. Các bảng khác có khóa ghép/kiểu khác giữ đúng `schema.sql`, không tự thêm UUID thay thế. |
 | Mã cho người đọc | `orders.code` `TP` + `yyMMdd` (giờ VN) + 4 ký tự từ bảng `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (bỏ 0/O/1/I/L), tạo lại khi trùng. Khách: `KH` + sequence. Phiếu nhập `PN-yyMMdd-NNN`, đổi trả `DT-yyMMdd-NNN`, kiểm kê `KK-yyMMdd-NNN`. |
 | Tiền | `bigint` VND, hậu tố `_vnd`. |
 | Thời gian | `timestamptz`, hậu tố `_at`. Ngày thuần (`date`) hậu tố `_on`. |
@@ -15,7 +15,7 @@ DDL đích: `schema.sql` (đã chạy thử trên PostgreSQL 16/17: 78 bảng, 1
 | Concurrency | `xmin` (Npgsql: `.IsRowVersion()` trên property `uint Version`), áp cho `products, variants, orders, customers, campaigns, receipts, stocktakes, return_requests, vouchers`. |
 | Xóa | Không xóa cứng dữ liệu nghiệp vụ. Dùng trạng thái (`archived`, `inactive`, `cancelled`, `erased`). Ngoại lệ: giỏ hàng, link click cũ, idempotency key, upload hết hạn (job dọn). |
 | FK chéo schema | Được phép (một database). Ranh giới module giữ ở tầng code (02 §3). |
-| Tên constraint/index | `pk_`, `fk_`, `ux_` (unique), `ix_`, `ck_`, `ex_` (exclusion). EF Core phải đặt tên tường minh trùng với DDL. |
+| Tên constraint/index | `pk_`, `fk_`, `ux_` (unique), `ix_`, `ck_`, `ex_` (exclusion). EF Core phải đặt tên tường minh trùng với DDL. Cả 19 PK/FK/UNIQUE/CHECK của chín bảng `platform` thuộc P0-04 có tên tường minh trong `schema.sql`, gồm `ck_audit_entity_identity`; migration và EF mapping phải dùng đúng tên, cột và biểu thức đó. Các constraint ở bảng khác có thể còn tên PostgreSQL tự sinh; báo chênh lệch khi review migration ở task tương ứng, không đổi DDL ngoài chín bảng này theo F-01. Giữ các index tường minh hiện có; PK/UNIQUE chỉ dùng index ngầm của PostgreSQL, không tạo index trùng. |
 
 ## 2. Bản đồ dữ liệu
 
@@ -78,8 +78,11 @@ platform.settings, audit_logs, outbox_messages, idempotency_keys, inbound_webhoo
 - Ẩn danh hóa (`erased`): xóa tên, SĐT, email, Zalo, địa chỉ, ghi chú; giữ id và đơn hàng (đơn hàng cũng ẩn danh phần liên hệ) để báo cáo không lệch.
 
 ### 3.6 Địa chỉ Việt Nam
-- Từ 01/07/2025 địa giới còn 2 cấp: **tỉnh/thành → phường/xã/đặc khu**. Bảng `platform.provinces`, `platform.wards` seed từ danh mục chính thức (nhập bằng lệnh CLI từ file CSV, cập nhật được).
-- Đơn lưu cả mã và tên tại thời điểm đặt. Có `ward_name_text` dự phòng khi dữ liệu mã chưa khớp hãng ship.
+- Từ 01/07/2025 địa giới còn 2 cấp: **tỉnh/thành → phường/xã/đặc khu**. P0-04 migration chỉ tạo `platform.provinces`, `platform.wards`, PK/FK/index/constraint theo `schema.sql`, không nhúng danh mục hành chính đầy đủ. P0-09 sở hữu `import-provinces <csv>` để nạp/cập nhật dữ liệu tham chiếu đã xác minh, có dry-run và báo cáo kết quả. Nguồn phát hành, URL/tham chiếu, phiên bản dataset, ngày hiệu lực, ngày tải/xác minh, SHA-256 của đúng bytes CSV nhập và tài liệu ánh xạ nguồn → CSV là bằng chứng bắt buộc cho mỗi lần nhập; nguồn/phiên bản/checksum cụ thể hiện **NOT VERIFIED**, cần xác minh trước P0-09. Tên file hoặc URL có vẻ chính thức không đủ chứng minh nguồn.
+- CSV chuẩn hóa ở P0-09 dùng UTF-8 (có thể có BOM), tối thiểu các cột `province_code,province_name,ward_code,ward_name`; mã giữ dạng TEXT, gồm số 0 đầu, không ép sang số. P0-09 chốt cách mang metadata/import mode cùng CSV trước khi code. Phải kiểm cú pháp CSV, cột và giá trị bắt buộc, mã/tên trùng hoặc mâu thuẫn, tham chiếu ward→province, encoding tiếng Việt, parent thay đổi bất thường và hierarchy ngoài 2 cấp **trước khi ghi**. Province không có ward cần được biểu diễn và kiểm hợp lệ rõ trong hợp đồng CLI. File không hợp lệ hoặc lỗi SQL giữa chừng phải rollback toàn bộ; nhập lại cùng dữ liệu/phiên bản không tạo thay đổi. Dry-run báo số thêm/sửa/không đổi, mã vắng mặt, parent thay đổi, dự kiến deactivate và lỗi; apply dùng một transaction.
+- Mỗi import phải khai báo **full snapshot** hay **delta**. Full snapshot chỉ được dùng khi có bằng chứng bộ dữ liệu đầy đủ từ nguồn và mapping, không suy từ kích thước/số dòng; mã vắng mặt chỉ là ứng viên `is_active=false` sau phân tích tác động và operator duyệt, không DELETE. Delta là tập thay đổi một phần: mã không xuất hiện giữ nguyên. Không cho nhập phiên bản/ngày hiệu lực cũ hơn dữ liệu đang dùng để vô tình rollback; xác định thứ tự phiên bản theo nguồn đã xác minh, không so chuỗi phiên bản tùy ý. Phục hồi bản cũ phải theo thao tác có kiểm soát, backup và bằng chứng. Cách lưu metadata/kiểm phiên bản là hợp đồng chi tiết của P0-09, không thêm bảng trong P0-04.
+- Khi ward chuyển province, phải báo diff và phân tích tác động trước apply. `crm.customer_addresses` giữ `province_code` và `ward_code` bằng hai FK độc lập (`schema.sql`), nên có thể còn cặp mã không nhất quán sau chuyển parent: **không âm thầm sửa địa chỉ đã lưu**; kiểm lại tính nhất quán trước khi tái dùng địa chỉ cho fulfillment. Cơ chế tái xác nhận địa chỉ thuộc task CRM/đặt đơn liên quan, không thuộc P0-04. Mã hành chính cũ vẫn phải lưu để FK/lịch sử còn đọc được. Đơn lưu snapshot mã và tên tại thời điểm đặt, không bị import sửa lại. Có `ward_name_text` dự phòng khi dữ liệu mã chưa khớp hãng ship.
+- Migration hoàn tất nghĩa là cấu trúc DB sẵn sàng; bảng tham chiếu có thể vẫn rỗng đến P0-09. P0-09 kiểm dữ liệu hành chính trước khi mở các luồng chọn/tái dùng địa chỉ; không tự đổi `/health/ready` thành kiểm bảng tỉnh/phường (xem §8). Nếu cần đổi global health contract, phải có quyết định đặc tả riêng.
 
 ### 3.7 Tìm kiếm không dấu
 - `search_text` = `f_unaccent(...)` các trường liên quan, **app tự cập nhật** khi lưu (BR-CAT-10, BR-CRM-14).
@@ -89,6 +92,10 @@ platform.settings, audit_logs, outbox_messages, idempotency_keys, inbound_webhoo
 ### 3.8 Giá khuyến mãi
 - Ràng buộc exclusion `ex_sale_prices_no_overlap` cấm 2 khoảng KM chồng nhau trên cùng variant.
 - Giá hiệu lực = `sale_price` nếu `now ∈ [starts_at, ends_at)` và nhỏ hơn giá niêm yết, ngược lại giá niêm yết (BR-PRC-01).
+
+### 3.9 Định danh và lịch sử audit
+- `platform.audit_logs` lưu định danh theo cặp `entity_type` và **đúng một** trong `entity_id uuid` (khóa UUID) hoặc `entity_key text` (khóa TEXT/khóa ghép khi có hợp đồng riêng). `entity_key` không rỗng; UUID không tự chuyển sang TEXT. `entity_type` là tên bảng DB có schema ổn định; truy vấn lịch sử dùng `(entity_type, entity_id)` hoặc `(entity_type, entity_key)` với chỉ mục từng phần tương ứng, thêm lọc actor/thời gian bằng `ix_audit_actor`/`ix_audit_time`.
+- Audit là lịch sử append-only, không dùng FK đa hình tới mọi entity nguồn. Role `tp_app` không được `UPDATE/DELETE/TRUNCATE` audit (§4); migration sau này không được xóa hoặc viết lại audit history khi đổi tên entity/khóa mà không có kế hoạch tương thích truy vấn và phục hồi đã duyệt. `changes` phải che PII/secret, kể cả JSON lồng nhau, theo 02 §5.4; P0-05 kiểm thử.
 
 ## 4. Vai trò database (tạo bởi `infra/postgres/init-roles.sql`)
 
@@ -140,7 +147,9 @@ Giá trị tiền mặc định chỉ là gợi ý để chạy dev; chủ shop 
 
 ## 6. Dữ liệu seed
 
-**Seed bằng migration** (cần cho hệ thống chạy): role + permission, `platform.settings` mặc định, tỉnh/phường.
+**Seed bằng migration** (cần cho hệ thống chạy): role + permission theo P0-08, `platform.settings` mặc định theo P0-09. P0-04 chỉ tạo cấu trúc bảng; không chuyển seed IAM/Settings sang P0-04.
+
+**Dữ liệu địa giới hành chính**: P0-09 nhập CSV đã xác minh sau migration cấu trúc P0-04, theo §3.6; không seed tỉnh/phường bằng migration.
 
 **Seed tham chiếu catalog** (lệnh CLI `seed-catalog-reference`, chạy một lần, sửa được trong Admin):
 

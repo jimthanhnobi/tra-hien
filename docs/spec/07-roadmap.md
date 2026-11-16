@@ -17,12 +17,12 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P0-01 | Tạo repo theo 02 §2: solution .NET 10 (4 project + 3 test project), `apps/store`, `apps/admin`, `packages/api-client`, pnpm workspace, `global.json`, `Directory.Packages.props` (central package management), `.editorconfig`, analyzers bật cảnh báo = lỗi | M | — |
 | P0-02 | `infra/compose.dev.yml` (postgres 17, api, store, admin), `.env.example`, README chạy local | S | P0-01 |
 | P0-03 | Cross-cutting backend: `IClock`, `BusinessCalendar`, `Money`, `Result<T>`/`Error`, `ICommandHandler/IQueryHandler` + decorator validation/transaction, ProblemDetails mapping, correlation id middleware, log JSON che PII | M | P0-01 |
-| P0-04 | `AppDbContext` nhiều schema, quy ước đặt tên snake_case + tên constraint tường minh, `xmin` concurrency, migration đầu tạo schema `platform` (settings, provinces, wards, audit_logs, outbox, idempotency, inbound_webhooks, notification_logs, data_protection_keys) + extension + `f_unaccent` | M | P0-03 |
-| P0-05 | Audit interceptor (02 §5.4) + attribute `[Audited]` + danh sách field PII | M | P0-04 |
+| P0-04 | `AppDbContext` nhiều schema, quy ước snake_case + tên constraint tường minh, mapping `xmin` (cột hệ thống); migration đầu chỉ tạo schema `platform` với 9 bảng: `settings`, `provinces`, `wards`, `audit_logs` (UUID/TEXT identity theo G26), `outbox_messages`, `idempotency_keys`, `inbound_webhooks`, `notification_logs`, `data_protection_keys`. `provinces`/`wards` chỉ có cấu trúc, không seed danh mục. Tạo extension `unaccent`, `pg_trgm`, `btree_gist` và `public.f_unaccent`; kiểm migration từ DB rỗng, constraint/index parity và transaction `IUnitOfWork` thật. | M | P0-03 |
+| P0-05 | Audit interceptor (02 §5.4) + attribute `[Audited]`, mapping UUID/TEXT identity, danh sách field/path PII/secret (cả JSON lồng nhau), ghi audit cùng transaction và test rollback | M | P0-04 |
 | P0-06 | Outbox + dispatcher + khung `PeriodicJob` có advisory lock | M | P0-04 |
 | P0-07 | Idempotency middleware/filter (02 §5.3) | S | P0-04 |
 | P0-08 | IAM nhân viên: Identity schema `iam`, cookie `AdminCookie`, CSRF, login/logout/me, đổi mật khẩu, TOTP, khóa tài khoản, rate limit, role+permission seed (02 §7), quản lý nhân viên, lệnh CLI `bootstrap-owner` | L | P0-04 |
-| P0-09 | Settings module (`platform.settings` + API `admin/settings/{group}`), lệnh CLI `import-provinces <csv>` | S | P0-04 |
+| P0-09 | Settings module (`platform.settings` + API `admin/settings/{group}`), seed setting mặc định; CLI `import-provinces <csv>` kiểm provenance/CSV, phân biệt full snapshot/delta, dry-run, import transaction/idempotent và kiểm dữ liệu sẵn cho luồng dùng địa chỉ | S | P0-04 |
 | P0-10 | ArchitectureTests (02 §3) + Testcontainers fixture + test migration từ rỗng | S | P0-04 |
 | P0-11 | CI `ci.yml` (06 §7 bước 1–4) | S | P0-10 |
 | P0-12 | Admin app khung: layout, đăng nhập (+TOTP), menu theo permission, trang 403/404, TanStack Query + client sinh từ OpenAPI, form chuẩn (RHF + Zod), bảng chuẩn (TanStack Table, phân trang server) | M | P0-08 |
@@ -34,6 +34,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 - AC-P0-02: Owner chưa cài TOTP ở Production chỉ gọi được `auth/*` (BR-IAM-02).
 - AC-P0-03: Request POST không có CSRF → 400/403.
 - AC-P0-04: Sửa 1 setting → có dòng audit với giá trị trước/sau.
+  Đây là nghiệm thu tích hợp P0-04 (bảng), P0-05 (interceptor/che dữ liệu) và P0-09 (settings); riêng P0-04 tạo bảng chưa đạt AC này. Giá trị trước/sau phải tuân thủ quy tắc che PII/secret tại 02 §5.4.
 - AC-P0-05: Test kiến trúc fail nếu Application tham chiếu EF Core hoặc gọi `DateTime.Now`.
 
 ---
