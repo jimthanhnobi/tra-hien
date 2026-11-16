@@ -1,6 +1,6 @@
 # P0-01 — hồ sơ triển khai nền tảng
 
-**Trạng thái:** đã triển khai trên `feature/p0-01-foundation`, chờ review độc lập G4. Không commit, push hoặc merge. Nguồn spec ở commit `cadce575597738bf40ad7c45689482de5a5fbc3d`; G2 và scope P0-01 được người dùng duyệt ngày 16/11/2026.
+**Trạng thái:** P0-01 đã được merge qua PR #2 (`a7e70f1`); hồ sơ audit và kiến trúc đã được merge qua PR #3 (`c6db4a9`). G4 re-review ngày 16/11/2026 kết luận GO cho code P0-01 cùng bản sửa root scripts dùng Corepack trên nhánh `fix/p0-01-corepack-docs`; bản sửa này chưa được merge. Nguồn spec ở commit `cadce575597738bf40ad7c45689482de5a5fbc3d`; G2 và scope P0-01 được người dùng duyệt ngày 16/11/2026.
 
 ## Truy vết và phạm vi
 
@@ -36,7 +36,7 @@ packages/api-client                  → chưa có OpenAPI types
 
 ## Toolchain và lệnh chạy tại gốc repo
 
-Máy kiểm: Windows; .NET SDK được pin `10.0.403` bằng `global.json` (`latestPatch`); Node `v22.22.2`; Corepack `0.34.6`; pnpm `12.16.1` pin bằng `packageManager`. Cần .NET SDK 10.0.403 hoặc bản patch mới hơn của cùng feature band, Node >= 20.9 và Corepack. Không cần lệnh `pnpm` toàn cục khi dùng các lệnh `corepack pnpm` bên dưới. Các root scripts trong `package.json` dùng lệnh `pnpm` trực tiếp nên cần pnpm shim trong `PATH` nếu gọi qua `pnpm run` hoặc `corepack pnpm run`; máy kiểm hiện chưa bật shim này.
+Máy kiểm khi triển khai: Windows; .NET SDK được pin `10.0.403` bằng `global.json` (`latestPatch`); Node `v22.22.2`; Corepack `0.34.6`; pnpm `12.16.1` pin bằng `packageManager`. Cần .NET SDK 10.0.403 hoặc bản patch mới hơn của cùng feature band, Node >= 20.9 và Corepack. Root scripts `lint`, `typecheck`, `build` trong `package.json` gọi `corepack pnpm --recursive run ...`; các script con gọi trực tiếp công cụ của workspace. Vì vậy `corepack pnpm run ...` không cần lệnh `pnpm` toàn cục hoặc pnpm shim trong `PATH`.
 
 ```powershell
 dotnet --list-sdks
@@ -82,10 +82,16 @@ git diff --check
 
 Lần chạy thử đầu: build .NET bị lỗi do ép `IDE0005` khi project chưa bật XML documentation; bỏ override và chạy lại PASS. pnpm ban đầu dùng ESLint 10/TypeScript 7 gây peer conflict; đã pin ESLint 9.39.5/TypeScript 5.9.3, `peers check` PASS. `api-client` ban đầu thiếu TypeScript parser cho ESLint; đã thêm `typescript-eslint`, lint PASS. Full `pnpm audit` phát hiện advisory moderate của `minimatch` trong dev dependency; pin transitive `11.0.1` ở `pnpm-workspace.yaml`, chạy lại lint/typecheck/build và audit đều PASS. `dotnet format` ban đầu phát hiện CRLF của template; đã chuẩn hóa LF và thêm `.gitattributes`, kiểm lại PASS.
 
+### Xác minh sau merge và G4 re-review (16/11/2026)
+
+- Root scripts đã được sửa trong nhánh `fix/p0-01-corepack-docs` để gọi Corepack; G4 re-review toàn bộ scaffold và patch script kết luận GO cho code P0-01. Không phát hiện thay đổi `docs/spec/`, secret, artifact build được track hoặc sai project references.
+- Chạy lại từ gốc repo: `corepack pnpm install --frozen-lockfile`, `corepack pnpm run lint`, `corepack pnpm run typecheck`, `corepack pnpm run build` đều PASS (exit 0); frozen install báo lockfile up to date. Máy không có lệnh `pnpm` toàn cục.
+- Sau khi cài SDK tương thích, `dotnet --version` từ gốc repo trả `10.0.404` theo `global.json` (`10.0.403`, `latestPatch`). `dotnet restore backend/TeaPremium.sln --locked-mode`, `dotnet build backend/TeaPremium.sln --no-restore -warnaserror`, `dotnet test backend/TeaPremium.sln --no-build` và `dotnet format backend/TeaPremium.sln --verify-no-changes` đều PASS (exit 0). Restore cả 7 project; build 0 warning/0 error; 5 ArchitectureTests và 1 IntegrationTest đạt, UnitTests có 0 case; format không có thay đổi.
+
 ## Rủi ro, rollback và review
 
 - Chưa có kiểm thử BR, quyền, DB, migration hoặc SEO vì chưa có hành vi tương ứng. UnitTests có 0 case; không diễn giải `dotnet test` exit 0 thành kiểm chứng nghiệp vụ.
 - `api-client` chỉ export prefix `/api` theo DEC-16. OpenAPI generated types sẽ được thêm khi API tồn tại, không có DTO giả.
 - Pin `minimatch` 11.0.1 cho dependency lint dev; cần kiểm lại khi cập nhật công cụ vì override có thể không còn cần thiết.
-- Rollback: bỏ các file scaffold mới của P0-01; không có dữ liệu, migration hoặc runtime production cần khôi phục.
-- Review G4 cần đối chiếu diff với P0-01, DEC-01/15/16, graph §3 và log kiểm tra. PR chưa mở vì người dùng yêu cầu không commit/push.
+- Rollback sau merge: revert thay đổi scaffold P0-01 bằng một thay đổi Git được review; không có dữ liệu, migration hoặc runtime production cần khôi phục.
+- G4 đã đối chiếu toàn bộ scaffold với P0-01, DEC-01/15/16, graph §3 và kết quả kiểm tra, kết luận GO cho code. Các lệnh .NET đã chạy lại thành công từ gốc repo bằng SDK 10.0.404 tương thích với pin `global.json`.
