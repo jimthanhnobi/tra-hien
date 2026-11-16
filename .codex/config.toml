@@ -1,0 +1,4 @@
+# Project-scoped Codex agent settings. Defaults are intentionally model-agnostic.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
