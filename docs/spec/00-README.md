@@ -18,6 +18,7 @@
 | `06-infrastructure.md` | Hạ tầng, triển khai, backup, CI/CD, bảo mật vận hành | Dev/Ops |
 | `07-roadmap.md` | Giai đoạn, task, Definition of Done, acceptance test | Chủ shop, dev |
 | `08-chatgpt-playbook.md` | Cách giao việc cho ChatGPT theo từng task, prompt mẫu | Người giao việc |
+| `09-seo.md` | SEO: URL, index, nội dung, liên kết nội bộ, JSON-LD, sitemap, Merchant feed, ảnh, tốc độ, đánh giá, đo lường, SEO Audit | Dev, AI, người viết nội dung |
 
 ## 2. Hệ thống mã định danh trong spec
 
@@ -27,7 +28,7 @@
 - `AC-<PHASE>-<số>`: tiêu chí nghiệm thu.
 - `DEC-<số>`: quyết định thiết kế đã chốt.
 
-Mã module: `IAM` (định danh), `CAT` (catalog), `INV` (kho), `PRC` (giá, khuyến mãi), `CRT` (giỏ, checkout),
+Mã module: `SEO` (tìm kiếm), `IAM` (định danh), `CAT` (catalog), `INV` (kho), `PRC` (giá, khuyến mãi), `CRT` (giỏ, checkout),
 `ORD` (đơn), `PAY` (thanh toán), `SHP` (giao hàng), `RET` (đổi trả), `CRM` (khách hàng),
 `MKT` (marketing, giới thiệu), `CNT` (nội dung, SEO), `FIN` (tài chính, báo cáo), `PLT` (nền tảng).
 
@@ -101,3 +102,7 @@ Code và test phải ghi mã luật ở comment hoặc tên test, ví dụ:
 | DEC-18 | Hộ kinh doanh: chưa tích hợp hóa đơn điện tử; schema có chỗ gắn số hóa đơn; báo cáo doanh thu năm xuất được | Tùy doanh thu năm, xác nhận với kế toán |
 | DEC-19 | VPS tại Việt Nam; ảnh trên Cloudflare R2; backup mã hóa đặt ở object storage tại Việt Nam | Chi phí thấp, dữ liệu cá nhân ở trong nước |
 | DEC-20 | Tiền là `bigint` VND | Tránh lỗi làm tròn; VND không có phần lẻ |
+| DEC-21 | SEO là yêu cầu cốt lõi; `09-seo.md` thắng các quy định SEO ở file khác | Kênh khách mới chính |
+| DEC-22 | URL sản phẩm phẳng `/san-pham/{slug}`; bộ lọc noindex; tổ hợp có giá trị tìm kiếm làm trang chủ đề `/chu-de/{slug}` | Tránh trùng lặp/chỉ mục rác, vẫn bắt được từ khóa dài |
+| DEC-23 | Hàng độc bản đã bán giữ trang 180 ngày (SoldOut + gợi ý tương tự), sau đó 301 về nghệ nhân/chất liệu/danh mục | Giữ giá trị SEO, tránh trang chết |
+| DEC-24 | Feed Google Merchant Center cho hiển thị sản phẩm miễn phí; đánh giá chỉ từ người mua thật | Thêm kênh hiển thị trên Google, tín hiệu tin cậy |

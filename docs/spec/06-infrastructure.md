@@ -170,6 +170,7 @@ admin.example.vn {
     import security
     header X-Frame-Options "DENY"
     header Cache-Control "no-store"
+    header X-Robots-Tag "noindex, nofollow"
     encode zstd gzip
     handle /api/v1/store/* { respond 404 }
     handle /api/v1/account/* { respond 404 }
@@ -270,4 +271,7 @@ Mục tiêu: RPO ≤ 24h, RTO ≤ 4h (NFR-05). Khi đơn > 30/ngày: bật WAL a
 - [ ] Nhập tồn đầu kỳ, kiểm kê đối chiếu.
 - [ ] Import khách cũ (dry-run → chạy thật).
 - [ ] Google Search Console xác minh domain, gửi sitemap; `SITE_INDEXABLE=true`.
+- [ ] SEO Audit (BR-SEO-60) không còn mục mức "Lỗi"; kiểm Rich Results Test 1 trang mỗi loại; crawl thử toàn site (công cụ crawl SEO) không có 4xx/5xx/chuỗi redirect.
+- [ ] Google Merchant Center: xác minh website, cấu hình giao hàng/đổi trả, nộp feed `/feeds/google-merchant.xml`, bật hiển thị miễn phí.
+- [ ] Google Business Profile (nếu có địa chỉ đón khách), NAP khớp website.
 - [ ] Không còn dữ liệu demo trong DB production.

@@ -165,6 +165,7 @@ Sinh payload EMVCo theo chuẩn VietQR (NAPAS) **tại server** từ cấu hình
 ### 5.8 Cache storefront
 - Storefront dùng fetch có tag (`product:{slug}`, `category:{slug}`, `catalog`, `settings`, `article:{slug}`) và `revalidate` mặc định 300s.
 - API phát sự kiện outbox `StorefrontInvalidate(tags[])` khi publish/sửa sản phẩm, giá, KM, tồn chuyển 0↔>0, bài viết, settings. Dispatcher gọi `POST http://store:3000/api/revalidate` (secret nội bộ) → `revalidateTag`.
+- Sitemap và feed Merchant cache theo tag `sitemap`, `feed` (làm mới khi có `StorefrontInvalidate` liên quan, tối đa 1 giờ).
 - Trang giỏ, checkout, tài khoản, tra đơn: **không cache**.
 - Tồn kho và giá trên trang sản phẩm có thể trễ ≤ 5 phút; **checkout luôn kiểm lại** giá và tồn tại API.
 

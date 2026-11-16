@@ -32,10 +32,11 @@
   5. Mọi thuộc tính `is_required_for_publish` đều có giá trị (thuộc tính `scope=variant` phải có ở **mọi** variant active).
   6. Product có > 1 variant active thì mỗi variant phải có giá trị cho mọi thuộc tính trục (`is_variant_axis`) và tổ hợp không trùng nhau.
   7. `seo_title` ≤ 70 ký tự và `seo_description` 50–160 ký tự (Admin có nút tự điền từ tên/mô tả ngắn).
+  8. Mô tả ≥ 150 từ và các yêu cầu nội dung khác theo BR-SEO-34.
   Publish lần đầu đặt `published_at = now`.
 - **BR-CAT-05** Hiển thị storefront:
   - `active` → hiện. Hết hàng: variant thường hiện "Hết hàng", nút "Báo khi có hàng" mở Zalo/liên hệ; hàng độc bản đã bán hiện "Đã bán" kèm sản phẩm tương tự (cùng material/artisan/type). Trang vẫn index được.
-  - `draft` → 404. `archived` → 404, trừ khi có redirect. Khi lưu trữ, Admin gợi ý tạo redirect về danh mục chính.
+  - `draft` → 404. `archived` → theo BR-SEO-22 (đã từng publish thì bắt buộc 301). Hàng độc bản đã bán theo BR-SEO-21.
   - Variant `inactive` không hiện, không bán.
 - **BR-CAT-06** Không xóa product/variant/category đã từng publish hoặc có giao dịch. Chỉ đổi trạng thái.
 - **BR-CAT-07** Mỗi product tối đa 1 ảnh bìa; đổi bìa trong 1 transaction. Ảnh gắn variant thì hiện khi khách chọn variant đó.
@@ -48,7 +49,7 @@
 - **BR-CAT-09** Danh mục: tối đa 3 cấp, không vòng; danh mục `hidden` → trang 404 và không hiện menu (sản phẩm vẫn truy cập được qua URL riêng).
 - **BR-CAT-10** `products.search_text = f_unaccent(name ‖ subtitle ‖ mọi SKU ‖ tên variant ‖ tên artisan ‖ tên material ‖ tên product_type)`. Cập nhật khi lưu product/variant; khi đổi tên artisan/material/type → outbox `RebuildProductSearchText(ids)`.
 - **BR-CAT-11** Giá hiển thị trên thẻ sản phẩm: thấp nhất trong các giá hiệu lực (BR-PRC-01) của variant active còn hàng; nếu tất cả hết hàng thì lấy thấp nhất của mọi variant active. Có KM thì hiện giá gốc gạch ngang.
-- **BR-CAT-12** JSON-LD `Product` → `Offer`/`AggregateOffer` với `priceCurrency=VND`, giá hiệu lực, `availability` = `InStock` (available > 0) / `OutOfStock` / `SoldOut` (hàng độc bản đã bán). Không có `aggregateRating`/`review` khi chưa có đánh giá thật.
+- **BR-CAT-12** JSON-LD sản phẩm theo BR-SEO-71 (`Product` hoặc `ProductGroup` + `hasVariant`), `availability` = `InStock` / `OutOfStock` / `SoldOut` (hàng độc bản đã bán).
 - **BR-CAT-13** Import sản phẩm (FR-CAT-09): mỗi dòng là 1 variant, nhóm theo `product_slug`. Dry-run trả kết quả từng dòng; chạy thật tạo product ở `draft`, variant, giá, **không** tạo tồn kho (tồn nhập ở BR-INV-06).
 
 ## 3. INV — Kho
@@ -233,11 +234,11 @@
 
 ## 12. CNT — Nội dung và SEO
 
-- **BR-CNT-01** Bài viết `in_review → published` cần `content.publish`; điều kiện: tiêu đề, excerpt 50–300 ký tự, nội dung ≥ 300 từ, ảnh bìa có ALT, `seo_title`, `seo_description`. `content.write` không có `publish` chỉ gửi duyệt được.
+- **BR-CNT-01** Bài viết `in_review → published` cần `content.publish`; điều kiện: tiêu đề, excerpt 50–300 ký tự, nội dung ≥ 300 từ, ảnh bìa có ALT, `seo_title`, `seo_description`, tác giả (`content.authors`) đã `published`. `content.write` không có `publish` chỉ gửi duyệt được.
 - **BR-CNT-02** HTML sinh ở server từ Tiptap JSON qua sanitizer whitelist (thẻ: p, h2–h4, ul, ol, li, strong, em, a[href rel], img[src alt width height] chỉ từ domain media, blockquote, table cơ bản, figure, figcaption). Storefront chỉ render `content_html`. Link ngoài thêm `rel="noopener nofollow"`.
 - **BR-CNT-03** Trang chính sách (`policy_return`, `policy_shipping`, `policy_payment`, `policy_privacy`, `terms`) và `about` phải `published` trước khi `SITE_INDEXABLE=true` và trước go-live.
-- **BR-CNT-04** sitemap: product `active` không noindex, category `visible`, collection `visible`, material/artisan/article/page `published`; `lastmod = updated_at`. `SITE_INDEXABLE=false` → robots `Disallow: /` và sitemap rỗng.
-- **BR-CNT-05** Canonical mặc định = URL chính của trang; trang lọc/tìm kiếm/phân trang > 1 có `noindex,follow`.
+- **BR-CNT-04** Sitemap theo BR-SEO-77; `SITE_INDEXABLE=false` → robots `Disallow: /` và sitemap rỗng.
+- **BR-CNT-05** Index/canonical theo ma trận `09-seo.md §2`: trang phân trang **được index, canonical về chính nó** (BR-SEO-10); trang lọc/sắp xếp/tìm kiếm `noindex,follow`.
 - **BR-CNT-06** Redirect: middleware storefront tra `content.redirects` (cache 5 phút) **chỉ khi** trang trả 404; tăng `hit_count` bất đồng bộ.
 
 ## 13. FIN — Báo cáo tài chính

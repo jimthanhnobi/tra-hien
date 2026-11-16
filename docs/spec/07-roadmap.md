@@ -120,7 +120,13 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P3-06 | Email khách (đặt đơn, đã nhận tiền, đang giao, hủy) | S | P2-13 |
 | P3-07 | Content: articles, pages, redirects, sanitizer (BR-CNT-01..03, 06) + Admin UI editor Tiptap | L | P1 |
 | P3-08 | Store app base: layout, trang chủ (bộ sưu tập, hàng mới), danh mục + bộ lọc, chi tiết sản phẩm (gallery, chọn biến thể, thông số, nghệ nhân/chất liệu, liên quan), tìm kiếm, giỏ, checkout, trang xác nhận + QR, tra đơn, tài khoản, bài viết, trang nghệ nhân/chất liệu, chính sách | L | P3-01..07 |
-| P3-09 | SEO: metadata, canonical, JSON-LD, sitemap, robots gate, cache theo tag + revalidate (02 §5.8, BR-CNT-04/05, BR-CAT-12) | M | P3-08 |
+| P3-09 | SEO kỹ thuật: URL + 308 chuẩn hóa, ma trận index, phân trang, robots, metadata + OG, JSON-LD (Product/ProductGroup, Breadcrumb, Organization, BlogPosting, ProfilePage), sitemap index + ảnh, cache theo tag (09 §1–4, §6–8; BR-SEO-01..14, 30..33, 50..56, 70..77) | L | P3-08 |
+| P3-13 | Vòng đời trang sản phẩm: hàng độc bản đã bán, lưu trữ bắt buộc 301 (BR-SEO-20..23) | S | P3-09 |
+| P3-14 | Trang chủ đề + tác giả (BR-SEO-40..42, 73/74) + Admin UI | M | P3-07 |
+| P3-15 | Feed Google Merchant Center + test khớp giá với trang (BR-SEO-80/81) | M | P3-09 |
+| P3-16 | Ảnh SEO (tên file, ALT, kích thước) + ngân sách tốc độ trong CI (Lighthouse CI) + Web Vitals thực tế (BR-SEO-82..88) | M | P3-08 |
+| P3-17 | SEO Audit + Điểm SEO trong form + log 404 → tạo redirect (BR-SEO-60/61/96) | M | P3-09 |
+| P3-18 | GA4 sau consent + sự kiện thương mại điện tử (BR-SEO-94); xác minh Search Console, gửi sitemap, đăng ký Merchant Center (vận hành) | S | P3-09 |
 | P3-10 | Hạ tầng production: compose.prod, Caddy, roles DB, backup + restore drill, deploy workflow, uptime monitor (06) | M | song song |
 | P3-11 | E2E Playwright: đặt đơn COD; đặt đơn QR → admin ghi tiền → tự xác nhận; đơn QR quá hạn tự hủy | M | P3-08 |
 | P3-12 | Checklist go-live (06 §10) | S | tất cả |
@@ -135,7 +141,14 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 - AC-P3-05: Tra đơn đúng mã sai SĐT → 404; 11 lần sai trong 1 giờ → bị chặn.
 - AC-P3-06: Trang sản phẩm có JSON-LD Offer đúng giá hiệu lực và `availability`; hàng độc bản đã bán → `SoldOut`.
 - AC-P3-07: Sửa giá KM trong Admin → trang sản phẩm cập nhật trong ≤ 1 phút (revalidate tag).
-- AC-P3-08: Lighthouse mobile trang sản phẩm: Performance ≥ 80, SEO ≥ 95, Accessibility ≥ 90.
+- AC-P3-08: Lighthouse CI mobile trên trang chủ, danh mục, sản phẩm, bài viết: Performance ≥ 85, SEO = 100, Accessibility ≥ 90, Best Practices ≥ 90 (BR-SEO-85).
+- AC-P3-10: `/danh-muc/am-tu-sa?trang=2` có canonical về chính nó và index; `/danh-muc/am-tu-sa?chat-lieu=chu-ne` có `noindex,follow`; `/san-pham/x?utm_source=zalo` canonical về `/san-pham/x`; `/San-Pham/X/` → 308 `/san-pham/x`.
+- AC-P3-11: Sản phẩm 2 biến thể render `ProductGroup` có 2 `hasVariant`, giá/`availability` từng variant khớp trang và feed Merchant.
+- AC-P3-12: Ấm độc bản bán xong: trang 200 + `SoldOut` + khối tác phẩm tương tự; giả lập qua 180 ngày → job lưu trữ, URL trả 301 về trang nghệ nhân.
+- AC-P3-13: Lưu trữ sản phẩm đã publish mà không có đích → API tự chọn đích theo BR-SEO-22; sản phẩm chưa từng publish → 404.
+- AC-P3-14: Trang chủ đề chỉ có 3 sản phẩm khớp → `noindex`, không có trong sitemap; thêm sản phẩm thứ 4 → index và vào sitemap.
+- AC-P3-15: SEO Audit phát hiện: 2 sản phẩm trùng title, 1 ảnh bìa thiếu ALT, 1 chuỗi redirect giả lập, 1 sản phẩm mồ côi.
+- AC-P3-16: Trang không tồn tại trả mã 404 thật; sau 3 lượt truy cập, path xuất hiện trong Admin "Lỗi 404" với hits = 3.
 - AC-P3-09: `SITE_INDEXABLE=false` → robots chặn toàn bộ, sitemap rỗng.
 
 ---
@@ -169,6 +182,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P5-04 | Chỉ số chiến dịch (BR-MKT-10) | S |
 | P5-05 | Giới thiệu bạn bè: cấp mã, áp mã ở checkout, xét thưởng, voucher (BR-MKT-05..08, BR-PRC-04/05) | L |
 | P5-06 | Consent ở checkout + trang tài khoản (BR-CRM-09) | S |
+| P5-07 | Đánh giá người mua thật: link token, form, duyệt, hiển thị, `aggregateRating` (BR-SEO-90..92) | M |
 
 **Nghiệm thu**
 - AC-P5-01: Chiến dịch `new_arrival` loại hết khách chưa có consent; chiến dịch `care` chọn được nhưng không chọn lại khách đã nhận `care` trong 180 ngày.
@@ -189,3 +203,4 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P6-05 | Hóa đơn điện tử | Theo kế toán/ngưỡng doanh thu |
 | P6-06 | Thiết kế lại UX storefront (Tĩnh · Mộc · Sâu) | Sau nghiên cứu người dùng; chỉ đụng tầng trình bày |
 | P6-07 | WAL archiving (RPO 15 phút), tách DB, nhiều instance API | Theo 02/06 khi số liệu đòi hỏi |
+| P6-08 | Kéo số liệu Search Console API (click, hiển thị, vị trí theo trang) + Web Vitals vào Admin, gợi ý trang cần tối ưu | Sau 2–3 tháng có dữ liệu |

@@ -167,6 +167,7 @@ CREATE TABLE catalog.product_types (
   code           text NOT NULL UNIQUE CHECK (code ~ '^[a-z0-9_]{2,40}$'),
   name           text NOT NULL,
   description    text,
+  google_product_category text,                 -- map cho feed Merchant (BR-SEO-80)
   sort_order     int NOT NULL DEFAULT 0,
   is_active      boolean NOT NULL DEFAULT true,
   created_at     timestamptz NOT NULL DEFAULT now(),
@@ -212,6 +213,7 @@ CREATE TABLE catalog.materials (
   description_html text,
   cover_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
+  focus_keyword  text,
   seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
   sort_order     int NOT NULL DEFAULT 0,
   created_at     timestamptz NOT NULL DEFAULT now(),
@@ -227,6 +229,7 @@ CREATE TABLE catalog.artisans (
   bio_html       text,
   portrait_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
+  focus_keyword  text,
   seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now()
@@ -237,10 +240,13 @@ CREATE TABLE catalog.categories (
   parent_id      uuid REFERENCES catalog.categories(id) ON DELETE RESTRICT,
   slug           text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
   name           text NOT NULL,
-  description_html text,
+  description_html text,                        -- đoạn giới thiệu trên lưới sản phẩm (BR-SEO-35)
+  body_html      text,                          -- nội dung hướng dẫn dưới lưới
+  body_json      jsonb,
   cover_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'hidden' CHECK (status IN ('visible','hidden')),
   sort_order     int NOT NULL DEFAULT 0,
+  focus_keyword  text,
   seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
@@ -264,6 +270,11 @@ CREATE TABLE catalog.products (
   origin_note    text,                          -- chỉ ghi khi có bằng chứng
   status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','archived')),
   published_at   timestamptz,
+  first_published_at timestamptz,               -- quyết định 301 hay 404 khi lưu trữ (BR-SEO-22)
+  archived_redirect_path text,
+  sold_out_at    timestamptz,                   -- BR-SEO-21
+  seo_keep_after_sold boolean NOT NULL DEFAULT false,
+  focus_keyword  text,
   is_featured    boolean NOT NULL DEFAULT false,
   search_text    text NOT NULL DEFAULT '',      -- app duy trì (BR-CAT-10)
   seo_title      text, seo_description text, canonical_url text,
@@ -359,10 +370,13 @@ CREATE TABLE catalog.collections (
   slug           text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
   name           text NOT NULL,
   description_html text,
+  body_html      text,
+  body_json      jsonb,
   cover_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'hidden' CHECK (status IN ('visible','hidden')),
   sort_order     int NOT NULL DEFAULT 0,
-  seo_title      text, seo_description text,
+  focus_keyword  text,
+  seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now()
 );
@@ -854,6 +868,7 @@ CREATE TABLE sales.order_lines (
   line_total_vnd bigint NOT NULL,
   unit_cost_vnd  bigint CHECK (unit_cost_vnd IS NULL OR unit_cost_vnd >= 0),  -- chốt khi xuất kho
   returned_quantity int NOT NULL DEFAULT 0,
+  review_requested_at timestamptz,              -- BR-SEO-90
   CONSTRAINT ck_line_total CHECK (line_total_vnd = quantity * unit_price_vnd),
   CONSTRAINT ck_line_override CHECK (price_source <> 'override' OR length(trim(coalesce(price_override_reason,''))) >= 3),
   CONSTRAINT ck_line_returned CHECK (returned_quantity BETWEEN 0 AND quantity),
@@ -1033,6 +1048,19 @@ CREATE TABLE content.article_categories (
   sort_order     int NOT NULL DEFAULT 0
 );
 
+CREATE TABLE content.authors (
+  id             uuid PRIMARY KEY,
+  staff_id       uuid UNIQUE,                   -- nhân viên tương ứng (nếu có)
+  slug           text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  name           text NOT NULL,
+  job_title      text,
+  bio_html       text,
+  avatar_media_id uuid REFERENCES media.assets(id),
+  status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE content.articles (
   id             uuid PRIMARY KEY,
   slug           text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
@@ -1042,9 +1070,11 @@ CREATE TABLE content.articles (
   content_html   text NOT NULL,
   cover_media_id uuid REFERENCES media.assets(id),
   category_id    uuid REFERENCES content.article_categories(id),
-  author_staff_id uuid NOT NULL,
+  author_id      uuid NOT NULL REFERENCES content.authors(id),
+  created_by_staff_id uuid NOT NULL,
   status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','in_review','published','archived')),
   published_at   timestamptz,
+  focus_keyword  text,
   search_text    text NOT NULL DEFAULT '',
   seo_title      text, seo_description text, canonical_url text,
   robots_noindex boolean NOT NULL DEFAULT false,
@@ -1087,6 +1117,71 @@ CREATE TABLE content.redirects (
   hit_count      bigint NOT NULL DEFAULT 0,
   CHECK (source_path <> target_path)
 );
+
+CREATE TABLE content.landing_pages (
+  id             uuid PRIMARY KEY,
+  slug           text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  title          text NOT NULL,
+  h1             text NOT NULL,
+  intro_json     jsonb NOT NULL,
+  intro_html     text NOT NULL,
+  body_json      jsonb,
+  body_html      text,
+  filter         jsonb NOT NULL,                -- BR-SEO-40
+  cover_media_id uuid REFERENCES media.assets(id),
+  status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
+  published_at   timestamptz,
+  focus_keyword  text,
+  seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE content.not_found_logs (
+  path           text PRIMARY KEY,
+  hits           bigint NOT NULL DEFAULT 0,
+  bot_hits       bigint NOT NULL DEFAULT 0,
+  last_referrer_host text,
+  first_seen_at  timestamptz NOT NULL DEFAULT now(),
+  last_seen_at   timestamptz NOT NULL DEFAULT now(),
+  resolved       boolean NOT NULL DEFAULT false
+);
+CREATE INDEX ix_not_found_hits ON content.not_found_logs(hits DESC) WHERE NOT resolved;
+
+-- =====================================================================
+-- REVIEWS (đánh giá người mua thật — BR-SEO-90..92)
+-- =====================================================================
+CREATE TABLE catalog.product_reviews (
+  id             uuid PRIMARY KEY,
+  product_id     uuid NOT NULL REFERENCES catalog.products(id),
+  order_line_id  uuid NOT NULL UNIQUE REFERENCES sales.order_lines(id),
+  customer_id    uuid NOT NULL REFERENCES crm.customers(id),
+  rating         smallint NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  content        text NOT NULL CHECK (length(trim(content)) >= 20 AND length(content) <= 3000),
+  display_name   text NOT NULL,                 -- "Anh T."
+  status         text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reject_reason  text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  moderated_by   uuid,
+  moderated_at   timestamptz,
+  CHECK (status <> 'rejected' OR reject_reason IS NOT NULL)
+);
+CREATE INDEX ix_reviews_product ON catalog.product_reviews(product_id, created_at DESC) WHERE status = 'approved';
+CREATE TABLE catalog.review_media (
+  review_id      uuid NOT NULL REFERENCES catalog.product_reviews(id) ON DELETE CASCADE,
+  asset_id       uuid NOT NULL REFERENCES media.assets(id),
+  PRIMARY KEY (review_id, asset_id)
+);
+
+CREATE TABLE platform.web_vitals_samples (
+  id             bigserial PRIMARY KEY,
+  recorded_at    timestamptz NOT NULL DEFAULT now(),
+  page_type      text NOT NULL CHECK (page_type IN ('home','category','product','article','landing','material','artisan','other')),
+  metric         text NOT NULL CHECK (metric IN ('LCP','INP','CLS','TTFB','FCP')),
+  value          double precision NOT NULL CHECK (value >= 0),
+  device         text NOT NULL CHECK (device IN ('mobile','desktop'))
+);
+CREATE INDEX ix_vitals_time ON platform.web_vitals_samples(recorded_at);
 
 -- =====================================================================
 -- FINANCE

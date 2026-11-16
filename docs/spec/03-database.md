@@ -1,6 +1,6 @@
 # 03 — Cơ sở dữ liệu
 
-DDL đích: `schema.sql` (đã chạy thử trên PostgreSQL 16/17: 72 bảng, 11 schema). File này giải thích **vì sao** và các quy ước mà DDL không tự nói được.
+DDL đích: `schema.sql` (đã chạy thử trên PostgreSQL 16/17: 78 bảng, 11 schema). File này giải thích **vì sao** và các quy ước mà DDL không tự nói được.
 
 ## 1. Quy ước
 
@@ -128,7 +128,13 @@ REVOKE DELETE, TRUNCATE ON sales.orders, sales.order_lines, sales.payments, sale
 | `notify.telegram_chat_id` | string | — | |
 | `notify.shop_emails` | string[] | — | |
 | `site.*` | thông tin website (tên, hotline, Zalo URL, Facebook URL, địa chỉ, giờ làm việc, logo, favicon, OG mặc định) | — | Public |
-| `retention.*` | `{carts_days:30, link_clicks_days:400, idempotency_hours:48, notification_logs_days:180, abandoned_upload_hours:24}` | | BR-CRM-12 |
+| `seo.brand_name` | string | — | Tên thương hiệu trong title, JSON-LD, feed |
+| `seo.sold_unique_keep_days` | number | 180 | BR-SEO-21 |
+| `seo.handling_days` / `seo.transit_days` | `{min,max}` | `{0,1}` / `{1,5}` | `shippingDetails` (BR-SEO-71) |
+| `seo.return_policy` | `{category, days?}` | xác định khi làm P3 | `hasMerchantReturnPolicy` |
+| `seo.organization` | `{logo_asset_id, same_as[], has_store, address?, geo?, opening_hours?}` | — | BR-SEO-70/97 |
+| `seo.analytics` | `{ga4_measurement_id?}` | — | BR-SEO-94 |
+| `retention.*` | `{carts_days:30, link_clicks_days:400, idempotency_hours:48, notification_logs_days:180, abandoned_upload_hours:24, web_vitals_days:30}` | | BR-CRM-12 |
 
 Giá trị tiền mặc định chỉ là gợi ý để chạy dev; chủ shop chốt trước go-live.
 
@@ -149,6 +155,8 @@ Giá trị tiền mặc định chỉ là gợi ý để chạy dev; chủ shop 
 | `incense` (Xông trầm) | `incense_style`: option (hop, gom, khac) · `dimensions` |
 | `wine_set` (Bộ ly/bình rượu) | `set_size` · `capacity_ml` · `dimensions` |
 | `accessory` (Phụ kiện: ngắt nước, kẹp, lọc...) | `dimensions` |
+
+Mỗi product type có `google_product_category` để map feed Merchant (chọn từ danh mục sản phẩm của Google khi làm P3-15, Admin sửa được).
 
 Materials gợi ý: tử nê, lục nê, đoạn nê, chu nê, hồng nê, hắc nê, gang, thủy tinh, gốm, sứ, đồng hợp kim, gỗ, đá. Chủ shop sửa tên/mô tả trước khi publish.
 

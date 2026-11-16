@@ -166,6 +166,12 @@ Quyền chi tiết ở `02-architecture.md §7`. Một người có thể có nh
 - **FR-CNT-03** SEO: title, meta description, canonical, noindex, OG image cho product/category/material/artisan/article/page.
 - **FR-CNT-04** Đổi slug của nội dung đã công khai tự tạo redirect 301; không chuỗi/vòng redirect.
 - **FR-CNT-05** sitemap.xml, robots.txt, JSON-LD `Product` (có `Offer` giá thật và tình trạng còn hàng), `BreadcrumbList`, `Article`, `Organization`.
+- **FR-CNT-07** Trang chủ đề (landing) theo bộ lọc có nội dung riêng (BR-SEO-40..42).
+- **FR-CNT-08** Trang tác giả bài viết (BR-SEO-73/74).
+- **FR-CNT-09** Feed Google Merchant Center (BR-SEO-80/81).
+- **FR-CNT-10** Đánh giá sản phẩm từ người mua đã nhận hàng, có duyệt (BR-SEO-90..92).
+- **FR-CNT-11** SEO Audit, điểm SEO từng trang, log 404 + tạo redirect (BR-SEO-60/61/96).
+- **FR-CNT-12** Đo lường: Search Console, GA4 sau consent, Web Vitals thực tế (BR-SEO-88/93/94).
 - **FR-CNT-06** Cấu hình website: tên, logo, hotline, Zalo, Facebook, địa chỉ, giờ làm việc, thông tin chuyển khoản.
 
 ### 4.13 FIN — Tài chính và báo cáo
@@ -189,7 +195,7 @@ Quyền chi tiết ở `02-architecture.md §7`. Một người có thể có nh
 
 | Mã | Yêu cầu |
 |---|---|
-| NFR-01 | Trang storefront p95 < 800 ms ở server (đã có cache); API admin p95 < 500 ms với 10.000 đơn, 5.000 khách, 2.000 variant. |
+| NFR-01 | Core Web Vitals theo BR-SEO-85 (LCP ≤ 2,5 s, INP ≤ 200 ms, CLS ≤ 0,1 ở p75 mobile). Trang storefront p95 < 800 ms ở server (đã có cache); API admin p95 < 500 ms với 10.000 đơn, 5.000 khách, 2.000 variant. |
 | NFR-02 | Không bao giờ bán vượt tồn: 2 khách đặt cùng lúc chiếc ấm độc bản cuối cùng → đúng 1 đơn thành công (có test đồng thời). |
 | NFR-03 | Mọi POST tạo đơn/thanh toán có idempotency; retry không tạo trùng. |
 | NFR-04 | PII (SĐT, email, địa chỉ, tên) không xuất hiện trong log, analytics, URL, response public. |

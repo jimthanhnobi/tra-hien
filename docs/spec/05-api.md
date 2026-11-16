@@ -43,7 +43,14 @@
 | GET | `store/redirects?path=` | Tra redirect (storefront gọi khi 404) |
 | GET | `store/provinces`, `store/provinces/{code}/wards` | Địa giới |
 | GET | `store/search?q=` | Gợi ý nhanh: ≤ 8 sản phẩm, ≤ 3 bài viết |
-| GET | `store/sitemap-data` | Dữ liệu cho sitemap (slug + updatedAt theo loại) |
+| GET | `store/sitemap-data?type=` | Dữ liệu cho sitemap (slug, lastmod, ảnh) theo loại (BR-SEO-77) |
+| GET | `store/landing-pages/{slug}` | Trang chủ đề + cờ `indexable` (BR-SEO-41); sản phẩm lấy qua `store/products?landing={slug}` |
+| GET | `store/authors/{slug}` | Tác giả + bài viết |
+| GET | `store/products/{slug}/reviews?page=` | Đánh giá đã duyệt + `aggregate {count, average}` |
+| GET | `store/reviews/request/{token}` · POST `store/reviews` `{token, rating, content, assetIds[]}` | Form đánh giá qua link có token (BR-SEO-90) |
+| GET | `store/feeds/google-merchant` | Dữ liệu feed (app store render thành `/feeds/google-merchant.xml`) |
+| POST | `store/not-found` | Ghi log 404 (chỉ từ server store, header secret nội bộ) |
+| POST | `store/vitals` | Ghi Web Vitals (rate limit, không PII) |
 | GET | `/r/{code}` | (Route của app store, gọi `store/links/{code}/click`) BR-MKT-04 |
 | POST | `store/links/{code}/click` | Body `{visitorId, userAgent, referrerHost}` → `{targetPath, setAttribution}`; chỉ gọi từ server store (header secret nội bộ) |
 
@@ -182,6 +189,13 @@ Cột **Quyền** là permission tối thiểu. Mọi response có giá vốn/l�
 | GET/POST/PATCH | `admin/articles[/{id}]`; POST `.../{id}/submit-review`, `.../publish`, `.../archive`; GET `.../preview` | `content.write` / `content.publish` |
 | GET/POST/PATCH | `admin/article-categories[/{id}]`, `admin/pages[/{id}]` (+ publish) | `content.write` / `content.publish` |
 | GET/POST/DELETE | `admin/redirects[/{sourcePath}]` | `content.write` |
+| GET/POST/PATCH | `admin/landing-pages[/{id}]` + POST `.../publish`, GET `.../{id}/preview-products` | `content.write` / `content.publish` |
+| GET/POST/PATCH | `admin/authors[/{id}]` + publish | `content.write` / `content.publish` |
+| GET | `admin/reviews?status=` · POST `admin/reviews/{id}/approve` · `.../reject {reason}` | `content.write` |
+| POST | `admin/order-lines/{id}/review-link` → link đánh giá để gửi tay qua Zalo | `orders.write` |
+| GET | `admin/seo/audit?level=error|warning&type=` · POST `admin/seo/audit/run` | `catalog.read` hoặc `content.write` |
+| GET | `admin/seo/page-check?type=&id=` (Điểm SEO một trang, BR-SEO-61) | như trên |
+| GET | `admin/seo/not-found?resolved=false` · POST `.../{path}/resolve` | `content.write` |
 | GET/PUT | `admin/settings/{group}` (`site`, `shipping`, `payment`, `orders`, `referral`, `notify`, `retention`, `marketing`) | `settings.write` (GET `site`: `content.write`) |
 
 ### 4.8 Tài chính, báo cáo, hệ thống
