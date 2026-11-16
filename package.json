@@ -1,0 +1,10 @@
+{
+  "name": "teapremium-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "scripts": {
+    "lint": "pnpm --recursive run lint",
+    "typecheck": "pnpm --recursive run typecheck",
+    "build": "pnpm --recursive run build"
+  }
+}
