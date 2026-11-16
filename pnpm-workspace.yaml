@@ -1,0 +1,5 @@
+packages:
+  - apps/*
+  - packages/*
+overrides:
+  minimatch: 11.0.1
