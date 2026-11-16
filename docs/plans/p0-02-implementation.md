@@ -1,6 +1,6 @@
 # P0-02 — môi trường Docker Compose development
 
-**Trạng thái:** G4 review độc lập đã kết luận GO trên `feature/p0-02-compose-dev`; không có finding P0–P3 cần sửa. Chờ commit, PR và người phụ trách duyệt merge.
+**Trạng thái:** G4 review độc lập đã kết luận GO trên `feature/p0-02-compose-dev`; không có finding P0–P3 cần sửa. Quyết định merge thuộc người phụ trách.
 
 ## Nguồn và phạm vi
 
