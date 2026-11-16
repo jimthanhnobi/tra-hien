@@ -6,6 +6,8 @@ Spec-first rebuild of **Trà Hiên**. This repository is independent from prior 
 
 ## Getting started
 
+For the P0-02 four-service local development setup, see [infra/README.md](infra/README.md).
+
 1. Clone: `git clone https://github.com/jimthanhnobi/tra-hien.git`
 2. Add or replace your authoritative Markdown specs under `docs/spec/` and preserve filenames, hierarchy, and links. Commit/push to `main` or use a separate documentation branch and PR as you prefer. No repository-guard script or Actions workflow is required to push specs.
 3. Open Codex at the repository root. Run `$spec-audit` after any substantial spec change; review conflicts and decisions before coding.
