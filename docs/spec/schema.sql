@@ -34,7 +34,7 @@ CREATE SCHEMA iam;
 
 -- Cấu hình nghiệp vụ dạng key → jsonb. Danh sách key ở 03-database.md §5.
 CREATE TABLE platform.settings (
-  key            text PRIMARY KEY CHECK (key ~ '^[a-z0-9_.]{3,80}$'),
+  key            text CONSTRAINT pk_settings PRIMARY KEY CONSTRAINT ck_settings_key_format CHECK (key ~ '^[a-z0-9_.]{3,80}$'),
   value          jsonb NOT NULL,
   updated_at     timestamptz NOT NULL DEFAULT now(),
   updated_by     uuid
@@ -42,42 +42,50 @@ CREATE TABLE platform.settings (
 
 -- Địa giới hành chính 2 cấp (sau sắp xếp từ 01/07/2025): tỉnh/thành → phường/xã/đặc khu.
 CREATE TABLE platform.provinces (
-  code           text PRIMARY KEY,
+  code           text CONSTRAINT pk_provinces PRIMARY KEY,
   name           text NOT NULL,
   is_active      boolean NOT NULL DEFAULT true,
   sort_order     int NOT NULL DEFAULT 0
 );
 CREATE TABLE platform.wards (
-  code           text PRIMARY KEY,
-  province_code  text NOT NULL REFERENCES platform.provinces(code),
+  code           text CONSTRAINT pk_wards PRIMARY KEY,
+  province_code  text NOT NULL CONSTRAINT fk_wards_provinces_province_code REFERENCES platform.provinces(code),
   name           text NOT NULL,
   is_active      boolean NOT NULL DEFAULT true
 );
 CREATE INDEX ix_wards_province ON platform.wards(province_code);
 
 CREATE TABLE platform.audit_logs (
-  id             uuid PRIMARY KEY,
+  id             uuid CONSTRAINT pk_audit_logs PRIMARY KEY,
   occurred_at    timestamptz NOT NULL,
-  actor_type     text NOT NULL CHECK (actor_type IN ('staff','customer','system')),
+  actor_type     text NOT NULL CONSTRAINT ck_audit_logs_actor_type CHECK (actor_type IN ('staff','customer','system')),
   actor_id       uuid,
   entity_type    text NOT NULL,
-  entity_id      uuid NOT NULL,
-  action         text NOT NULL CHECK (action IN ('create','update','delete','state_change','access')),
+  entity_id      uuid,
+  entity_key     text,
+  action         text NOT NULL CONSTRAINT ck_audit_logs_action CHECK (action IN ('create','update','delete','state_change','access')),
   changes        jsonb NOT NULL DEFAULT '{}'::jsonb,
-  correlation_id text
+  correlation_id text,
+  CONSTRAINT ck_audit_entity_identity CHECK (
+    num_nonnulls(entity_id, entity_key) = 1
+    AND (entity_key IS NULL OR entity_key <> '')
+  )
 );
-CREATE INDEX ix_audit_entity ON platform.audit_logs(entity_type, entity_id, occurred_at DESC);
+CREATE INDEX ix_audit_entity_id ON platform.audit_logs(entity_type, entity_id, occurred_at DESC)
+  WHERE entity_id IS NOT NULL;
+CREATE INDEX ix_audit_entity_key ON platform.audit_logs(entity_type, entity_key, occurred_at DESC)
+  WHERE entity_key IS NOT NULL;
 CREATE INDEX ix_audit_time ON platform.audit_logs(occurred_at DESC);
 CREATE INDEX ix_audit_actor ON platform.audit_logs(actor_id, occurred_at DESC) WHERE actor_id IS NOT NULL;
 
 CREATE TABLE platform.outbox_messages (
-  id             uuid PRIMARY KEY,
+  id             uuid CONSTRAINT pk_outbox_messages PRIMARY KEY,
   type           text NOT NULL,
   payload        jsonb NOT NULL,
   occurred_at    timestamptz NOT NULL,
   available_at   timestamptz NOT NULL,
   attempts       int NOT NULL DEFAULT 0,
-  status         text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','processed','dead')),
+  status         text NOT NULL DEFAULT 'pending' CONSTRAINT ck_outbox_messages_status CHECK (status IN ('pending','processed','dead')),
   processed_at   timestamptz,
   last_error     text
 );
@@ -90,30 +98,30 @@ CREATE TABLE platform.idempotency_keys (
   response_status int,
   response_body  jsonb,
   created_at     timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (scope, key)
+  CONSTRAINT pk_idempotency_keys PRIMARY KEY (scope, key)
 );
 CREATE INDEX ix_idem_created ON platform.idempotency_keys(created_at);
 
 CREATE TABLE platform.inbound_webhooks (
-  id             uuid PRIMARY KEY,
+  id             uuid CONSTRAINT pk_inbound_webhooks PRIMARY KEY,
   provider       text NOT NULL,
   external_id    text NOT NULL,
   payload        jsonb NOT NULL,
   received_at    timestamptz NOT NULL DEFAULT now(),
-  status         text NOT NULL DEFAULT 'received' CHECK (status IN ('received','processed','ignored','failed')),
+  status         text NOT NULL DEFAULT 'received' CONSTRAINT ck_inbound_webhooks_status CHECK (status IN ('received','processed','ignored','failed')),
   processed_at   timestamptz,
   error          text,
-  UNIQUE (provider, external_id)
+  CONSTRAINT ux_inbound_webhooks_provider_external_id UNIQUE (provider, external_id)
 );
 
 CREATE TABLE platform.notification_logs (
-  id             uuid PRIMARY KEY,
-  channel        text NOT NULL CHECK (channel IN ('email','telegram','sms','zns')),
+  id             uuid CONSTRAINT pk_notification_logs PRIMARY KEY,
+  channel        text NOT NULL CONSTRAINT ck_notification_logs_channel CHECK (channel IN ('email','telegram','sms','zns')),
   template       text NOT NULL,
   recipient_hash text NOT NULL,          -- SHA-256 của địa chỉ nhận, không lưu PII
   ref_type       text,
   ref_id         uuid,
-  status         text NOT NULL CHECK (status IN ('queued','sent','failed')),
+  status         text NOT NULL CONSTRAINT ck_notification_logs_status CHECK (status IN ('queued','sent','failed')),
   error          text,
   created_at     timestamptz NOT NULL DEFAULT now(),
   sent_at        timestamptz
@@ -121,7 +129,7 @@ CREATE TABLE platform.notification_logs (
 CREATE INDEX ix_notif_ref ON platform.notification_logs(ref_type, ref_id);
 
 CREATE TABLE platform.data_protection_keys (
-  id             serial PRIMARY KEY,
+  id             serial CONSTRAINT pk_data_protection_keys PRIMARY KEY,
   friendly_name  text,
   xml            text
 );
