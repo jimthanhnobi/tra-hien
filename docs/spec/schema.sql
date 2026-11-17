@@ -1217,3 +1217,55 @@ CREATE INDEX ix_expenses_date ON finance.expenses(incurred_on, category);
 -- iam.roles, iam.user_roles, iam.role_claims, iam.user_claims, iam.user_logins, iam.user_tokens
 -- Role seed: owner, sales, content. Permission claims seed theo 02-architecture.md §7.
 -- =====================================================================
+
+-- =====================================================================
+-- PLATFORM — P0-09 / F-02 (contract/DDL đã được owner duyệt)
+-- Append-only import ledger; không thuộc chín bảng migration P0-04.
+-- Quy trình import dùng transaction advisory lock (8300,9); xem 03 §3.6.
+-- Các role tp_app/tp_readonly được tạo theo 03 §4 trước khi áp grants.
+-- Khối này bổ sung schema đích, chưa phải migration hay dữ liệu seed.
+-- =====================================================================
+CREATE TABLE platform.administrative_data_imports (
+  id uuid CONSTRAINT pk_administrative_data_imports PRIMARY KEY,
+  previous_import_id uuid,
+  dataset_version text NOT NULL,
+  release_order bigint NOT NULL,
+  effective_on date NOT NULL,
+  operation text NOT NULL,
+  manifest jsonb NOT NULL,
+  manifest_sha256 text NOT NULL,
+  csv_sha256 text NOT NULL,
+  plan_sha256 text NOT NULL,
+  catalog_sha256 text NOT NULL,
+  receipt jsonb NOT NULL,
+  applied_at timestamptz NOT NULL,
+  recovery_of uuid,
+  re_advance_of uuid,
+  CONSTRAINT ux_administrative_import_previous
+    UNIQUE NULLS NOT DISTINCT (previous_import_id),
+  CONSTRAINT fk_administrative_import_previous FOREIGN KEY (previous_import_id)
+    REFERENCES platform.administrative_data_imports(id),
+  CONSTRAINT fk_administrative_import_recovery FOREIGN KEY (recovery_of)
+    REFERENCES platform.administrative_data_imports(id),
+  CONSTRAINT fk_administrative_import_re_advance FOREIGN KEY (re_advance_of)
+    REFERENCES platform.administrative_data_imports(id),
+  CONSTRAINT ck_administrative_import_version CHECK (length(dataset_version) > 0 AND release_order > 0),
+  CONSTRAINT ck_administrative_import_operation CHECK (
+    (operation = 'import' AND recovery_of IS NULL AND re_advance_of IS NULL) OR
+    (operation = 'recovery' AND recovery_of IS NOT NULL AND re_advance_of IS NULL) OR
+    (operation = 're_advance' AND recovery_of IS NULL AND re_advance_of IS NOT NULL)),
+  CONSTRAINT ck_administrative_import_genesis CHECK (
+    previous_import_id IS NOT NULL OR operation = 'import'),
+  CONSTRAINT ck_administrative_import_hashes CHECK (
+    manifest_sha256 ~ '^[0-9a-f]{64}$' AND csv_sha256 ~ '^[0-9a-f]{64}$' AND
+    plan_sha256 ~ '^[0-9a-f]{64}$' AND catalog_sha256 ~ '^[0-9a-f]{64}$'),
+  CONSTRAINT ck_administrative_import_json CHECK (
+    jsonb_typeof(manifest) = 'object' AND jsonb_typeof(receipt) = 'object'),
+  CONSTRAINT ck_administrative_import_no_self CHECK (
+    previous_import_id IS DISTINCT FROM id AND recovery_of IS DISTINCT FROM id AND
+    re_advance_of IS DISTINCT FROM id)
+);
+GRANT SELECT, INSERT ON platform.administrative_data_imports TO tp_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON platform.administrative_data_imports FROM tp_app;
+GRANT SELECT ON platform.administrative_data_imports TO tp_readonly;
+GRANT EXECUTE ON FUNCTION pg_catalog.pg_try_advisory_xact_lock(integer, integer) TO tp_app;
