@@ -77,7 +77,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             b.ToTable("idempotency_keys", "platform");
             b.HasKey(x => new { x.Scope, x.Key }).HasName("pk_idempotency_keys");
             b.Property(x => x.ResponseBody).HasColumnType("jsonb");
-            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
+            // Cleanup must not delete a fresh replacement selected under an older snapshot.
+            // EF adds created_at to DELETE predicates; this changes no PostgreSQL DDL.
+            b.Property(x => x.CreatedAt).IsConcurrencyToken().HasDefaultValueSql("now()");
             b.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_idem_created");
         });
         modelBuilder.Entity<InboundWebhook>(b =>

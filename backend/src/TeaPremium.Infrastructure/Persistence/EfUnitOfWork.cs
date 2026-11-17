@@ -8,8 +8,50 @@ namespace TeaPremium.Infrastructure.Persistence;
 
 public sealed class EfUnitOfWork(AppDbContext db) : IUnitOfWork
 {
+    private bool _requestOwner;
+    private bool _rollbackOnly;
+
+    // Endpoint idempotency owns the outer boundary. Decorated commands join this exact
+    // scoped context; ordinary commands retain their original transaction behavior.
+    public async Task<Result<T>> ExecuteRequestAsync<T>(Func<CancellationToken, Task<Result<T>>> operation, CancellationToken cancellationToken)
+    {
+        if (_requestOwner || db.Database.CurrentTransaction is not null)
+            throw new InvalidOperationException("A request transaction cannot be nested.");
+        return await ExecuteAsync(async ct =>
+        {
+            _requestOwner = true;
+            _rollbackOnly = false;
+            try
+            {
+                var result = await operation(ct);
+                if (result.IsSuccess && _rollbackOnly)
+                    throw new InvalidOperationException("A failed command cannot commit a successful response.");
+                return result;
+            }
+            finally { _requestOwner = false; }
+        }, cancellationToken);
+    }
+
     public async Task<Result<T>> ExecuteAsync<T>(Func<CancellationToken, Task<Result<T>>> operation, CancellationToken cancellationToken)
     {
+        if (_requestOwner)
+        {
+            if (db.Database.CurrentTransaction is null || _rollbackOnly)
+                throw new InvalidOperationException("Request transaction is no longer usable.");
+            try
+            {
+                var joinedResult = await operation(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!joinedResult.IsSuccess) _rollbackOnly = true;
+                else
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                return joinedResult;
+            }
+            catch { _rollbackOnly = true; throw; }
+        }
         var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         Result<T>? result = null;
         ExceptionDispatchInfo? failure = null;
