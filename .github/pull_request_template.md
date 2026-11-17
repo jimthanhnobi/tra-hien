@@ -3,7 +3,7 @@
 
 ## Spec and task traceability
 - Spec paths + headings:
-- REQ IDs:
+- FR/BR/NFR/AC/DEC IDs:
 - Task ID / accepted ADRs:
 
 ## Change summary
@@ -29,5 +29,7 @@
 - [ ] Error/negative cases covered
 - [ ] Auth, data safety and secrets considered
 - [ ] Documentation and traceability updated
+- [ ] Independent G4 PASS (local review included staged/unstaged/untracked changes)
+- [ ] Published head SHA matches reviewed changes; three CI jobs PASS on that SHA
 - [ ] No unresolved P0/P1 findings
-- [ ] Ready for **human** review (no automatic merge)
+- [ ] Owner has authorized publication; ready for **human** merge review (no automatic merge)

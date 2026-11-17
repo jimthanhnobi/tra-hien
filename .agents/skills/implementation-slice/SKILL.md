@@ -12,4 +12,5 @@ description: Implement one approved P0–P6 TeaPremium V2 roadmap task as a smal
 5. Implement minimally: application/domain invariants, validation, error handling, transaction boundaries, observability and secrets handling appropriate to the task. Don't add a framework/service or database table just for future possibilities.
 6. For schema changes, assess existing data, indexes, transactions, down/restore plan and deployment ordering. Never execute on production.
 7. Update documentation and traceability. Provide actual commands + results and list not-run checks honestly.
-8. Prepare PR with original `P*-*` task + FR/BR/NFR/AC/DEC references, diff summary, screenshots only when UI actually changed and useful, test proof, risk and rollback. Do not merge or claim independently reviewed.
+8. Stop at **local G3 handoff**: provide original `P*-*` task + FR/BR/NFR/AC/DEC references, all changed/staged/untracked paths, tests/results, risk and rollback; return `READY_FOR_LOCAL_G4`. **Do not commit, push or open/update a PR** by default. Do not claim independently reviewed.
+9. Only after independent G4 PASS **and explicit owner publish permission**: commit/push feature branch and open/update one PR with diff summary, actual test proof and rollback. Verify GitHub Actions at the exact published HEAD; leave merge to owner unless expressly delegated.
