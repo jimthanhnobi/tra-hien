@@ -14,6 +14,8 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
 builder.Services.AddPlatformPersistence(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuditContext, HttpAuditContext>();
 var app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();

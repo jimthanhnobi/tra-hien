@@ -1,6 +1,9 @@
+using TeaPremium.Domain;
+
 namespace TeaPremium.Infrastructure.Persistence;
 
 // Persistence shapes for the P0-04 platform tables. Business behavior is added by later tasks.
+[Audited]
 public sealed class Setting
 {
     public string Key { get; set; } = "";
