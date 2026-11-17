@@ -388,7 +388,7 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
     {
         var probe = new Probe();
         using var factory = Factory(probe);
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         var key = Guid.NewGuid();
         using var anonymous = await Send(client, key, actor: "");
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);

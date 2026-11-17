@@ -1,9 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using TeaPremium.Infrastructure.Iam;
 
 namespace TeaPremium.Infrastructure.Persistence;
 
-public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<StaffUser, IdentityRole<Guid>, Guid>(options), IDataProtectionKeyContext
 {
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsIdGenerator, RepositoryMigrationIds>();
+
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Ward> Wards => Set<Ward>();
@@ -12,29 +19,31 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
     public DbSet<InboundWebhook> InboundWebhooks => Set<InboundWebhook>();
     public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
-    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        modelBuilder.HasPostgresExtension("unaccent");
-        modelBuilder.HasPostgresExtension("pg_trgm");
-        modelBuilder.HasPostgresExtension("btree_gist");
+        base.OnModelCreating(builder);
+        IamModel.Configure(builder);
+        builder.HasPostgresExtension("unaccent");
+        builder.HasPostgresExtension("pg_trgm");
+        builder.HasPostgresExtension("btree_gist");
 
-        modelBuilder.Entity<Setting>(b =>
+        builder.Entity<Setting>(b =>
         {
             b.ToTable("settings", "platform", t => t.HasCheckConstraint("ck_settings_key_format", "key ~ '^[a-z0-9_.]{3,80}$'"));
             b.HasKey(x => x.Key).HasName("pk_settings");
             b.Property(x => x.Value).HasColumnType("jsonb");
             b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
         });
-        modelBuilder.Entity<Province>(b =>
+        builder.Entity<Province>(b =>
         {
             b.ToTable("provinces", "platform");
             b.HasKey(x => x.Code).HasName("pk_provinces");
             b.Property(x => x.IsActive).HasDefaultValue(true);
             b.Property(x => x.SortOrder).HasDefaultValue(0);
         });
-        modelBuilder.Entity<Ward>(b =>
+        builder.Entity<Ward>(b =>
         {
             b.ToTable("wards", "platform");
             b.HasKey(x => x.Code).HasName("pk_wards");
@@ -43,7 +52,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .HasConstraintName("fk_wards_provinces_province_code").OnDelete(DeleteBehavior.NoAction);
             b.HasIndex(x => x.ProvinceCode).HasDatabaseName("ix_wards_province");
         });
-        modelBuilder.Entity<AuditLog>(b =>
+        builder.Entity<AuditLog>(b =>
         {
             b.ToTable("audit_logs", "platform", t =>
             {
@@ -62,7 +71,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             b.HasIndex(x => new { x.ActorId, x.OccurredAt }).HasDatabaseName("ix_audit_actor")
                 .IsDescending(false, true).HasFilter("actor_id IS NOT NULL");
         });
-        modelBuilder.Entity<OutboxMessage>(b =>
+        builder.Entity<OutboxMessage>(b =>
         {
             b.ToTable("outbox_messages", "platform", t => t.HasCheckConstraint("ck_outbox_messages_status", "status IN ('pending','processed','dead')"));
             b.HasKey(x => x.Id).HasName("pk_outbox_messages");
@@ -72,7 +81,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             b.Property(x => x.Status).HasDefaultValue("pending");
             b.HasIndex(x => x.AvailableAt).HasDatabaseName("ix_outbox_pending").HasFilter("status = 'pending'");
         });
-        modelBuilder.Entity<IdempotencyKey>(b =>
+        builder.Entity<IdempotencyKey>(b =>
         {
             b.ToTable("idempotency_keys", "platform");
             b.HasKey(x => new { x.Scope, x.Key }).HasName("pk_idempotency_keys");
@@ -82,7 +91,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             b.Property(x => x.CreatedAt).IsConcurrencyToken().HasDefaultValueSql("now()");
             b.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_idem_created");
         });
-        modelBuilder.Entity<InboundWebhook>(b =>
+        builder.Entity<InboundWebhook>(b =>
         {
             b.ToTable("inbound_webhooks", "platform", t => t.HasCheckConstraint("ck_inbound_webhooks_status", "status IN ('received','processed','ignored','failed')"));
             b.HasKey(x => x.Id).HasName("pk_inbound_webhooks");
@@ -92,7 +101,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             b.Property(x => x.ReceivedAt).HasDefaultValueSql("now()");
             b.Property(x => x.Status).HasDefaultValue("received");
         });
-        modelBuilder.Entity<NotificationLog>(b =>
+        builder.Entity<NotificationLog>(b =>
         {
             b.ToTable("notification_logs", "platform", t =>
             {
@@ -104,7 +113,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             b.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             b.HasIndex(x => new { x.RefType, x.RefId }).HasDatabaseName("ix_notif_ref");
         });
-        modelBuilder.Entity<DataProtectionKey>(b =>
+        builder.Entity<DataProtectionKey>(b =>
         {
             b.ToTable("data_protection_keys", "platform");
             b.HasKey(x => x.Id).HasName("pk_data_protection_keys");
@@ -112,7 +121,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         });
 
         // The target DDL uses snake_case and concrete PostgreSQL types throughout.
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
+        foreach (var entity in builder.Model.GetEntityTypes())
         {
             foreach (var property in entity.GetProperties())
             {
@@ -123,6 +132,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                     var t when t == typeof(string) => "text",
                     var t when t == typeof(Guid) || t == typeof(Guid?) => "uuid",
                     var t when t == typeof(DateTime) || t == typeof(DateTime?) => "timestamp with time zone",
+                    var t when t == typeof(DateTimeOffset) || t == typeof(DateTimeOffset?) => "timestamp with time zone",
                     var t when t == typeof(int) || t == typeof(int?) => "integer",
                     var t when t == typeof(bool) => "boolean",
                     _ => throw new InvalidOperationException($"Unmapped PostgreSQL type: {entity.Name}.{property.Name}")
