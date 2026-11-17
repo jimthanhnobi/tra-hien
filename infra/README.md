@@ -1,6 +1,6 @@
 # Chạy Trà Hiên V2 trên máy phát triển
 
-`compose.dev.yml` chạy PostgreSQL 17, API .NET 10, Store và Admin Next.js. Chỉ dùng dữ liệu thử. Đây là cấu hình **development**. Migration nền tảng đã có từ P0-04 nhưng **phải áp dụng riêng**, không tự chạy khi API khởi động. Seed, IAM, backup và các giới hạn bảo mật production chưa được triển khai.
+`compose.dev.yml` chạy PostgreSQL 17, API .NET 10, Store và Admin Next.js. Chỉ dùng dữ liệu thử. Đây là cấu hình **development**. Migration **phải áp dụng riêng**, không tự chạy khi API khởi động. IAM P0-08 và Admin shell P0-12 yêu cầu HTTPS; Compose HTTP hiện tại chưa đủ cho đăng nhập. Hướng dẫn native Caddy cùng origin, trusted proxy, certificate và kiểm thử thật nằm trong [hồ sơ P0-12](../docs/plans/p0-12-implementation.md). Backup/triển khai production thuộc giai đoạn sau.
 
 ## Chuẩn bị trên Windows PowerShell
 
@@ -46,7 +46,7 @@ docker compose -f infra/compose.dev.yml exec -T postgres psql -U teapremium_dev 
 
 `SELECT 1` xác nhận PostgreSQL có thể truy vấn, **không** chứng minh API đã truy cập DB. P0-06 phải kiểm thử thực tế đường kết nối của dispatcher khi background worker được đăng ký. Nếu đổi thông tin đăng nhập trên `infra/.env` mà vẫn giữ volume cũ, PostgreSQL **không tự đổi** user/password/database đã khởi tạo.
 
-Hai app proxy `/api/*` cùng origin tới `http://api:8080/api/*` bằng Next.js rewrite **chỉ khi** `API_INTERNAL_URL` được đặt bởi Compose. Đây là proxy transport của dev, không có BFF hay xử lý auth. Chưa có endpoint API nên `/api/*` hiện trả `404`. Production dùng Caddy theo DEC-16; cấu hình dev này không thay Caddy và chưa mô phỏng các quy tắc chặn đường dẫn của production. API không có health endpoint ở P0-01, nên Compose chỉ chờ process API khởi động; `ps` và log xác nhận API. Store/Admin có health check HTTP cho `/`.
+Store giữ rewrite development tới `API_INTERNAL_URL=http://api:8080`. Admin gọi `/api/v1/*` qua Caddy trực tiếp tới API (DEC-16), đã bỏ Next rewrite để giữ HTTPS và trusted proxy rõ ràng. Biến `API_INTERNAL_URL` cũ trong service Admin không còn được app sử dụng. Truy cập Admin bằng HTTP chỉ xem được loading/lỗi kết nối; không thể đăng nhập bằng Secure cookie. Compose chỉ chờ process API khởi động; `ps` và log xác nhận API. Store/Admin có health check HTTP cho `/`.
 
 `up -d` chạy source đã đóng gói trong image. Để bật hot reload cho API, Store và Admin, mở PowerShell khác từ gốc repo và chạy:
 

@@ -30,6 +30,7 @@ coverage/
 # Node / Next.js
 node_modules/
 .next/
+apps/admin/.next-p0-12-test/
 dist/
 build/
 *.tsbuildinfo

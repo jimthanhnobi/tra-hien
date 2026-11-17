@@ -92,11 +92,12 @@ jobs:
           node-version: '22.22.2'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - name: Frozen install, lint, types, scaffold tests and builds
+      - name: Frozen install, lint, types, frontend tests and builds
         run: |
           corepack pnpm install --frozen-lockfile
           corepack pnpm lint
           corepack pnpm typecheck
+          corepack pnpm --filter @teapremium/admin exec playwright install --with-deps chromium
           corepack pnpm test
           corepack pnpm build
 

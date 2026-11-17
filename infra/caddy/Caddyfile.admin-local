@@ -1,0 +1,22 @@
+{
+	admin off
+	auto_https disable_redirects
+	skip_install_trust
+	storage file_system {
+		root artifacts/p0-12-local/caddy-data
+	}
+}
+
+# Native Caddy on the development host; all listeners/upstreams are loopback.
+# Run from the repository root. Trust the local CA before opening this origin.
+https://admin.localhost:8443 {
+	bind 127.0.0.1
+	tls internal
+	header Cache-Control "private, no-store, max-age=0"
+	handle /api/* {
+		reverse_proxy 127.0.0.1:5080
+	}
+	handle {
+		reverse_proxy 127.0.0.1:3001
+	}
+}
