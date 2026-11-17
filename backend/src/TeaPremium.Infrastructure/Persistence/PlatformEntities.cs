@@ -92,10 +92,3 @@ public sealed class NotificationLog
     public DateTime CreatedAt { get; set; }
     public DateTime? SentAt { get; set; }
 }
-
-public sealed class DataProtectionKey
-{
-    public int Id { get; set; }
-    public string? FriendlyName { get; set; }
-    public string? Xml { get; set; }
-}
