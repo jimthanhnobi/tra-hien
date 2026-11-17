@@ -1,6 +1,6 @@
 # Codex tooling selection for Trà Hiên V2
 
-Reviewed: 2026-11-16. External tool APIs, release behavior and permissions can change; inspect their current README before installation.
+Reviewed: 2026-11-17 (workflow housekeeping). External tool APIs, release behavior and permissions can change; inspect their current README before installation.
 
 | Tool / repository | Role | Adoption |
 | --- | --- | --- |
@@ -14,15 +14,14 @@ Reviewed: 2026-11-16. External tool APIs, release behavior and permissions can c
 
 ## Recommended now
 
-Use the four small Trà Hiên-specific project skills first. They depend on no package manager and do not prematurely decide the application stack.
+Use the four committed Trà Hiên project skills and existing G1/G2 evidence, not an additional methodology stack. The architecture and roadmap are already specified. Check changes since the audited spec SHA before each task.
 
-After importing actual `docs/spec/**/*.md`:
-1. Run `$spec-audit`. Resolve architecture-blocking gaps without modifying the original specs.
-2. Run `$architecture-plan` and review the ADR + implementation task list.
-3. Implement one task with `$implementation-slice`.
-4. Review changes with `$review-gate`. Verify actual tests and any CI that is configured for application changes before merging.
+1. Full `$spec-audit` / `$architecture-plan` at baseline or after material spec/architecture changes; for routine tasks, validate only affected requirements and dependencies.
+2. Implement exactly one approved `P*-*` task with `$implementation-slice` in the main Codex thread by default. Subagents are optional, not required by a skill.
+3. Perform G4 with `$review-gate` in an independent reviewer session; verify actual tests/CI and keep owner-only merge.
+4. Prefer small evidence summaries over repeating full spec text or spawning multiple agents to inspect the same files.
 
-Codex CLI/IDE supports repo-level skills at `.agents/skills/<skill-name>/SKILL.md`. If skills do not appear, restart Codex or inspect its skills listing.
+Codex CLI/IDE discovers project skills under `.agents/skills/`. If skills do not appear, verify repo root/trust or restart Codex. See `docs/WORKFLOW.md` and `docs/CODEX_USAGE.md` for current prompts.
 
 ## Optional: Spec Kit in this existing repository
 
@@ -43,12 +42,12 @@ Invoke the installed Spec Kit skills **in Codex chat** (not Powershell), with e.
 
 In supported Codex installations, open `/plugins` and search for `Superpowers` or `CodeRabbit`, review the permissions and install deliberately. Their presence is **not asserted or required**. Superpowers is a methodology layer; our Trà Hiên `AGENTS.md` still defines spec authority, scope and approval gates. Do not rely on an external AI reviewer as the only quality check.
 
-## What we intentionally have NOT set up
+## Current repo snapshot (17/11/2026)
 
-- No .NET or Next.js scaffold; no database tables; no guessed business logic.
-- No mandatory external tool or unreviewed third-party workflow.
-- No automatic PR approval/merge or generated CI claims.
-- No real application tests until the application exists.
+- The .NET 10 solution, Next.js admin/store scaffolds, PostgreSQL 17 platform schema and backend test projects already exist. P0-06 outbox/jobs is merged.
+- ArchitectureTests, PostgreSQL 17 Testcontainers and migration tests already exist; P0-10 must strengthen missing coverage, not rebuild them.
+- GitHub Actions CI is not configured yet at this snapshot (planned P0-11); never describe local tests as CI verification.
+- No mandatory external tooling or auto PR approval/merge. External tools remain optional and must not override authoritative V2 specs.
 
 ## Selection rule
 

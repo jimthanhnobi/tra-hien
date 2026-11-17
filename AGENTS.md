@@ -14,10 +14,18 @@ If two specifications disagree, DO NOT choose one silently. Report the exact fil
 
 ## Hard gates
 - G0: V2 spec is present. Verify version, scope, and input commit; do not assume all external claims in generated specs have been executed or legally verified.
-- G1: Run `$spec-audit`, read **all** specs including `00-README.md` and `schema.sql`. Produce file/ID inventory, inconsistencies, risk register, task/acceptance traceability. Never change source specs automatically.
-- G2: Run `$architecture-plan` as a **conformance and feasibility review** of the ALREADY-SPECIFIED modular monolith, DEC-01..DEC-24 and `07-roadmap.md`. Do not re-design or create an alternate task numbering scheme. Flag only evidence-backed changes for user approval. Q1–Q8 in `00-README.md` are not automatically blockers for P0–P2; restrict blocking to genuinely affected tasks.
-- G3: Execute ONE user-approved `P*-*` task at a time with `$implementation-slice` (start with P0-01), on a branch/PR; include tests and migrations where applicable.
-- G4: Review independently using `$review-gate`, compare actual diff to FR/BR/AC and tests. Do not auto-merge or assert unrun checks passed.
+- G1: At initial baseline or material spec changes, run a full `$spec-audit` of all specs (including `00-README.md` and `schema.sql`) and retain inventory/gaps/traceability with audited SHA. For later tasks, verify current spec revision/diff against that baseline and audit the task-relevant requirements, dependencies and gaps; rerun full audit if baseline is missing or changes have broad impact. Never silently skip G1 or change authoritative specs automatically.
+- G2: Establish architecture conformance using `$architecture-plan` at baseline or after a material design change. For each later task, validate scoped feasibility, decisions and dependencies against the approved architecture and existing G2 evidence; do not repeat whole-project planning when unchanged. Never create an alternate roadmap or treat unrelated Q1–Q8 decisions as blockers. Flag evidence-backed architecture changes for owner approval.
+- G3: Execute ONE user-approved `P*-*` task at a time with `$implementation-slice`, on a feature branch/PR; include tests and migrations where applicable. The main Codex thread may implement directly; a subagent is optional, not a default requirement.
+- G4: Review independently using `$review-gate` in a fresh reviewer context/session separate from implementation; compare actual diff to FR/BR/AC and tests, distinguish verified from not run. Do not auto-merge or assert unrun checks passed.
+
+## Codex orchestration and token discipline
+- Default to one Codex main thread executing the appropriate project skill. Invoking a skill does not require spawning its namesake subagent.
+- Spawn `spec_analyst` or `planner` only for a real unresolved task-relevant gap, and `implementer` only for a bounded independent workstream. One agent owns each writable file; do not let agents edit the same files concurrently.
+- For G4, use a fresh review session or genuinely independent reviewer; do not accept an implementer's self-review as independent approval.
+- Reuse verified G1/G2 records and read affected spec sections, existing code and diffs. Reread the whole specification only when doing a full audit or when changes require it; report the audited SHA and coverage.
+- Keep handoffs concise: task ID, base/head SHA, scoped paths, acceptance/tests, exact commands and results, blockers. Avoid repetitive copied source/spec text.
+- The configured agent concurrency limit is a maximum, not a target. Do not launch parallel agents merely to use available slots.
 
 ## Coding rules
 - Before edits: read specs applicable to the task, existing decisions, and relevant code/tests.
@@ -49,5 +57,5 @@ Findings must cite paths/lines, reproduction, consequence, and practical fix. Do
 ## Operating language
 Use Vietnamese in working reports and issue comments. Keep identifiers and code idioms in their normal technical language.
 
-## First-run workflow
-Read `docs/WORKFLOW.md` and `docs/CODEX_USAGE.md`. Before starting P0-01, conduct spec audit and task-scoped feasibility review; keep unresolved P3/production details from stalling unrelated P0 work.
+## First-run and continuing workflow
+Read `docs/WORKFLOW.md` and `docs/CODEX_USAGE.md`. Before the first implementation task, establish G1/G2 baselines. For later tasks, verify those baselines against current specs and perform a task-scoped readiness check. Keep unrelated later-phase decisions from stalling current work.

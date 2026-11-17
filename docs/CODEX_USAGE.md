@@ -1,80 +1,57 @@
 # Dùng Codex trực tiếp trong Trà Hiên V2
 
-## Bước 1: Mở đúng repository
+## 1. Đồng bộ repository an toàn
+```powershell
+git status --short
+git fetch origin --prune
+git switch main
+git pull --ff-only origin main
+git log -1 --oneline
+```
+Chỉ switch/pull sau khi xử lý an toàn local changes. Không `reset --hard`/`clean -fd`. Mở Codex tại root repo; kiểm project trust và restart Codex nếu không thấy skill/agent.
 
-~~~powershell
-git clone https://github.com/jimthanhnobi/tra-hien.git
-cd tra-hien
-codex
-~~~
+## 2. Repo đã có gì?
+- `AGENTS.md`: luật scope, spec precedence, G0–G4.
+- `.agents/skills/{spec-audit,architecture-plan,implementation-slice,review-gate}/SKILL.md`: **quy trình**.
+- `.codex/agents/{spec_analyst,planner,implementer,reviewer}.toml`: **subagents tùy chọn**.
+- `.codex/config.toml`: bật agents, tối đa 3 thread đồng thời (trần giới hạn, không phải mục tiêu).
+- `docs/WORKFLOW.md`: G1/G2 evidence reuse và publish gate.
 
-Nếu đã clone trước khi cấu hình mới được push, chỉ cần `git pull origin main` trên nhánh main không có local edits xung đột, rồi mở lại Codex.
+**Chú ý:** gọi skill không bắt buộc spawn subagent. Subagents kế thừa permission/sandbox của parent; 'read-only' trong instruction không phải giới hạn kỹ thuật. Chọn session/quyền phù hợp khi review.
 
-Có thể mở thư mục `tra-hien` bằng Codex desktop hoặc Codex extension trong VS Code thay cho Codex CLI.
+## 3. Cách dùng theo loại công việc
+| Khi nào | Skill | Subagent |
+|---|---|---|
+| Full spec audit hoặc spec đổi lớn | `$spec-audit` | `spec_analyst` nếu cần độc lập |
+| Kiến trúc/phụ thuộc chưa chốt | `$architecture-plan` | `planner` nếu thật sự cần |
+| Một P task đã GO | `$implementation-slice` | Main thread mặc định |
+| G4 trước merge | `$review-gate` trong session mới | `reviewer` tùy chọn, không trùng implementer |
 
-## Bước 2: Kiểm tra skill và agents
+Không lặp toàn bộ spec audit/architecture planning trên từng PR; nhưng luôn kiểm spec SHA/diff và scoped G1/G2.
 
-- Codex đọc `AGENTS.md` ở gốc repository tự động.
-- Các skill nằm ở `.agents/skills/<name>/SKILL.md`; trong ô chat Codex, dùng `/skills` hoặc nhập `$` để chọn skill.
-- Các custom subagent nằm ở `.codex/agents/*.toml` và được bật bằng `.codex/config.toml`.
-- Nếu chưa thấy skill/agent, kiểm tra project đã được trust và khởi động lại phiên Codex. Kiểm tra folder gốc, các file thực sự có mặt và tình trạng tin cậy/trust của workspace.
+## 4. Prompt ngắn cho task
+**G3 implement (ví dụ P0-10):**
+```text
+Use $implementation-slice for P0-10 from docs/spec/07-roadmap.md.
+Follow AGENTS.md and docs/WORKFLOW.md.
+Start from latest origin/main on a dedicated feature branch; preserve local edits.
+Reuse verified G1/G2 after checking spec changes and dependencies.
+Audit code/tests first; implement only missing task requirements.
+Work in main Codex thread; no subagents for a bounded task.
+Run real build/tests/format; provide commands and results.
+Commit/push feature branch, prepare PR; no docs/spec edits or merge.
+```
+**G4 independent review (session khác):**
+```text
+Use $review-gate for P0-10.
+Review feature diff against latest origin/main and task spec.
+Check correctness, tests, scope and regressions; reproduce P0/P1 if possible.
+Report file:line, impact, minimal fix, VERIFIED / NOT RUN.
+Return PASS / CONDITIONAL / BLOCK. Read-only: no edits/push/merge.
+```
 
-## Các skill hiện có
+## 5. Khi nào gọi subagent?
+Chỉ khi có workstream độc lập, cần góc nhìn khác hoặc lợi ích vượt chi phí context. Giao file ownership rõ. Không spawn nhiều agent cùng đọc một tập tài liệu. G4 ưu tiên session mới; Codex CLI có thể hỗ trợ `/subagents`.
 
-- `$spec-audit`: kiểm kê yêu cầu, xung đột, khoảng trống; chưa code.
-- `$architecture-plan`: so sánh phương án, thiết kế, ADR, milestone/task; chưa code.
-- `$implementation-slice`: implement từng task đã duyệt và test.
-- `$review-gate`: review thay đổi theo spec, rủi ro, test, bằng chứng.
-
-## Các agent hiện có
-
-- `spec_analyst`: đọc và kiểm tra spec (read-only theo quy trình).
-- `planner`: đối chiếu kiến trúc và xây kế hoạch (read-only theo quy trình).
-- `implementer`: thực hiện một task đã duyệt.
-- `reviewer`: review độc lập, không tự sửa.
-
-Các file agent kế thừa permission/sandbox của phiên Codex cha. Chỉ ghi 'không sửa' trong instruction không biến agent thành sandbox read-only về mặt bảo mật.
-
-## Prompt sử dụng sau khi đã paste spec
-
-**Audit (vẫn là vòng không code):**
-
-~~~text
-Use $spec-audit. Delegate the requirements inventory to spec_analyst.
-Read docs/spec/00-README.md, all 01–09 Markdown and schema.sql; preserve existing FR/BR/NFR/AC/DEC IDs and the 07-roadmap P0–P6 task list. Do not change source specs.
-Produce docs/analysis/spec-inventory.md, spec-gaps.md, traceability.md.
-Report BLOCKER questions first. Do not design architecture or write application code yet.
-~~~
-
-**Lập plan:**
-
-~~~text
-Use $architecture-plan. Delegate an independent conformance review to planner.
-Respect the decisions in 00-README.md and the P0-P6 roadmap in 07-roadmap.md.
-Write docs/architecture/conformance-review.md and docs/plans/task-readiness.md;
-do not redesign or invent TASK-XXX. Assess readiness for P0-01. No code yet.
-~~~
-
-**Code theo task:**
-
-~~~text
-Use $implementation-slice. Delegate P0-01 in docs/spec/07-roadmap.md to implementer only after approval.
-Restrict changes to that task; add tests and execute checks.
-Return exact commands/results and a PR-ready summary. Do not merge.
-~~~
-
-**Review độc lập:**
-
-~~~text
-Use $review-gate. Delegate diff review to reviewer; keep implementer out of the reviewer role.
-Check this branch against main and against approved spec/task acceptance criteria.
-Find P0/P1 issues first. List tests actually verified versus not run. Do not merge.
-~~~
-
-Trong Codex CLI, `/subagents` cho phép xem các thread agent. Trong ứng dụng/IDE, theo dõi subagent từ giao diện thread hoặc panel khi hỗ trợ. Subagents có thể tiêu tốn thêm token.
-
-## Khi cập nhật bộ spec
-
-Các file spec thật hiện nằm trong `docs/spec/`, gồm `00-README.md`, `01`–`09` Markdown và `schema.sql`. `08-chatgpt-playbook.md` là mẫu giao việc, không phải chỉ dẫn buộc Codex xuất toàn bộ nội dung file vào chat. Có thể commit/push thay đổi spec mà không cần chạy script xác minh repo hay GitHub Actions guard. Sau khi push, chạy lại `$spec-audit` để cập nhật phát hiện và traceability; chỉ triển khai code sau khi các quyết định quan trọng được duyệt.
-
-Xem: https://learn.chatgpt.com/docs/build-skills và https://learn.chatgpt.com/docs/agent-configuration/subagents
+## 6. Khi spec đổi
+Specs tại `docs/spec/00-README.md`, `01`–`09` và `schema.sql` là authoritative; `08-chatgpt-playbook.md` chỉ hướng dẫn workflow lịch sử. Kiểm diff rồi làm lại G1/G2 tương ứng; không sửa spec để hợp thức hóa code.
