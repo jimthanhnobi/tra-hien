@@ -1,6 +1,6 @@
 # P0-05 — Audit interceptor: hồ sơ triển khai G3
 
-Trạng thái: **G3 hoàn thành; G4 độc lập PASS trên base mới, chưa commit/publish P0-05**. Nhánh `feature/p0-05-audit-interceptor`; base hiện tại `8d53174362892ccb9fca0fd81c4c902b6c979ff7` (PR #9 đã merge bản sửa BOM P0-04). Base G3 ban đầu là `07b88671e93a3ae3f69a9b798c872b5957a20d41` (PR #8). Chưa commit, push, tạo PR hay merge P0-05.
+Trạng thái hiện tại: **P0-05 đã merge vào `main` qua PR #10, G4 độc lập PASS**. Commit P0-05: `7c70a8cb205ed7d87b2a29dfc90e79dc6acb94e2`; merge commit: `a4b7083b4e5886ee457da674b9be8a1c9b561b25`. Phần dưới lưu bằng chứng G3/G4 trước khi publish, không phải trạng thái branch hiện tại. Base G3 ban đầu: `07b88671e93a3ae3f69a9b798c872b5957a20d41` (PR #8); base sau PR #9: `8d53174362892ccb9fca0fd81c4c902b6c979ff7`.
 
 ## Nguồn và phạm vi
 
@@ -102,3 +102,9 @@ Lần chạy full suite đầu phát hiện `ScopedProductionRegistrationUsesRea
 - EF CLI 10.0.15 `migrations has-pending-model-changes --project backend/src/TeaPremium.Infrastructure --startup-project backend/src/TeaPremium.Infrastructure --context AppDbContext --no-build` exit **0**, không có pending changes; dùng connection string dummy, không kết nối DB thật. `git diff --check` exit **0**; 9 file untracked được kiểm trailing whitespace, không có lỗi. Diff task so với base mới vẫn chỉ có 3 file tracked sửa và 9 file untracked; không đổi `docs/spec/**`, migration, frontend hoặc lock file trong P0-05.
 
 Phần P2-CHARSET phía trên là lịch sử trước PR #9; cổng whole-solution format **hiện PASS** trên base mới. Reviewer độc lập đã kiểm diff cuối (3 tracked + 9 untracked), xác nhận 11/11 file mã/test khớp checkpoint tại thời điểm G4 và tự chạy locked restore, build warning-as-error, full tests (11 unit, 6 architecture, 93 integration), focused audit tests (45/45), whole-solution format, EF pending-model-changes và `git diff --check`: tất cả exit **0**. Trước commit, đã bỏ đúng một byte LF thừa ở cuối `AuditInterceptorTests.cs` để `git diff --cached --check` PASS; 10/11 file mã/test vẫn khớp checkpoint từng byte, file test còn lại chỉ khác byte LF đó. Reviewer đã đối chiếu staged diff và xác nhận thay đổi này không ảnh hưởng ngữ nghĩa, **G4 PASS** giữ nguyên. Không tìm thấy P0/P1 hoặc lỗi cần sửa trong phạm vi review; verdict **G4 PASS**, chưa phải phê duyệt merge. CI P0-05 **NOT RUN** vì chưa có commit/PR. Không tuyên bố **AC-P0-04 end-to-end PASS**: Settings API thuộc P0-09.
+
+### Publish hoàn tất sau G4 (17/11/2026)
+
+- [PR #10](https://github.com/jimthanhnobi/tra-hien/pull/10) **MERGED**: head `7c70a8cb205ed7d87b2a29dfc90e79dc6acb94e2`, base `8d53174362892ccb9fca0fd81c4c902b6c979ff7`, merge commit `a4b7083b4e5886ee457da674b9be8a1c9b561b25`. Đúng 12 file P0-05 được review; không sửa spec, migration, frontend hoặc lock files.
+- G4 độc lập **PASS**, theo hồ sơ reviewer trước merge. Locked restore, build `-warnaserror`, full tests (11 unit, 6 architecture, 93 integration/PostgreSQL 17 Testcontainers), whole-solution format và EF pending-model-changes đều **PASS theo báo cáo local trước merge**. GitHub CI trên PR #10 **NOT CONFIGURED / NOT RUN**; không suy diễn thành CI PASS.
+- **AC-P0-04 end-to-end chưa hoàn tất**: cần Settings API P0-09. Raw SQL/`ExecuteUpdate` bypass interceptor, còn IAM/DB role theo P0-08.

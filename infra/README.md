@@ -1,6 +1,6 @@
 # Chạy Trà Hiên V2 trên máy phát triển
 
-`compose.dev.yml` chạy PostgreSQL 17, API .NET 10, Store và Admin Next.js. Chỉ dùng dữ liệu thử. Đây là cấu hình **development**, chưa có migration, seed, IAM, backup hay giới hạn bảo mật production.
+`compose.dev.yml` chạy PostgreSQL 17, API .NET 10, Store và Admin Next.js. Chỉ dùng dữ liệu thử. Đây là cấu hình **development**. Migration nền tảng đã có từ P0-04 nhưng **phải áp dụng riêng**, không tự chạy khi API khởi động. Seed, IAM, backup và các giới hạn bảo mật production chưa được triển khai.
 
 ## Chuẩn bị trên Windows PowerShell
 
@@ -24,6 +24,8 @@ docker compose -f infra/compose.dev.yml config --quiet
 | `API_PORT` | `8080` | Cổng API trên máy host. |
 | `STORE_PORT` / `ADMIN_PORT` | `3000` / `3001` | Cổng hai app trên máy host. |
 
+**Kết nối API tới PostgreSQL:** Compose nội suy `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` từ `infra/.env` vào biến môi trường `ConnectionStrings__Default` của container API, dùng `Host=postgres;Port=5432`. ASP.NET Core đọc thành `ConnectionStrings:Default`, theo `PersistenceRegistration.cs`. Mật khẩu được đặt trong dấu nháy kép của connection string để chứa được dấu `;`; **quy ước development: `POSTGRES_PASSWORD` không được chứa dấu nháy kép `"`**. Giá trị có dấu `;` được hỗ trợ; không dùng cách thêm `\` hay nhân đôi `"` để né giới hạn này vì có thể làm mật khẩu API khác mật khẩu PostgreSQL đã khởi tạo. Nếu `.env` hiện chứa `"`, hãy chọn mật khẩu dev khác và đồng bộ mật khẩu của role trong DB hiện hữu (đổi `.env` không tự thay mật khẩu đã lưu trong volume PostgreSQL). Không in đầu ra `docker compose config` (không có `--quiet`) hoặc `docker inspect` để chia sẻ vì chúng có thể lộ mật khẩu. Compose chỉ cung cấp cấu hình, **không tự tạo schema/migrate**; áp migration P0-04 lên DB dev dùng EF CLI riêng theo hướng dẫn `docs/plans/p0-04-implementation.md`, không chạy `Migrate`/`EnsureCreated` từ API.
+
 Các cổng chỉ bind vào `127.0.0.1`. Nếu cổng đã bị chiếm, đổi cổng host tương ứng trong `infra/.env`; cổng **trong container** vẫn là PostgreSQL `5432`, API `8080`, Store `3000`, Admin `3001`. Docker DNS dùng tên `postgres` và `api`, không dùng `localhost` để kết nối giữa container.
 
 ## Build, chạy và kiểm tra
@@ -39,7 +41,10 @@ Mở `http://localhost:3000/` cho Store và `http://localhost:3001/` cho Admin. 
 
 ```powershell
 docker compose -f infra/compose.dev.yml exec postgres pg_isready -U teapremium_dev -d teapremium_dev
+docker compose -f infra/compose.dev.yml exec -T postgres psql -U teapremium_dev -d teapremium_dev -tAc "SELECT 1;"
 ```
+
+`SELECT 1` xác nhận PostgreSQL có thể truy vấn, **không** chứng minh API đã truy cập DB. P0-06 phải kiểm thử thực tế đường kết nối của dispatcher khi background worker được đăng ký. Nếu đổi thông tin đăng nhập trên `infra/.env` mà vẫn giữ volume cũ, PostgreSQL **không tự đổi** user/password/database đã khởi tạo.
 
 Hai app proxy `/api/*` cùng origin tới `http://api:8080/api/*` bằng Next.js rewrite **chỉ khi** `API_INTERNAL_URL` được đặt bởi Compose. Đây là proxy transport của dev, không có BFF hay xử lý auth. Chưa có endpoint API nên `/api/*` hiện trả `404`. Production dùng Caddy theo DEC-16; cấu hình dev này không thay Caddy và chưa mô phỏng các quy tắc chặn đường dẫn của production. API không có health endpoint ở P0-01, nên Compose chỉ chờ process API khởi động; `ps` và log xác nhận API. Store/Admin có health check HTTP cho `/`.
 
