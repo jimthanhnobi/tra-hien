@@ -3,6 +3,8 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.15" />
     <PackageVersion Include="FluentValidation" Version="12.2.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.15" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />

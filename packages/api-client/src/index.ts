@@ -1,2 +1,4 @@
-/** Same-origin API prefix from DEC-16. OpenAPI types arrive with the API task. */
+export type { paths, components, operations } from "./generated/schema.js";
+
+/** Same-origin API prefix from DEC-16. */
 export const API_BASE_PATH = "/api" as const;

@@ -41,3 +41,26 @@ Evaluate [GitHub Spec Kit](https://github.com/github/spec-kit) for optional spec
 - Keep secrets, customer PII, credentials, and production data out of git.
 
 See [docs/WORKFLOW.md](docs/WORKFLOW.md) for exact operating steps.
+
+## CI và sinh hợp đồng API (P0-11)
+
+CI chạy trên PR vào `main`, push `main` và `feature/**`. Ba status check là
+`Backend and API contract`, `Frontend verification`, `Docker regression builds`.
+Docker phải hoạt động để chạy fixture Testcontainers PostgreSQL 17 hiện có.
+
+Từ root, dùng SDK trong `global.json`, Node 22.22.2 và pnpm trong `packageManager`:
+
+```powershell
+dotnet restore backend/TeaPremium.sln --locked-mode
+dotnet build backend/TeaPremium.sln --no-restore -warnaserror
+corepack pnpm install --frozen-lockfile
+corepack pnpm generate:api
+corepack pnpm check:api
+./scripts/migrations.ps1
+```
+
+Commit cả `packages/api-client/openapi.json` và `src/generated/schema.ts` khi API đổi.
+Generation dùng entrypoint API với mock server của tooling .NET, không cần DB/secret;
+không ghi đè `src/index.ts`. OpenAPI runtime chỉ bật trong Development/CI.
+SQL ở `artifacts/migrations.sql` chỉ được sinh để review, không được tự áp dụng.
+Lệnh kiểm đầy đủ, kết quả và giới hạn: [hồ sơ P0-11](docs/plans/p0-11-implementation.md).
