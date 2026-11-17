@@ -3,6 +3,9 @@
   "private": true,
   "packageManager": "pnpm@12.16.1",
   "scripts": {
+    "generate:api": "corepack pnpm --filter @teapremium/api-client run generate",
+    "check:api": "corepack pnpm --filter @teapremium/api-client run generate --check",
+    "test": "corepack pnpm --filter @teapremium/store --filter @teapremium/admin run test",
     "lint": "corepack pnpm --recursive run lint",
     "typecheck": "corepack pnpm --recursive run typecheck",
     "build": "corepack pnpm --recursive run build"

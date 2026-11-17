@@ -6,6 +6,7 @@ using TeaPremium.Infrastructure;
 using TeaPremium.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddOpenApi();
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = false);
@@ -20,6 +21,9 @@ builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditContext, HttpAuditContext>();
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("CI"))
+    app.MapOpenApi();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ProblemExceptionMiddleware>();
