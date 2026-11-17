@@ -28,7 +28,8 @@ services:
       DOTNET_WATCH_SUPPRESS_STATIC_FILE_HANDLING: "1"
       DOTNET_WATCH_RESTART_ON_RUDE_EDIT: "1"
       # Development-only: .NET reads ConnectionStrings:Default from environment.
-      # Do not print `docker compose config` without --quiet: it reveals credentials.
+      # Dev password constraint: POSTGRES_PASSWORD must not contain the double-quote character (").
+      # Semicolons are supported. See infra/README.md; do not print expanded config with secrets.
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:?POSTGRES_DB is required};Username=${POSTGRES_USER:?POSTGRES_USER is required};Password=\"${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}\""
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
