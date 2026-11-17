@@ -14,6 +14,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Ward> Wards => Set<Ward>();
+    public DbSet<TeaPremium.Infrastructure.AdministrativeData.AdministrativeDataImport> AdministrativeDataImports => Set<TeaPremium.Infrastructure.AdministrativeData.AdministrativeDataImport>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
@@ -25,6 +26,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     {
         base.OnModelCreating(builder);
         IamModel.Configure(builder);
+        TeaPremium.Infrastructure.AdministrativeData.AdministrativeImportModel.Configure(builder);
         builder.HasPostgresExtension("unaccent");
         builder.HasPostgresExtension("pg_trgm");
         builder.HasPostgresExtension("btree_gist");
