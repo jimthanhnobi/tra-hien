@@ -1,4 +1,5 @@
 using TeaPremium.Api.Middleware;
+using TeaPremium.Api.Outbox;
 using TeaPremium.Application.Time;
 using TeaPremium.Application.UseCases;
 using TeaPremium.Infrastructure;
@@ -14,6 +15,8 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
 builder.Services.AddPlatformPersistence(builder.Configuration);
+builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSection("OutboxDispatcher"));
+builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditContext, HttpAuditContext>();
 var app = builder.Build();
