@@ -70,3 +70,21 @@ NOT RUN: frontend/Compose/CI/G4 độc lập, vì task chỉ thêm backend test 
 - Parity chỉ phần platform đã được duyệt, không áp cả 78 bảng của schema đích. Thay ranh giới DDL hoặc internal EF snapshot API cần review test helper; không tự cập nhật expected values để bỏ qua drift.
 - NetArchTest custom rules theo API upstream: https://github.com/BenMorris/NetArchTest#custom-rules. Dependency chỉ phục vụ test.
 - PR chờ fresh G4 reviewer đối chiếu P0-10/AC-P0-05/NFR-09/DEC-01 và chạy checks độc lập. Không self-approve hoặc merge.
+
+## Remediation P1 của G4 — schema asset trong API Docker build
+
+G4 tại reviewed HEAD `f451fb6` tái hiện MSB3030: test project copy `../../../docs/spec/schema.sql` vô điều kiện, còn image API chỉ copy backend/global.json và Docker context bỏ docs. Sửa đúng content item bằng `Condition="Exists('../../../docs/spec/schema.sql')"`; không sửa Dockerfile, .dockerignore, spec, test body hoặc production code. Source DDL vẫn được copy khi tồn tại; không nhân bản nguồn hoặc skip test.
+
+Chứng cứ sau sửa:
+
+| Lệnh/check | Kết quả |
+|---|---|
+| `dotnet restore backend/TeaPremium.sln --locked-mode` | PASS, exit 0. |
+| `dotnet build backend/TeaPremium.sln --no-restore -warnaserror` | PASS, exit 0; 0 warnings/errors. |
+| `dotnet test backend/TeaPremium.sln --no-build` | PASS, exit 0; 11 unit + 34 architecture + 138 integration = 183/183, 0 skipped. |
+| `dotnet format backend/TeaPremium.sln --verify-no-changes --no-restore` | PASS, exit 0. |
+| `docker build -f infra/Dockerfile.api -t th-p010-g4-review:local .` | PASS, exit 0; build trong image 0 warnings/errors, image export thành công. |
+| `git diff --check` | PASS. |
+| Missing-asset negative check | Tạm move chỉ bản build-output `bin/Debug/net10.0/Specifications/schema.sql`, chạy `dotnet test backend/tests/TeaPremium.IntegrationTests/TeaPremium.IntegrationTests.csproj --no-build --no-restore --filter FullyQualifiedName=TeaPremium.IntegrationTests.PlatformSchemaParityTests.MigratedPlatformMatchesAuthoritativeColumnsConstraintsIndexesAndFunction --logger 'console;verbosity=normal'`: đúng 1 test FAILED, exit 1, FileNotFoundException tại CreateReferenceAsync; không skipped. Khôi phục trong finally; SHA-256 bản output trước/sau khớp authoritative docs/spec/schema.sql. Source spec không bị move/sửa. Full suite bên trên chạy sau khi khôi phục. |
+
+Local checks đủ để bàn giao focused G4 re-review trên cùng PR #13; không tự nhận G4 PASS và không merge. Điều kiện Exists chỉ bỏ yêu cầu asset ở build thiếu docs; việc chạy parity test vẫn bắt buộc có asset và sẽ fail khi thiếu.
