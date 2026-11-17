@@ -1,5 +1,7 @@
 using TeaPremium.Api.Middleware;
 using TeaPremium.Api.Outbox;
+using TeaPremium.Api.Idempotency;
+using TeaPremium.Infrastructure.Jobs;
 using TeaPremium.Application.Time;
 using TeaPremium.Application.UseCases;
 using TeaPremium.Infrastructure;
@@ -18,6 +20,9 @@ builder.Services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
 builder.Services.AddPlatformPersistence(builder.Configuration);
 builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSection("OutboxDispatcher"));
 builder.Services.AddHostedService<OutboxDispatcher>();
+// Scaffold/OpenAPI generation can start without a DB. Production supplies this setting.
+if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default")))
+    builder.Services.AddHostedService<PurgeIdempotencyKeys>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditContext, HttpAuditContext>();
 var app = builder.Build();
@@ -27,6 +32,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("CI"))
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ProblemExceptionMiddleware>();
+app.UseMiddleware<IdempotencyRequestBufferingMiddleware>();
 
 app.Run();
 

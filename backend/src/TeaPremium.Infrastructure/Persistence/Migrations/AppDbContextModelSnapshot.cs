@@ -139,6 +139,7 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnName("key");
 
                     b.Property<DateTime>("CreatedAt")
+                        .IsConcurrencyToken()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")

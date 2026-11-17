@@ -25,7 +25,8 @@ public static class PersistenceRegistration
         });
         services.AddScoped<IAuditContext, SystemAuditContext>();
         services.AddScoped<AuditSaveChangesInterceptor>();
-        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<EfUnitOfWork>();
+        services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<EfUnitOfWork>());
         services.AddScoped<IOutboxWriter, EfOutboxWriter>();
         services.AddScoped<OutboxBatchProcessor>();
         return services;
