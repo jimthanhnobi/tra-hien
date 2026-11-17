@@ -22,15 +22,25 @@ public sealed class PeriodicJobOwnershipTests(PlatformDatabaseFixture fixture) :
     [InlineData("raw_query")]
     [InlineData("execute_update")]
     [InlineData("execute_delete")]
+    [InlineData("raw_transaction_control")]
     public async Task UnsupportedOperationsPermanentlyRevokeWritesEvenIfCallbackSwallowsErrors(string operation)
     {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(
-            new Dictionary<string, string?> { ["ConnectionStrings:Default"] = fixture.ConnectionString }).Build();
-        using var provider = new ServiceCollection().AddPlatformPersistence(configuration).BuildServiceProvider();
         var code = Guid.NewGuid().ToString("N");
+        var connectionString = new NpgsqlConnectionStringBuilder(fixture.ConnectionString)
+        {
+            Multiplexing = false,
+            NoResetOnClose = true,
+            MaxPoolSize = 1,
+            ApplicationName = code
+        }.ConnectionString;
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?> { ["ConnectionStrings:Default"] = connectionString }).Build();
+        using var provider = new ServiceCollection().AddPlatformPersistence(configuration).BuildServiceProvider();
         var attempts = 0;
+        var ownerPid = 0;
         using var job = new TestJob(provider.GetRequiredService<IServiceScopeFactory>(), configuration, async (db, ct) =>
         {
+            ownerPid = ((NpgsqlConnection)db.Database.GetDbConnection()).ProcessID;
             db.Provinces.Add(new Province { Code = code, Name = "must roll back" });
             await db.SaveChangesAsync(ct);
             switch (operation)
@@ -72,6 +82,9 @@ public sealed class PeriodicJobOwnershipTests(PlatformDatabaseFixture fixture) :
                     await Assert.ThrowsAsync<InvalidOperationException>(() => db.Provinces.Where(x => x.Code == code)
                         .ExecuteDeleteAsync(ct));
                     break;
+                case "raw_transaction_control":
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => db.Database.ExecuteSqlRawAsync("COMMIT", ct));
+                    break;
             }
 
             // Neither a caught exception nor a replacement EF transaction may restore Active.
@@ -86,6 +99,12 @@ public sealed class PeriodicJobOwnershipTests(PlatformDatabaseFixture fixture) :
         Assert.Equal(5, attempts);
         await using var check = fixture.CreateContext();
         Assert.False(await check.Provinces.AnyAsync(x => x.Code == code || x.Code == code + "raw"));
+        await using var pooled = new NpgsqlConnection(connectionString);
+        await pooled.OpenAsync();
+        await using var locks = new NpgsqlCommand(
+            "SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND granted AND pid=pg_backend_pid()", pooled);
+        Assert.Equal(0L, await locks.ExecuteScalarAsync());
+        if (operation == "close_reopen") Assert.NotEqual(ownerPid, pooled.ProcessID);
     }
 
     [Fact]

@@ -134,7 +134,7 @@ public sealed class PeriodicJobTests(PlatformDatabaseFixture fixture) : IClassFi
         {
             await using var admin = new NpgsqlConnection(fixture.ConnectionString);
             await admin.OpenAsync();
-            await using var terminate = new NpgsqlCommand("SELECT pg_terminate_backend(@pid)", admin);
+            await using var terminate = new NpgsqlCommand("SELECT pg_terminate_backend(@pid, 5000)", admin);
             terminate.Parameters.Add("pid", NpgsqlDbType.Integer).Value = pid;
             Assert.Equal(true, await terminate.ExecuteScalarAsync());
             var second = new DatabaseJob("P0_06_LostOwner", provider.GetRequiredService<IServiceScopeFactory>(),

@@ -78,7 +78,14 @@ internal sealed class JobExecutionGuard : IDisposable
 
     private void StateChanged(object? sender, StateChangeEventArgs args)
     {
-        if (args.CurrentState != ConnectionState.Open) Revoke();
+        if (args.CurrentState != ConnectionState.Open)
+        {
+            Revoke();
+            // A close can return a session whose advisory lock is still held when
+            // NoResetOnClose is configured. Discard the pool immediately rather than
+            // waiting for a callback that may catch the failure and keep running.
+            NpgsqlConnection.ClearPool(_connection);
+        }
     }
 
     private bool OriginalSessionIsValid()

@@ -1,6 +1,6 @@
 # P0-06 — Outbox, dispatcher và khung PeriodicJob
 
-**Trạng thái:** G3 remediation sau G4 BLOCK — READY_FOR_G4, chờ G4 độc lập kiểm lại. Không có commit, push hoặc PR từ task này.
+**Trạng thái:** G3 remediation stale writer sau G4 round 2 BLOCK — READY_FOR_G4, chờ reviewer độc lập kiểm lại. Agent không tạo commit/push/PR. Trong khi thực hiện, HEAD chuyển bởi tác nhân ngoài sang WIP `7228237566a50cfd8cad4801a3392023341e3a08`; vẫn trên nhánh yêu cầu, merge-base vẫn `446fe358aa20ae6c32fbb3600e64e3dab43e0f3b`. Giữ nguyên WIP và mọi thay đổi; không reset/revert commit đó.
 
 ## Tiền kiểm và nguồn
 
@@ -17,7 +17,7 @@ Dispatcher chạy `BackgroundService`, tạo scope cho mỗi lượt, lấy tố
 
 **At least once:** tiến trình có thể dừng sau khi handler tạo tác động bên ngoài và trước khi `processed` commit. Khi khởi động lại, cùng message ID có thể được giao lần nữa. Mọi handler tương lai phải dùng message ID làm khóa idempotency hoặc có phép xử lý lặp an toàn; P0-06 chỉ cung cấp interface và test mô phỏng, chưa bảo đảm idempotency của provider tương lai. Thay đổi DB của handler trên cùng context được rollback về savepoint nếu delivery thất bại, rồi mới ghi retry.
 
-`PeriodicJob` là lớp nền chưa đăng ký job nghiệp vụ. Mỗi tên job ổn định sinh một advisory lock key xác định; một `NpgsqlConnection` vật lý được mở, giữ session lock và transaction cho toàn bộ công việc DB. Callback chỉ nhận `AppDbContext` gắn chính connection đó; scope nội bộ chỉ resolve audit interceptor, không được đưa cho callback. Failure/cancellation rollback trước unlock trên cùng session; cleanup dùng token riêng và loại pool nếu thất bại. Mất session hủy transaction của owner cũ, nên owner cũ không thể commit công việc được bảo vệ dù callback vẫn còn unwind. Chi tiết remediation và giới hạn ở phần cuối.
+`PeriodicJob` là lớp nền chưa đăng ký job nghiệp vụ. Mỗi tên job ổn định sinh một advisory lock key xác định; một `NpgsqlConnection` vật lý được mở, giữ session lock và transaction gốc cho toàn bộ công việc DB. Callback chỉ nhận `AppDbContext` có guard riêng cho mỗi execution; scope nội bộ chỉ resolve audit interceptor, không đưa cho callback. Guard thu hồi quyền vĩnh viễn khi session/transaction hỏng, chặn EF reconnect và transaction thay thế trước mọi save/command. Failure/cancellation rollback trước unlock trên cùng session; cleanup dùng token riêng và loại pool nếu trạng thái không còn đáng tin cậy. Chi tiết supported paths, remediation và giới hạn ở phần cuối.
 
 Ngoài phạm vi: P0-07 idempotency middleware, IAM, admin incident UI, notification provider, webhook, các job nghiệp vụ P1/P2/P3/P5. Không sửa `docs/spec/`, schema đích hoặc migration. Không tự chạy EF migration lúc API startup.
 
@@ -66,7 +66,9 @@ Ngoài phạm vi: P0-07 idempotency middleware, IAM, admin incident UI, notifica
 
 G4 cần reviewer độc lập đối chiếu diff với `P0-06`, `FR-PLT-02`, `BR-PLT-02`, `NFR-04/08/09`, `DEC-01` và các case ở trên. Chưa tự nhận G4 đã duyệt. Rủi ro còn lại: provider tương lai phải thực hiện idempotency theo message ID; UI Admin và Telegram cho `dead` chưa có trong P0-06; production DB role/notification settings và schema phải được triển khai riêng theo các task sau. Compose smoke không áp migration trên DB throwaway, nên kết nối dispatcher tới bảng outbox được chứng minh bởi WebApplicationFactory/Testcontainers, không suy từ HTTP 404.
 
-## Remediation hai P1 của G4 BLOCK
+## Lịch sử remediation lần 1 — G4 round 2 vẫn BLOCK P1-01
+
+Phần này giữ bằng chứng vòng trước; khẳng định same-context đơn thuần đủ an toàn đã bị G4 round 2 bác bỏ. Thiết kế và chứng cứ hiện hành nằm trong phần remediation round 2 bên dưới.
 
 Scope được owner giao: chỉ sửa P1-01 và P1-02 trong P0-06; giữ base `446fe358aa20ae6c32fbb3600e64e3dab43e0f3b`, nhánh `feature/p0-06-outbox-jobs`, mọi thay đổi tracked/untracked hiện có. Parent phụ trách lock boundary; implementer được giao riêng outbox recovery. Implementer không thay thế original G4 reviewer. Không sửa spec, schema/model/migration, frontend, dependency hoặc chức năng P0-07 trong vòng remediation.
 
@@ -120,3 +122,78 @@ Savepoint/transaction/commit failure thoát scope với diagnostic cố định 
 Lần focused build đầu có MSB3026 retry do parent/implementer cùng build test assembly. Đã ngừng chạy đồng thời; các cổng build warning-as-error và test cuối nêu trên đều chạy sạch. Không có sửa dependency hoặc model trong remediation. Không thực thi production data hay provider thật.
 
 **G4 readiness:** READY_FOR_G4 cho reviewer độc lập kiểm lại hai P1 và toàn diff P0-06; chưa tự duyệt G4 hoặc merge. Rủi ro/giới hạn mới duy nhất là contract database-only rõ ràng của PeriodicJob; external delivery tiếp tục at-least-once qua outbox. Không có forward/down migration mới; rollback triển khai dừng worker trước khi revert code, giữ dữ liệu outbox/audit, và không quay lại khung job cũ cho business jobs trước khi có phiên bản bảo đảm ownership tương đương.
+
+## Remediation G4 round 2 — chỉ P1-01 stale writer
+
+### Root cause và reproduction trước sửa
+
+G4 round 2 phát hiện cùng một `AppDbContext` vẫn có thể reconnect sau khi session giữ lock bị terminate. Callback bắt lỗi rồi gọi SaveChangesAsync lần 1/2 thất bại, lần 3 thành công; EF dọn transaction cũ rồi mở lại connection và chạy một implicit transaction khác. Outer job trả lỗi không thu hồi được stale row đã auto-commit. P1-02 outbox đã VERIFIED FIXED và không được sửa trong vòng này.
+
+Trước sửa đã chạy lại probe gốc `dotnet run --project C:/Users/ADMIN/AppData/Local/Temp/tra-hien-g4-independent-r2/Probe.csproj -v:q` trên PostgreSQL 17 Testcontainers: `STALE_SAVE_1/2=InvalidOperationException`, `STALE_SAVE_3=SUCCEEDED`, `OUTER_FAILED=True`, hai rows `new` và `stale` persist. Đây là lỗi enforcement trước ghi DB, không chỉ là lỗi báo trạng thái cuối callback.
+
+### Invariant và enforcement hiện hành
+
+Giữ `pg_try_advisory_lock`, lock key SHA-256 ổn định và pinned physical connection (`Multiplexing=false`). Owner tạo `NpgsqlTransaction` trước khi tạo context, rồi attach đúng transaction đó một lần qua `UseTransactionAsync`. Chỉ owner commit/rollback trực tiếp transaction gốc. Callback không có quyền tạo/thay/commit transaction qua EF. Không thêm lease table, schema, migration hoặc dependency.
+
+`JobExecutionGuard` là instance riêng cho mỗi lần chạy; state đi từ Created sang Active rồi Completed, hoặc từ Created/Active sang Revoked. Revoked và Completed là terminal. Mọi command và save được phép phải đồng thời giữ đúng context, connection reference, backend PID và transaction object gốc; context.CurrentTransaction và command.Transaction cũng phải trỏ đúng transaction đó. Nếu session còn sống, command chạy trong transaction gốc; nếu session chết sau bước kiểm tra, PostgreSQL hủy transaction gốc. Guard cấm EF mở lại connection nên không có session mới để khôi phục quyền ghi.
+
+Các lớp enforcement cùng dùng một state:
+
+- SaveChanges interceptor kiểm trước sync/async save; failure/cancellation revoke.
+- Relational command interceptor kiểm trước reader/scalar/nonquery sync/async, gồm đường bỏ qua SaveChanges; command failure/cancellation revoke.
+- Connection interceptor cấm EF open/reopen; StateChange rời Open revoke vĩnh viễn. Đồng thời ClearPool ngay khi connection đóng/hỏng để không để một session giữ advisory lock quay lại pool trong lúc callback còn bắt lỗi, kể cả `NoResetOnClose=true`.
+- Transaction interceptor chỉ cho attach transaction gốc đúng một lần lúc Created; từ chối transaction mới, replacement, EF commit/rollback. EF savepoints phục vụ SaveChanges trong transaction gốc vẫn hoạt động.
+- Owner kiểm guard trước final flush và trước commit, Complete sau commit; callback nuốt lỗi vẫn không thể làm owner báo thành công hoặc commit transaction thay thế.
+
+Initial advisory-lock acquire lỗi cũng loại pool vì server có thể đã acquire trước khi response bị mất. Owner rollback và unlock trên session gốc bằng cleanup token riêng có giới hạn; không reopen để cleanup. Failure được giữ làm lỗi execution, cleanup lỗi không biến nó thành thành công. Không dùng heartbeat/PID check đơn độc làm fencing.
+
+### Supported paths và giới hạn rõ ràng
+
+| Đường thực thi trong protected callback | Hợp đồng |
+|---|---|
+| Tracked EF SaveChanges/SaveChangesAsync, LINQ reads | Được hỗ trợ khi execution Active và mọi identity khớp transaction/session gốc. |
+| EF ExecuteSqlRaw/Interpolated sync/async, FromSql | Bị từ chối trước khi thực thi và revoke execution; raw SQL có thể chứa transaction-control nên scaffold P0-06 không hỗ trợ. |
+| ExecuteUpdate/ExecuteDelete hoặc command source ngoài allowlist | Bị từ chối và revoke; không âm thầm bỏ qua audit hay transaction boundary. |
+| EF open/reopen, transaction replacement, EF commit/rollback | Bị từ chối; execution không lấy lại quyền ghi sau khi callback bắt lỗi. |
+| Direct Npgsql/DbCommand, GetDbConnection để tự ghi/đổi session hoặc transaction, context độc lập, DbContext internal-service manipulation | Không thuộc supported callback contract và không được dùng để ghi protected data. Guard không phải sandbox cho arbitrary code. |
+| External provider/network effects, background task dùng context ngoài callback | Không được phép trong PeriodicJob P0-06. Dùng outbox/provider idempotency hoặc fencing design được duyệt riêng. |
+
+Không tuyên bố hai callback không bao giờ cùng active trong bộ nhớ: callback A có thể còn unwind sau lock loss. Bảo đảm trong supported paths là A không thể persist protected writes sau khi session/transaction gốc mất, dù A bắt lỗi và retry nhiều lần. Cùng context không được dùng đồng thời từ nhiều task (EF không hỗ trợ concurrent context operations). Outbox tiếp tục at-least-once, không có exactly-once claim.
+
+### File thay đổi riêng vòng này
+
+| File | Lý do |
+|---|---|
+| `backend/src/TeaPremium.Infrastructure/Jobs/JobExecutionGuard.cs` | Per-execution terminal state và EF save/command/connection/transaction guards. |
+| `backend/src/TeaPremium.Infrastructure/Jobs/PeriodicJob.cs` | Owner-managed original transaction, guard lifecycle và acquire cleanup. |
+| `backend/tests/TeaPremium.IntegrationTests/PeriodicJobTests.cs` | G4 regression: 5 lần stale async save, sync save và EF raw mutation đều thất bại; chờ terminate hoàn tất. |
+| `backend/tests/TeaPremium.IntegrationTests/PeriodicJobOwnershipTests.cs` | 11 cases cho rejected paths, permanent revoke, pool cleanup và supported tracked/LINQ operations. |
+| `docs/plans/p0-06-implementation.md` | Root cause, thiết kế, bằng chứng và giới hạn hiện hành. |
+
+### Traceability T1–T15 và chứng cứ cuối
+
+| Yêu cầu regression | Chứng minh |
+|---|---|
+| T1–T5 | Test LostLockSession và probe gốc/adapted: A save sớm chưa commit, connection khác terminate backend, B lấy cùng lock/commit, A bắt cả 5 lỗi save rồi trả bình thường, outer fail; chỉ row của B tồn tại. |
+| T6 | Async raw mutation sau revoke và active raw SQL sync/async/FromSql/COMMIT đều bị chặn; không row raw nào persist. |
+| T7–T8 | Unexpected physical close/reopen, dispose EF wrapper rồi BeginTransaction/UseTransaction replacement, EF CommitTransaction đều bị từ chối; callback catch rồi thử 5 saves tiếp vẫn fail. |
+| T9–T12 | Tracked writes + LINQ reads commit bình thường một transaction; success/failure/cancellation, same-name exclusion và different-name concurrency cũ vẫn PASS. |
+| T13 | Pool MaxPoolSize=1/NoResetOnClose=true: cleanup success/failure/cancel giữ đúng PID và không lock; unexpected close loại PID cũ, pool mới không advisory lock. |
+| T14–T15 | Toàn bộ outbox P1-02, business UoW, audit P0-04/P0-05 và architecture regressions được chạy trong full suite. |
+
+| Lệnh/check thực chạy sau sửa cuối | Kết quả |
+|---|---|
+| `dotnet restore backend/TeaPremium.sln --locked-mode -v:q` | PASS, exit 0. |
+| `dotnet build backend/TeaPremium.sln --no-restore -warnaserror -v:q` | PASS, 0 warnings/errors. |
+| `dotnet test backend/TeaPremium.sln --no-build -v:q` | PASS **146/146**: 11 unit, 6 architecture, 129 integration; không skipped. |
+| `dotnet test backend/tests/TeaPremium.IntegrationTests/TeaPremium.IntegrationTests.csproj --no-build --filter FullyQualifiedName~PeriodicJob -v:q` | PASS **19/19**, PostgreSQL 17 Testcontainers. |
+| Focused filter `FullyQualifiedName~PeriodicJob\|FullyQualifiedName~Outbox` với cùng project và `--no-build -v:q` | PASS **36/36**. Pipe được escape chỉ để hiển thị Markdown. |
+| `dotnet format backend/TeaPremium.sln --verify-no-changes --no-restore` | PASS toàn solution. |
+| `git diff --check` | PASS. |
+| EF CLI 10.0.15 `migrations has-pending-model-changes --project backend/src/TeaPremium.Infrastructure --startup-project backend/src/TeaPremium.Infrastructure --context AppDbContext --no-build` | PASS: `No changes have been made to the model since the last migration.` Dùng connection string dummy. |
+| Probe G4 gốc `.../tra-hien-g4-independent-r2/Probe.csproj` sau sửa | 3 stale saves đều lỗi, outer fail, chỉ `new` persist. Một lượt đầu gặp race tín hiệu terminate chưa hoàn tất nên B chưa acquire ngay; lượt chạy lại đạt. Marker tổng cuối probe cũ là string hardcoded của vòng trước, không dùng làm verdict. |
+| `dotnet run --project C:/Users/ADMIN/AppData/Local/Temp/tra-hien-g4-guard-r3/Probe.csproj -v:q` | PASS, exit 0; clone ngoài repo của probe gốc, tăng lên 5 attempts và dùng `pg_terminate_backend(pid,5000)` để đợi backend kết thúc, thêm assertions final rows. `STALE_SAVE_1..5=InvalidOperationException`, `OUTER_FAILED=True`, `PERSISTED_PROVINCE=new`; `EXACT_STALE_WRITER_SCENARIO_PREVENTED_WITH_5_ATTEMPTS`. Không chỉnh artifact của original reviewer. |
+
+Compile test đầu phát hiện nullable dereference trong test mới, đã sửa và chạy lại các cổng trên. Không sửa OutboxBatchProcessor hoặc outbox tests trong vòng này. Schema/migration không thay đổi; Compose coverage của vòng trước được giữ nguyên, **NOT RUN lại trong vòng này** vì scaffold PeriodicJob chưa đăng ký business job và user chỉ yêu cầu các cổng nêu trên. Không có thao tác trên dữ liệu production hoặc provider thật.
+
+**Kết quả G3 hiện hành: READY_FOR_G4.** Đây là readiness cho original independent reviewer kiểm lại full diff so base `446fe358…`, không phải G4 approval. Rủi ro còn lại là tuân thủ supported callback contract khi triển khai job tương lai; direct arbitrary database/network access cần thiết kế riêng. Không tự mở rộng allowlist raw SQL/bulk commands hoặc nới guard để triển khai job pha sau. Không tạo lease/schema/migration mới. Agent không commit/push/PR/merge; WIP commit phát sinh ngoài agent được giữ nguyên.
