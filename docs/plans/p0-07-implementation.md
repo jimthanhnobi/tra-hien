@@ -1,6 +1,6 @@
 # P0-07 — Idempotency ở endpoint
 
-Trạng thái: G3 đã triển khai và kiểm chứng local; **G4 NOT RUN**, cần session review độc lập. Không tự approve/merge. Chỉ P0-07, không bắt đầu task P0 khác.
+Trạng thái: G4 độc lập tại `0842fc53a70c6e3f9121652107f4e3eaaec7e938` kết luận **BLOCK** vì P1 cancellation của joined command. Đã sửa tối thiểu và thêm regression bên dưới; **chờ G4 re-review độc lập**, không tự approve/merge. Chỉ P0-07, không bắt đầu task P0 khác.
 
 ## G0/G1/G2 và nguồn
 
@@ -86,7 +86,7 @@ Retention: timestamp UTC lấy từ `IClock` lúc chuẩn bị response trước
 - `backend/tests/TeaPremium.IntegrationTests/IdempotencyTests.cs`: 30 case tích hợp và test-only wiring.
 - `docs/plans/p0-07-implementation.md`: hồ sơ này.
 
-## Local verification thực tế
+## Local verification tại `0842fc5` trước G4
 
 | Command | Kết quả |
 |---|---|
@@ -110,4 +110,28 @@ Lượt test phát triển đầu: 24/26; sửa cleanup từ bulk command bị g
 - Response policy là trách nhiệm bảo mật bắt buộc của endpoint; filter không đoán string có PII hay không. Không bật EF sensitive-data logging. Base64 không che giấu dữ liệu: chỉ lưu DTO đã được allowlist và bảo vệ DB như dữ liệu nghiệp vụ.
 - NFR-03 được chứng minh ở foundation với endpoint test; chưa tự nhận đơn/thanh toán thật, IAM, DoD P0 hoặc go-live đã đạt. Không network-proxy fault campaign/load benchmark/legal verification/G4 trong session này.
 - Không đổi schema/database thực; tests dùng container disposable. Rollback bằng revert PR và restart API (dừng cleanup); giữ các idempotency rows đủ retention, không xóa thủ công key thành công. Phiên bản mới phải hiểu envelope version hiện hữu hoặc dùng operation version phù hợp. Không downgrade khi có business endpoint đang dựa vào guarantee này; revert cùng endpoint wiring nếu về sau có.
-- GitHub Actions được kiểm tra trên PR sau push; kết luận và HEAD cụ thể nằm trong PR/handoff. **Independent G4 vẫn NOT RUN**; owner giao `review-gate` trong session mới trước quyết định merge.
+- GitHub Actions được kiểm tra trên PR sau push; kết luận và HEAD cụ thể nằm trong PR/handoff. G4 đầu đã BLOCK P1; owner giao `review-gate` re-review độc lập cho remediation trước quyết định merge.
+
+## Remediation P1 G4 — cancellation của joined command (17/11/2026)
+
+Base remediation: `0842fc53a70c6e3f9121652107f4e3eaaec7e938`, cùng branch `feature/p0-07-idempotency` và PR #15. Working tree sạch trước sửa; latest main vẫn `6e3206b205870ffa653c21bb8652ad0c9cdc9126`; spec diff từ approved amendment `0bfc98e` rỗng. Tái dùng G0/G1/G2 ở trên; scope vẫn P0-07/NFR-03, `02-architecture.md:105–107,118–132` và port `IUnitOfWork`. Không sửa specs, middleware, filter, DDL hoặc transaction framework.
+
+Finding đã xác nhận: handler save hết business/audit/outbox, token command riêng bị hủy nhưng trả Success; `SaveChangesAsync` không còn pending có thể không quan sát cancellation. Outer request token vẫn active nên transaction ngoài có thể commit. Command thường có bước commit với chính command token nên rollback được; joined path cần kiểm tra token tường minh.
+
+Thay đổi production duy nhất trong `EfUnitOfWork.ExecuteAsync`: `ThrowIfCancellationRequested()` ngay sau callback và lần nữa sau SaveChanges, trước khi trả joined success. Cả hai nằm trong `try` hiện hữu để `catch` đặt `_rollbackOnly`; outer transaction vẫn là owner duy nhất và xử lý rollback như cũ. Ngoài nhánh joined không đổi mã.
+
+Thay đổi test trong `IdempotencyTests.cs`: thêm 6 case dùng fixture PostgreSQL 17 và production DI/decorator/UoW. Bốn HTTP case qua WebApplicationFactory/TestServer, production filter: CTS của command độc lập hoàn toàn với RequestAborted, cancel sau handler save cuối hoặc tại event SavedChanges một lần của UoW save kế tiếp; mỗi phase kiểm cả exception thoát ra lẫn endpoint bắt exception rồi cố trả 201. Test xác nhận OperationCanceledException mang command token đã cancel trong khi HTTP token vẫn active; rollback business/audit/outbox/key về 0 bằng reader context độc lập. Retry cùng key tạo đúng 1 bộ committed effects và replay cùng bytes, tổng 2 lần handler (1 cancelled + 1 success). Hai case command thường gọi production decorator trực tiếp không outer filter, xác nhận cancellation vẫn rollback cả ba bảng và retry thành công, không tạo key.
+
+Red/green: trước sửa production, `dotnet test backend/tests/TeaPremium.IntegrationTests --no-build --no-restore --filter 'FullyQualifiedName~T09CommandTokenCancellation|FullyQualifiedName~T09OrdinaryCommandCancellation'` **FAIL 4, PASS 2, zero skipped**: cả bốn joined cases không quan sát cancellation, hai ordinary controls vẫn đúng. Sau sửa, toàn bộ focused suite **36 PASS**; không sửa expectation để che lỗi.
+
+| Command local sau remediation | Kết quả thực tế |
+|---|---|
+| `dotnet restore backend/TeaPremium.sln --locked-mode` | PASS; lockfiles không đổi. |
+| `dotnet build backend/TeaPremium.sln --no-restore -warnaserror` | PASS, 0 warnings/errors. |
+| `dotnet test backend/tests/TeaPremium.IntegrationTests --no-build --no-restore --filter FullyQualifiedName~IdempotencyTests` | PASS 36, zero failed/skipped; PostgreSQL 17 Testcontainers thật. |
+| `dotnet test backend/TeaPremium.sln --no-build --no-restore` | PASS Unit 11 + Architecture 34 + Integration 177 = **222**, zero failed/skipped. |
+| `dotnet format backend/TeaPremium.sln --verify-no-changes --no-restore` | PASS. |
+| `corepack pnpm check:api` | PASS, OpenAPI/client current, không contract drift. |
+| `git diff --check` | PASS. |
+
+Changed files remediation: `EfUnitOfWork.cs`, `IdempotencyTests.cs`, hồ sơ này. Không có migration; rollback kỹ thuật bằng revert remediation commit nhưng sẽ khôi phục P1 đã biết, do đó không bật endpoint dựa vào guarantee bị lỗi nếu downgrade. Kiểm tra token là điểm quan sát cooperative cancellation, không hứa hủy mọi race sau thời điểm command đã kết thúc; token HTTP/commit failure vẫn theo outer boundary hiện hữu. Kết luận GitHub Actions tại HEAD mới nằm trong PR #15/handoff sau push. **G4 re-review NOT RUN trong lượt sửa**, implementer không tự duyệt finding hay merge.

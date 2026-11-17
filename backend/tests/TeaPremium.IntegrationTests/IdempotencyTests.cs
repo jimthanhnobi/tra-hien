@@ -190,6 +190,72 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
     }
 
     [Theory]
+    [InlineData("handler", false)]
+    [InlineData("handler", true)]
+    [InlineData("unit_of_work_save", false)]
+    [InlineData("unit_of_work_save", true)]
+    public async Task T09CommandTokenCancellationRollsBackEvenIfEndpointAttemptsSuccess(string stage, bool catchCancellation)
+    {
+        var probe = new Probe { CommandCancellationStage = stage, CatchCommandCancellation = catchCancellation };
+        using var factory = Factory(probe);
+        using var client = factory.CreateClient();
+        var key = Guid.NewGuid();
+
+        using var failed = await Send(client, key);
+        Assert.Equal(1, probe.CommandCancellationsObserved);
+        Assert.Equal(catchCancellation, probe.SuccessAttemptedAfterCancellation);
+        await AssertProblem(failed, HttpStatusCode.InternalServerError, "internal_error");
+        await AssertCommitted(probe, key, 0);
+
+        using var retry = await Send(client, key);
+        Assert.Equal(HttpStatusCode.Created, retry.StatusCode);
+        using var replay = await Send(client, key);
+        Assert.Equal(retry.StatusCode, replay.StatusCode);
+        Assert.Equal(await retry.Content.ReadAsByteArrayAsync(), await replay.Content.ReadAsByteArrayAsync());
+        Assert.Equal(2, probe.Executions);
+        Assert.Equal(1, probe.CommandCancellationsObserved);
+        await AssertCommitted(probe, key, 1);
+    }
+
+    [Theory]
+    [InlineData("handler")]
+    [InlineData("unit_of_work_save")]
+    public async Task T09OrdinaryCommandCancellationStillRollsBackAndCanRetry(string stage)
+    {
+        var probe = new Probe { CommandCancellationStage = stage };
+        using var factory = Factory(probe);
+        // Initialize the same production host/DI, but invoke the decorator without the filter's outer transaction.
+        using var client = factory.CreateClient();
+        var key = Guid.NewGuid();
+        using (var scope = factory.Services.CreateScope())
+        using (var commandCancellation = new CancellationTokenSource())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var handler = new TransactionCommandDecorator<TestCommand, Guid>(
+                new TestHandler(db, scope.ServiceProvider.GetRequiredService<IOutboxWriter>(), probe, commandCancellation),
+                scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(new TestCommand(1), commandCancellation.Token));
+            Assert.True(commandCancellation.IsCancellationRequested);
+        }
+        await AssertCommitted(probe, key, 0);
+        using (var scope = factory.Services.CreateScope())
+        using (var retryCancellation = new CancellationTokenSource())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var handler = new TransactionCommandDecorator<TestCommand, Guid>(
+                new TestHandler(db, scope.ServiceProvider.GetRequiredService<IOutboxWriter>(), probe, retryCancellation),
+                scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
+            Assert.True((await handler.Handle(new TestCommand(1), retryCancellation.Token)).IsSuccess);
+        }
+        await using var reader = fixture.CreateContext();
+        Assert.Equal(1, await reader.Settings.CountAsync(x => x.Key.StartsWith(probe.Prefix)));
+        Assert.Equal(1, await reader.AuditLogs.CountAsync(x => x.EntityKey != null && x.EntityKey.StartsWith(probe.Prefix)));
+        Assert.Equal(1, await reader.OutboxMessages.CountAsync(x => x.Type == probe.Prefix));
+        Assert.False(await reader.IdempotencyKeys.AnyAsync(x => x.Key == key));
+        Assert.Equal(2, probe.Executions);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task T10CommitFailureOrLostAcknowledgementIsSafeForClientRetry(bool afterCommit)
@@ -484,8 +550,21 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
             var endpoint = endpoints.MapPost(path, async (Input input, HttpContext http, AppDbContext db,
                 IUnitOfWork uow, IOutboxWriter outbox, Probe probe, CancellationToken ct) =>
             {
-                var handler = new TransactionCommandDecorator<TestCommand, Guid>(new TestHandler(db, outbox, probe), uow);
-                var result = await handler.Handle(new TestCommand(input.Value), ct);
+                using var commandCancellation = new CancellationTokenSource();
+                var commandToken = probe.CommandCancellationStage is null ? ct : commandCancellation.Token;
+                var handler = new TransactionCommandDecorator<TestCommand, Guid>(new TestHandler(db, outbox, probe, commandCancellation), uow);
+                Result<Guid> result;
+                try { result = await handler.Handle(new TestCommand(input.Value), commandToken); }
+                catch (OperationCanceledException exception) when (probe.CommandCancellationStage is not null)
+                {
+                    Assert.Equal(commandToken, exception.CancellationToken);
+                    Assert.True(commandToken.IsCancellationRequested);
+                    Assert.False(http.RequestAborted.IsCancellationRequested);
+                    probe.CommandCancellationsObserved++;
+                    if (!probe.CatchCommandCancellation) throw;
+                    probe.SuccessAttemptedAfterCancellation = true;
+                    return new IdempotentResponse(201, new { id = Guid.Empty });
+                }
                 if (probe.Duplicate) await handler.Handle(new TestCommand(input.Value), ct);
                 if (!result.IsSuccess && probe.FailFirst != "swallowed") return (object)result.Error.ToProblem(http);
                 if (probe.ResponseMode == "arbitrary") return Results.Ok(new { token = "secret" });
@@ -520,7 +599,8 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
     private sealed record Input(int Value);
     private sealed record CsrfReply(string Token);
     private sealed record TestCommand(int Value) : ICommand<Guid>;
-    private sealed class TestHandler(AppDbContext db, IOutboxWriter outbox, Probe probe) : ICommandHandler<TestCommand, Guid>
+    private sealed class TestHandler(AppDbContext db, IOutboxWriter outbox, Probe probe,
+        CancellationTokenSource? commandCancellation = null) : ICommandHandler<TestCommand, Guid>
     {
         public async Task<Result<Guid>> Handle(TestCommand command, CancellationToken cancellationToken)
         {
@@ -533,6 +613,17 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
             if (probe.Pause) await probe.Release.Task.WaitAsync(cancellationToken);
             if (execution == 1)
             {
+                if (probe.CommandCancellationStage == "handler") commandCancellation!.Cancel();
+                if (probe.CommandCancellationStage == "unit_of_work_save")
+                {
+                    // Cancel after the UoW's next save completes, before it can return Success.
+                    void CancelAfterSave(object? sender, SavedChangesEventArgs args)
+                    {
+                        db.SavedChanges -= CancelAfterSave;
+                        commandCancellation!.Cancel();
+                    }
+                    db.SavedChanges += CancelAfterSave;
+                }
                 if (probe.FailFirst == "exception") throw new InvalidOperationException("private-person@example.com");
                 if (probe.FailFirst is "failure" or "swallowed")
                     return Result.Failure<Guid>(Error.BusinessRule("test_failed", "Thất bại."));
@@ -547,6 +638,10 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
         public int Executions;
         public bool Pause { get; set; }
         public bool Duplicate { get; init; }
+        public string? CommandCancellationStage { get; init; }
+        public bool CatchCommandCancellation { get; init; }
+        public int CommandCancellationsObserved;
+        public bool SuccessAttemptedAfterCancellation { get; set; }
         public string? FailFirst { get; init; }
         public string? ResponseMode { get; init; }
         public string? CommitFailure { get; init; }

@@ -41,8 +41,13 @@ public sealed class EfUnitOfWork(AppDbContext db) : IUnitOfWork
             try
             {
                 var joinedResult = await operation(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!joinedResult.IsSuccess) _rollbackOnly = true;
-                else await db.SaveChangesAsync(cancellationToken);
+                else
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
                 return joinedResult;
             }
             catch { _rollbackOnly = true; throw; }
