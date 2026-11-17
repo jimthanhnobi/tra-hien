@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using TeaPremium.Application.Outbox;
 using TeaPremium.Application.Time;
 using TeaPremium.Application.UseCases;
+using TeaPremium.Infrastructure.Outbox;
 
 namespace TeaPremium.Infrastructure.Persistence;
 
@@ -24,6 +26,8 @@ public static class PersistenceRegistration
         services.AddScoped<IAuditContext, SystemAuditContext>();
         services.AddScoped<AuditSaveChangesInterceptor>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IOutboxWriter, EfOutboxWriter>();
+        services.AddScoped<OutboxBatchProcessor>();
         return services;
     }
 }
