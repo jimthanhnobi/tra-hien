@@ -1,6 +1,6 @@
 # P0-11 — GitHub Actions CI
 
-**G3: local verification PASS; GitHub Actions chờ push/PR. G4 NOT RUN.**
+**G3: local verification PASS; GitHub Actions PASS tại implementation commit `8bf611d5563656d477355999b6a5906ad0c02981`. G4 NOT RUN.**
 Ngày 17/11/2026, main Codex thread thực hiện trực tiếp, không subagents.
 Base latest `origin/main`: `1ba65fa17fd8ab34a9e0d7d62cbf6fc8d3a88ede`;
 nhánh `feature/p0-11-github-actions-ci`. P0-10 đã merge qua PR #13 tại base này;
@@ -88,6 +88,7 @@ Các lệnh từ root; exit 0 trừ negative probes cố ý đòi exit khác 0.
 | PASS | `dotnet format backend/TeaPremium.sln --verify-no-changes --no-restore` | Không diff format. |
 | PASS | `dotnet test backend/TeaPremium.sln --no-build --no-restore --logger trx --results-directory artifacts/test-results` | Unit 11, Architecture 34, Integration 141: **186 PASS, 0 failed, 0 skipped**. PostgreSQL 17 bằng fixture hiện có. |
 | PASS | `./scripts/check-test-results.ps1` | 3 TRX, tất cả total=executed=passed > 0. |
+| PASS | `./scripts/check-test-results.ps1 -Directory artifacts/gate-negative` | Probe ba TRX, một file có total=1/executed=0/passed=0: bị throw/reject như mong đợi. |
 | PASS | `./scripts/migrations.ps1` | Tool restore EF 10.0.15; idempotent migrations.sql **9050 bytes**, InitialPlatform và migration history guards. |
 | PASS | `corepack pnpm generate:api` | Sinh từ API thật, JSON + TypeScript. |
 | PASS | `corepack pnpm check:api` | Lặp generation vẫn deterministic, committed outputs khớp. |
@@ -101,12 +102,27 @@ Các lệnh từ root; exit 0 trừ negative probes cố ý đòi exit khác 0.
 | PASS | `docker build -f infra/Dockerfile.web --build-arg APP=store -t tra-hien-store:ci .` | Image + Next build thành công. |
 | PASS | `docker build -f infra/Dockerfile.web --build-arg APP=admin -t tra-hien-admin:ci .` | Image + Next build thành công. |
 | PASS | `git diff --check` | Không whitespace errors. |
-| NOT RUN | GitHub Actions | Chờ push/PR, sẽ kiểm run thật; không suy diễn local PASS thành Actions PASS. |
+| PASS | GitHub Actions PR run `44041624408` tại `8bf611d5563656d477355999b6a5906ad0c02981` | Cả ba jobs success; test, SQL generation/upload và contract drift steps success. |
 | NOT RUN | G4 independent `$review-gate` | Cần session khác; implementer không tự phê duyệt. |
 
 Trong phát triển, lần thêm tsx đầu bị pnpm chặn esbuild build script; đã thêm allowBuilds riêng cho esbuild rồi frozen install/tests/build PASS.
 Lần generator đầu với incremental cache không tái sinh JSON bị ENOENT; đã sửa invalidate file-list cache, chạy lặp và negative probes PASS.
 Không có lỗi kiểm chứng local chưa xử lý. actionlint tải vào artifacts (gitignored), không vendored vào repo.
+
+## PR và GitHub Actions thực tế
+
+[PR #14](https://github.com/jimthanhnobi/tra-hien/pull/14), targeting main; implementation commit `8bf611d5563656d477355999b6a5906ad0c02981`.
+[PR run #2](https://github.com/jimthanhnobi/tra-hien/actions/runs/44041624408) **completed/success**:
+
+| Job | Job ID | Kết quả |
+|---|---|---|
+| Backend and API contract | 133897421272 | PASS, bao gồm all tests, reject skips, EF SQL artifact, actual OpenAPI/client drift gate. |
+| Frontend verification | 133897420794 | PASS, frozen install/lint/typecheck/4 scaffold tests/build. |
+| Docker regression builds | 133897421378 | PASS, API/store/admin images. |
+
+Đã inspect jobs, backend logs và artifacts qua GitHub connector. Artifacts có `migrations.sql` (ID 14308844954)
+và `backend-test-results` (ID 14308984641), không expired lúc kiểm tra.
+Bản cập nhật tài liệu sau run không đổi implementation; final HEAD và trạng thái run mới được báo ở handoff PR/chat.
 
 ## Giới hạn, rủi ro và rollback
 
