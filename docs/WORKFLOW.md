@@ -3,7 +3,7 @@
 **Nguồn sự thật:** `docs/spec/00-README.md`, `01`–`09` Markdown và `schema.sql`; `docs/spec/07-roadmap.md` giữ duy nhất các ID `P0-01`…`P6-*`. Không tạo `TASK-XXX`/`REQ-###`. DEC-21 xác định ưu tiên SEO.
 
 ## 0. Phân công và tối ưu token
-- Owner duyệt scope và tự merge `main`. Codex không tự merge.
+- Owner duyệt scope, cho phép publish và tự merge `main`. Codex không tự merge trừ khi owner ủy quyền rõ cho đúng PR.
 - Mặc định **một main Codex thread + đúng skill** cho một task nhỏ/vừa. Skill không bắt buộc gọi subagent tương ứng.
 - Chỉ gọi `spec_analyst`/`planner` khi có gap cần giải quyết; chỉ spawn `implementer` nếu chia được workstream độc lập, rõ file ownership. Không cho hai agent sửa cùng file.
 - G4 là reviewer độc lập trong session/context mới (skill `$review-gate` hoặc reviewer agent). Implementer không tự chấm G4.
@@ -23,28 +23,38 @@ Trước khi làm: `git status --short`, `git fetch origin --prune`, `git log -1
 - Mỗi task cần scoped G2 check: dependency, quyết định đã chốt, migration/security/testability, GO/HOLD và blocker trực tiếp.
 - Không tạo kiến trúc thứ hai hoặc viết lại hàng loạt tài liệu nếu không có finding mới.
 
-## 4. G3: Một roadmap task
-Trên `main` sạch đã đồng bộ, tạo feature branch riêng. Ví dụ task hiện tại (đổi ID cho task khác):
+## 4. G3: Implement local, không tự publish
+Trên `main` sạch đã đồng bộ, tạo feature branch local cho **một** roadmap task. Không chạy `git reset --hard`/`clean -fd` để giấu thay đổi. Mẫu prompt:
 ```text
-Use $implementation-slice for P0-10 in docs/spec/07-roadmap.md.
+Use $implementation-slice for the approved P*-* task in docs/spec/07-roadmap.md.
 Follow AGENTS.md and verified task-specific G1/G2 evidence.
-Audit existing implementation and tests; add only missing scope.
-Work in main Codex thread for this bounded task; no subagents unless justified.
-Run applicable checks and report exact results/NOT RUN.
-Commit/push feature branch, prepare PR; do not edit docs/spec or merge main.
+Audit code/tests first; implement only the scoped task.
+Work in one Codex main thread; use subagents only when justified.
+Run applicable focused/full checks; report exact PASS/FAIL/NOT RUN.
+Stay on the local feature branch. DO NOT commit, push, open/update PR or merge.
+Report git status --short, diff against origin/main, staged and untracked inventory,
+changed files, tests and risks. Return READY_FOR_LOCAL_G4, then STOP.
 ```
-Không mở rộng task sang runtime/refactor/migration không liên quan. Báo blocker có bằng chứng nếu vượt scope.
+G3 không đồng nghĩa với lệnh publish. Không cam kết CI đã chạy nếu code chưa được push. Chỉ test trên environment được phép, không động vào production.
 
-## 5. G4: Independent Review và Publish Gate
-Review trong Codex session mới, không cho implementer tự review:
+## 5. G4 local → sửa → Publish → CI → owner merge
+**G4 độc lập, context/session mới**, đọc cùng local worktree với G3. Bắt buộc rà soát `git diff origin/main`, `git diff --cached`, `git status --short` và `git ls-files --others --exclude-standard`; **đọc trực tiếp nội dung file untracked** vì `git diff` không tự hiển thị chúng. Đối chiếu spec, tests và thực tế hệ thống, không chỉ báo cáo implementer.
 ```text
-Use $review-gate for P0-10.
-Review actual feature-branch diff against latest origin/main, task spec and tests.
-Report P0/P1 with file:line, impact, reproduction and minimal fix.
-Separate VERIFIED / NOT RUN / NOT APPLICABLE; verdict PASS / CONDITIONAL / BLOCK.
-Read-only: no edits, push, approval or merge.
+Use $review-gate for the approved P*-* task, in a fresh independent session.
+Review the SAME local feature worktree against latest origin/main.
+Include committed/staged/unstaged changes AND untracked file contents.
+Report P0/P1 findings with file:line, impact, reproduction and minimal fix.
+Distinguish VERIFIED / NOT RUN / NOT APPLICABLE.
+Return PASS / CONDITIONAL / BLOCK. Read-only: no edits/commit/push/merge.
 ```
-BLOCK nếu còn P0/P1; sửa tối thiểu trên cùng branch và review lại. Owner tự merge khi G4 PASS, scope/test evidence đầy đủ. Chưa có CI thì chỉ báo local checks, không tự nhận CI PASS.
+Nếu reviewer không thấy được local worktree, **không** tự nhận G4 PASS; báo thiếu quyền truy cập. Chỉ khi owner cho phép mới publish reviewable snapshot/PR để reviewer làm G4 remote.
+
+- **BLOCK:** G3 sửa đúng finding trên cùng local branch, chạy focused tests; G4 focused re-review thay vì audit lại toàn repo. Lặp tới khi không còn P0/P1.
+- **G4 PASS:** Dừng và chờ owner **cho phép publish rõ ràng**. Sau đó mới commit/push, mở hoặc cập nhật **một PR**, đối chiếu published SHA với bản đã review.
+- **CI:** chạy ở PR target `main`; ba required job backend/API, frontend, Docker phải PASS tại đúng HEAD. Nếu CI lỗi, sửa trên cùng branch, review thay đổi cần thiết, rồi publish lại theo owner approval.
+- **Merge:** owner duyệt và merge thủ công; chỉ ủy quyền merge trong một yêu cầu rõ ràng. Push vào `main` sau merge cũng chạy CI, không push/deploy production tự động.
+- **CI trigger:** `pull_request` vào `main` và `push` lên `main` (không đồng thời push `feature/**`). Tránh một HEAD xuất hiện 3 PASS + 3 CANCELLED do concurrency hủy run trùng.
+- **Handoff tiết kiệm token:** G3 giao file/status/tests ngắn; G4 tập trung diff và failure cases; sau G4 chỉ đọc CI/head SHA thay vì full review lại nếu nội dung không đổi.
 
 ## 6. Sau khi spec/architecture đổi
 Kiểm diff từ SHA baseline, đánh giá impact và chạy lại phần G1/G2 bị ảnh hưởng; full audit nếu đổi diện rộng. Không tự sửa `docs/spec/**`. Spec Kit, Superpowers, CodeRabbit chỉ tùy chọn, không thuộc workflow bắt buộc.
