@@ -1,6 +1,6 @@
-# P0-08 — IAM nhân viên (local G3)
+# P0-08 — IAM nhân viên: triển khai và bằng chứng review
 
-Trạng thái hiện tại: **READY_FOR_FOCUSED_G4** — P0-08 G4 đã PASS với một P2; đã sửa P2 và xác minh local, chờ focused G4. Các mục G3 bên dưới giữ bằng chứng lịch sử của snapshot trước sửa; cập nhật remediation ở cuối hồ sơ. Không commit, push, tạo/cập nhật PR hoặc merge.
+Trạng thái hiện tại: **G4 độc lập PASS; focused G4 PASS; P2 đã đóng**. Code đã commit local tại `4f39d48a79141494cb18592c31cf58caadaae6e3` trên `feature/p0-08-staff-iam`. Owner đã cho phép push nhánh để kiểm tra; chưa cho phép mở PR hoặc merge. Các mục G3/remediation bên dưới giữ bằng chứng lịch sử; kết quả review cuối nằm ở mục cuối hồ sơ.
 
 ## G0/G1/G2 và traceability
 
@@ -240,3 +240,46 @@ Fingerprint SHA256 so với snapshot trước sửa xác nhận các file IAM lo
 | `git diff --check` | PASS. |
 
 Không có P0/P1 mới được xác nhận trong phạm vi sửa. P2 đã được implement và kiểm chứng local, **focused G4 độc lập NOT RUN**, không tự đóng bằng reviewer approval. GitHub Actions/production và Docker/frontend full không chạy lại cho bản metadata này; kết quả G3/G4 lịch sử phía trên chỉ áp dụng snapshot cũ. Inventory vẫn 14 tracked modified + 16 untracked, staged 0; stat Git của contract thay đổi nên số dòng G3 phía trên là lịch sử. **READY_FOR_FOCUSED_G4**, dừng; không commit/push/PR/merge.
+
+## Kết quả G4 độc lập, focused re-review và handoff cho owner
+
+Cập nhật 17/11/2026, sau các mốc G3/remediation lịch sử phía trên. Review bằng context reviewer độc lập với implementer, trên cùng worktree local; không dùng kết luận tự review của implementer. G4 đọc đủ 14 tracked changes và toàn bộ 16 untracked files, đối chiếu FR-IAM-01/02/03, BR-IAM-01/02/06, NFR-07, AC-P0-01/02/03, DEC-14/15/16, API/schema, transaction/audit và permission matrix. Không audit lại G1/G2 vì không có spec drift.
+
+### Findings và remediation
+
+- **G4 toàn P0-08: PASS**, không phát hiện P0/P1 có thể hành động trong phạm vi review. Có một **P2**: logout/change-password/totp/verify trả 204 nhưng OpenAPI/client khai 200; test cũ chỉ kiểm path/schema. Finding này không bị giấu trong kết quả PASS.
+- Owner giao sửa P2; thêm metadata 204 + ProblemDetails 400/401/403 cho đúng ba endpoint, regenerate JSON/TS, thêm ba test thực với PostgreSQL 17/cookie/CSRF, kiểm status và body rỗng. Red phase ba test FAIL đúng lỗi contract trước sửa; sau sửa đều PASS.
+- **Focused G4: PASS, P2 đã được xác minh đóng**, không có finding mới. Reviewer xác nhận runtime 204/body rỗng, contract chỉ success 204, JSON/TS đồng bộ, lỗi anonymous 401 và thiếu CSRF 400 giữ nguyên. Hoàn nguyên riêng remediation trong bộ nhớ rồi so SHA256 khôi phục đúng endpoint/tests/JSON/TS của snapshot G4 cũ; 25 file còn lại không đổi, bao gồm security logic và migrations.
+- Fingerprint 30 file trước/sau focused review không đổi. Trước commit, kiểm lại cả untracked, scope và secrets: chỉ có credential tổng hợp trong tests, không có secret thật/default owner password, .env, certificate/private key hoặc artifact DB được đưa vào commit. Không còn P0/P1 đã xác nhận hoặc P2 chưa remediation trong phạm vi hai lượt review.
+
+### Lệnh reviewer thực chạy và kết quả
+
+| Command | Kết quả độc lập |
+|---|---|
+| `dotnet test backend/TeaPremium.sln --no-restore --logger 'trx;LogFilePrefix=g4' --results-directory artifacts/p0-08-independent-g4` | G4 ban đầu PASS **261/261**: Unit 11, Architecture 34, Integration 216; 0 failed/skipped. |
+| `dotnet test backend/tests/TeaPremium.IntegrationTests --no-restore --filter FullyQualifiedName~T27AuthNoContentRuntimeMatchesGeneratedContract --logger 'trx;LogFilePrefix=g4focused' --results-directory artifacts/p0-08-independent-g4-focused` | Focused review PASS **3/3**, 0 failed/skipped. |
+| `dotnet test backend/TeaPremium.sln --no-build --no-restore --logger 'trx;LogFilePrefix=g4focusedfull' --results-directory artifacts/p0-08-independent-g4-focused-full` | Focused review full regressions PASS **264/264**: Unit 11, Architecture 34, Integration 219; 0 failed/skipped. |
+| `./scripts/check-test-results.ps1 -Directory artifacts/p0-08-independent-g4` | PASS đủ ba test projects, không rỗng/skipped. |
+| `./scripts/check-test-results.ps1 -Directory artifacts/p0-08-independent-g4-focused-full` | PASS đủ ba test projects, không rỗng/skipped. |
+| `dotnet restore backend/TeaPremium.sln --locked-mode` | PASS trong G4 ban đầu. |
+| `dotnet build backend/TeaPremium.sln --no-restore -warnaserror` | PASS trong cả hai lượt; 0 warnings/errors. |
+| `dotnet format backend/TeaPremium.sln --verify-no-changes --no-restore` | PASS trong cả hai lượt. |
+| `corepack pnpm check:api` | PASS trong cả hai lượt; sau sửa metadata JSON/TS đúng 204, không chỉ đồng bộ một contract sai. |
+| `corepack pnpm --filter @teapremium/api-client typecheck` | PASS trong focused review. |
+| `dotnet ef migrations has-pending-model-changes --no-build --context AppDbContext --project backend/src/TeaPremium.Infrastructure --startup-project backend/src/TeaPremium.Infrastructure` | PASS trong G4 ban đầu sau khi cấp connection design-time dummy port 1; không truy cập DB production. |
+| `git diff --check` | PASS trong cả hai lượt và trước commit. |
+
+Các integration tests dùng PostgreSQL 17 Testcontainers thật và WebApplicationFactory/Identity/cookie/CSRF thật, gồm migration từ rỗng, idempotent SQL và up/down/up, exact roles/claims, lockout/clock, password/TOTP gates và replay, revocation, permissions, last-owner concurrency, trusted proxy/rate limit, bootstrap, audit/PII và hồi quy idempotency/outbox/UoW. Không dùng mocks làm bằng chứng tính đúng PostgreSQL.
+
+Lượt EF check đầu tiên của G4 thiếu biến cấu hình nên exit 1; reviewer cấp dummy connection rồi chạy lại PASS. Script đối chiếu SHA đầu tiên của focused review giả định CRLF nên dừng; chạy lại với LF/CRLF xác nhận đủ hash khớp. Đây là lỗi setup/check script đã xử lý, không phải test sản phẩm chưa sửa. Các log/TRX/SQL nằm trong artifacts local bị ignore, không commit; bảng trên ghi lại command/count/verdict để owner kiểm tra trên nhánh.
+
+### Chưa chạy và giới hạn bằng chứng
+
+- GitHub Actions cho feature HEAD: **NOT RUN** ở thời điểm ghi hồ sơ; workflow hiện chạy khi PR vào main hoặc push main. Push feature branch riêng không phải bằng chứng CI PASS.
+- Production migration/deployment, quyền DB production, browser/reverse proxy production, CLI nhập password ẩn thủ công: **NOT RUN**. Docker build và frontend full đã PASS ở G3 trước remediation; không chạy lại trong focused G4 metadata-only.
+- Recovery/rotation TOTP chưa có hợp đồng được owner duyệt; hiện giữ deny, không cung cấp bypass. Certificate/key ring/trusted proxy/DB privileges phải được cấu hình và kiểm khi vận hành.
+- SEO, customer accounts và Admin UI P0-12 không thuộc scope P0-08. Review PASS không có nghĩa toàn ứng dụng không còn bug.
+
+### Commit/push được owner cho phép
+
+Code commit: `4f39d48a79141494cb18592c31cf58caadaae6e3` — `feat(iam): implement P0-08 staff authentication and authorization`, parent `72c637ab60f46e6367609c57ec114493b6ad675e`. Commit chứa đúng snapshot đã review: 30 files, +5679/−185; worktree sạch sau commit. Cập nhật hồ sơ review này là commit tài liệu riêng, không thay runtime/migration. Owner đã yêu cầu push `feature/p0-08-staff-iam` để tự kiểm tra; **không mở PR, không merge** trong yêu cầu này.
