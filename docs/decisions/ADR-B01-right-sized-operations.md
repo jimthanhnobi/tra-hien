@@ -3,7 +3,7 @@
 - **Trạng thái:** OWNER DECIDED 18/11/2026; amendment tài liệu cần G4 độc lập + CI/merge trước khi là baseline mới.
 - **Phạm vi:** điều chỉnh A01 D8/D9 và D12/DEC-29, không thay DDL/role/grants hay code IAM đang hoạt động.
 - **Quy mô:** 10–20 kết nối đồng thời, 100–1.000 lượt khách/ngày; 3–4 tài khoản nhân viên Admin. Mục tiêu ưu tiên Catalog, Admin, kho, nội dung SEO và kênh Zalo; không thiết kế vận hành enterprise chỉ vì tương lai có thể mở rộng.
-- **Baseline:** PR #20/#21 A01; PR #22 Closure #1 MERGED, merge SHA `606fd2e279eb766976db18473cd45e7cbd142108`. PR CI #22 run `44270404911` success, push main `44271243633` phải xác minh khi completed.
+- **Baseline:** PR #20/#21 A01; PR #22 Closure #1 MERGED, merge SHA `606fd2e279eb766976db18473cd45e7cbd142108`. PR CI #22 run `44270404911` và merge-push run `44271243633` đều completed/success, mỗi run 3/3 jobs PASS, xác minh qua GitHub.
 
 ## Quyết định owner
 

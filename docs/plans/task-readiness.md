@@ -102,10 +102,10 @@ P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi
 | Phạm vi | Trạng thái / gate |
 |---|---|
 | A01 amendment | [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20) và [PR #21](https://github.com/jimthanhnobi/tra-hien/pull/21) MERGED; quyết định lịch sử D8/D9/D12 đã được B01 điều chỉnh có phạm vi. |
-| Closure #1 P0-02/04 | [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22) MERGED, head `86d8b561dc5a2db22a151eb499fb2a8512769cd0`, merge `606fd2e279eb766976db18473cd45e7cbd142108`. Independent focused G4 PASS theo bằng chứng owner cung cấp, 463/463 backend tests do reviewer báo PASS. PR CI run 44270404911 completed/success; merge-push CI run 44271243633 tại thời điểm soạn **chưa được xác nhận completed/success**; phải kiểm lại trước cấp G3 P1-01. Manual HTTPS/backup/owner còn NOT RUN, không được đánh dấu production-ready. |
+| Closure #1 P0-02/04 | [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22) MERGED, head `86d8b561dc5a2db22a151eb499fb2a8512769cd0`, merge `606fd2e279eb766976db18473cd45e7cbd142108`. Independent focused G4 PASS theo bằng chứng owner cung cấp, 463/463 backend tests do reviewer báo PASS. PR CI run 44270404911 completed/success; merge-push CI run 44271243633 completed/success; cả hai run 3/3 jobs PASS (Backend/API contract, Frontend, Docker). Manual HTTPS/backup/owner còn NOT RUN, không được đánh dấu production-ready. |
 | Closure #2 P0-08/12 | **DEFERRED theo owner B01**: không xây `reset-staff-mfa`/owner coverage/banner ở P0; không được nói DONE. Tài khoản và TOTP hiện hữu giữ nguyên. |
 | P0 vận hành | Trước dữ liệu thật/go-live phải kiểm HTTPS, một owner đã đổi password + TOTP, CSRF/lockout/logout, settings audit và backup/restore; owner thứ hai là khuyến nghị, không gate. |
-| P1-01 | **HOLD / NOT AUTHORIZED G3** cho đến khi B01 qua G4/CI/merge và P0 Closure #1 CI merge-head PASS, scoped readiness kiểm lại role/helper. Khi đủ thì owner có thể giao G3 migration trên DB giả; không đòi Closure #2/manual owner A/B. |
+| P1-01 | **HOLD / NOT AUTHORIZED G3** cho đến khi B01 qua G4/CI/merge và P0 Closure #1 CI merge-head đã PASS, scoped readiness kiểm lại role/helper. Khi đủ thì owner có thể giao G3 migration trên DB giả; không đòi Closure #2/manual owner A/B. |
 | P1-04 | D12: audit entity/path cho các nghiệp vụ quan trọng, che PII mặc định trước khi bật audit entity, không chặn P1-01. |
 | P1-07 | Import variant key/match/upsert vẫn OPEN tại task P1-07; không chặn P1-01. |
 
