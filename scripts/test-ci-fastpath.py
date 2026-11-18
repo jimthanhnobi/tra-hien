@@ -152,6 +152,54 @@ class CiScopeTests(unittest.TestCase):
         self.write("docs/guide.md", "[Target][ref]\n\n[ref]: <../README.md> \"title\"\n")
         module.validate_docs(["docs/guide.md"], self.repo)
 
+
+    def assert_reference_rejected_for_both_events(self, content, with_deletion=False):
+        if with_deletion:
+            self.write("README.md", content)
+            self.write("docs/target.md", "# target\n")
+            cmd("add", "-A", cwd=self.repo)
+            cmd("commit", "-qm", "reference baseline", cwd=self.repo)
+            self.base = cmd("rev-parse", "HEAD", cwd=self.repo)
+            mutate = lambda: (self.repo / "docs/target.md").unlink()
+        else:
+            mutate = lambda: self.write("docs/guide.md", content)
+
+        for event, _ in self.changed(mutate):
+            head = cmd("rev-parse", "HEAD", cwd=self.repo)
+            changes = module.changed_files(event, self.base, head, before=self.base)
+            with self.assertRaisesRegex(ValueError, "unsupported"):
+                module.validate_changed_docs(changes, self.repo)
+
+            output = self.repo / "scope-output.txt"
+            output.write_text("", encoding="utf-8")
+            result = subprocess.run([
+                os.sys.executable, str(Path(__file__).with_name("ci-fastpath.py")),
+                "--event", event, "--base", self.base, "--head", head,
+                "--before", self.base, "--github-output", str(output)
+            ], cwd=self.repo, capture_output=True, text=True, check=False)
+            self.assertNotEqual(result.returncode, 0, (event, result.stdout, result.stderr))
+            self.assertIn("unsupported", result.stderr)
+            self.assertEqual("", output.read_text(encoding="utf-8"))
+
+    def test_commonmark_multiline_reference_rejected_for_pr_and_push(self):
+        self.assert_reference_rejected_for_both_events("[Missing][ref]\n\n[ref]:\n  missing.md\n")
+
+    def test_commonmark_blockquote_reference_rejected_for_pr_and_push(self):
+        self.assert_reference_rejected_for_both_events("[Missing][ref]\n\n> [ref]: missing.md\n")
+
+    def test_nested_blockquote_reference_rejected_for_pr_and_push(self):
+        self.assert_reference_rejected_for_both_events("> > [ref]: missing.md\n")
+
+    def test_deletion_unmodified_readme_multiline_reference_rejected(self):
+        self.assert_reference_rejected_for_both_events(
+            "[Target][ref]\n\n[ref]:\n  docs/target.md\n", with_deletion=True
+        )
+
+    def test_deletion_unmodified_readme_blockquote_reference_rejected(self):
+        self.assert_reference_rejected_for_both_events(
+            "> [ref]: docs/target.md\n", with_deletion=True
+        )
+
     def test_bad_sha_fail_closed(self):
         with self.assertRaises(ValueError):
             module.changed_paths('push', '', 'invalid', before='0'*40)

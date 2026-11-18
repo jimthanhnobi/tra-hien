@@ -17,6 +17,10 @@ from urllib.parse import unquote, urlsplit
 _SHA = re.compile(r"[0-9a-fA-F]{40}\Z")
 _LINK = re.compile(r"!?(?:\[[^\]]*\])\((<[^>]+>|[^)]+)\)")
 _REF_DEF = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)")
+# CommonMark permits multiline and blockquote reference definitions. We do not
+# implement these contexts: reject them instead of silently approving docs-only.
+# Broad detection is deliberately conservative (unsupported syntax => failed CI).
+_REF_HEAD = re.compile(r"^[ \t]*(?P<quote>(?:>[ \t]*)*)\[[^\]\r\n]+\]:(?P<tail>.*)$")
 _FENCE = re.compile(r"^\s{0,3}([\x60]{3,}|~{3,})")
 
 
@@ -97,9 +101,15 @@ def validate_docs(paths: list[str], root: Path) -> None:
             # fragment-only links. Anchors are intentionally left to G4 review
             # because GitHub heading slug rules differ from simple regexes.
             targets = [match.group(1) for match in _LINK.finditer(line)]
-            definition = _REF_DEF.match(line)
-            if definition:
-                targets.append(definition.group(1))
+            reference_head = _REF_HEAD.match(line)
+            if reference_head:
+                definition = _REF_DEF.match(line)
+                if reference_head.group("quote"):
+                    errors.append(f"{name}:{number}: unsupported blockquote reference definition")
+                elif not definition:
+                    errors.append(f"{name}:{number}: unsupported or multiline reference definition")
+                else:
+                    targets.append(definition.group(1))
             for raw in targets:
                 raw = raw.strip()
                 href = raw[1:-1] if raw.startswith("<") and raw.endswith(">") else raw.split(' "', 1)[0]
