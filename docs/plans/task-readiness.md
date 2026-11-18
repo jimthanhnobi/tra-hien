@@ -1,6 +1,6 @@
 # Mức sẵn sàng task P0–P6
 
-**Cập nhật hiện hành A01 (18/11/2026):** amendment MERGED qua PR #20; G4 tầng A PASS trước publish/merge theo bằng chứng reviewer do owner cung cấp; CI tại PR HEAD và merge SHA đã xác minh riêng PASS. Xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; closure/runtime/P0 acceptance chưa hoàn tất.
+**Cập nhật B01 (18/11/2026):** PR #20/#21 đã merge A01; Closure #1 qua [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22), merge SHA `606fd2e279eb766976db18473cd45e7cbd142108`. B01 cập nhật gate IAM/audit tinh gọn, vẫn cần G4 và CI ở PR amendment; xem mục cuối. Các ghi chú GO/HOLD cũ là lịch sử, không thay thế gate B01.
 
 **Trạng thái:** PROPOSED. Bám `docs/spec/07-roadmap.md`; giữ nguyên mọi ID task và AC, không sửa dependency trong spec. Đối chiếu `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md` và [rà soát kiến trúc](../architecture/conformance-review.md). “GO” ở đây là đủ rõ để giao task theo gate G2/G3 của `AGENTS.md`, không phải xác nhận code đã chạy.
 
@@ -97,17 +97,16 @@ git diff --check
 
 P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi tại thời điểm lập kế hoạch. Ngày 16/11/2026, owner duyệt G26 Option B/G01 Option B và chấp nhận bản sửa `docs/spec/` sau G4 GO. Hai ADR trong `docs/decisions/` giữ lịch sử đề xuất. **G26/G01 SPEC AMENDMENT — OWNER ACCEPTED (G4 GO); F-01 DDL AMENDMENT — OWNER APPROVED (G4 GO); P0-04 IMPLEMENTATION — NOT AUTHORIZED.** `docs/plans/p0-04-readiness.md` ghi ma trận F-01 đã duyệt và DDL đã qua G4 độc lập. F-02 là điều kiện riêng của P0-09/CRM; AC-P0-04 chỉ kiểm được khi P0-05/P0-09 triển khai cùng schema đã chốt.
 
-## A01 — trạng thái hiện hành 18/11/2026
+## B01 — trạng thái hiện hành sau PR #22 (18/11/2026)
 
-Các đoạn PROPOSED/NOT AUTHORIZED lịch sử ở trên giữ mốc của task cũ, không cấp lệnh chạy lại. Owner phê duyệt A01/finalize + hai bổ sung backup/điều tra và owner B API. [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20): base `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`, PR HEAD `47f2c7b491ab124c91e827fda6e010171abeaba7`, merge/spec revision `024ea998c43baf0afde30b069ed6b4876cb96f4a`, merged at `2026-11-18T06:28:13Z`; GitHub đã xác minh.
-
-| Phạm vi | Gate hiện hành |
+| Phạm vi | Trạng thái / gate |
 |---|---|
-| A01 amendment specs/workflow | OWNER APPROVED / MERGED; independent local G4 tầng A PASS trước publish/merge theo evidence reviewer do owner cung cấp, không finding actionable P0–P3. CI PR HEAD run 44250706587 và merge SHA run 44251560930: completed/success, cả ba jobs PASS (xác minh riêng). Không chứng minh implementation/EF/runtime amendment |
-| Closure #1, remediation P0-02/04 | NOT AUTHORIZED G3; G4 amendment đã PASS, cần owner giao riêng; source role/helper/migration chưa tạo; runbook/provisioning/grants thực/backup restore NOT RUN |
-| Closure #2, remediation P0-08/12 | NOT AUTHORIZED G3; recovery/coverage/API owner B cần implement/test sau giao việc |
-| P1-01 | HOLD / NOT AUTHORIZED G3; C1 amendment hoàn tất (approval/G4/merge/spec SHA/CI). C2 closure #1/#2 và runbook/P0 acceptance chưa đủ; C3 contract đã duyệt nhưng role/helper và evidence triển khai chưa có; owner giao riêng |
-| P1-04 | D12 audit entity/path phải hoàn tất trước entity audited; không chặn P1-01 |
-| P1-07 | Variant key/import lại/ô trống/nhóm conflict/atomicity OPEN tại task; không auto-upsert thiếu khóa, không chặn P1-01 |
+| A01 amendment | [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20) và [PR #21](https://github.com/jimthanhnobi/tra-hien/pull/21) MERGED; quyết định lịch sử D8/D9/D12 đã được B01 điều chỉnh có phạm vi. |
+| Closure #1 P0-02/04 | [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22) MERGED, head `86d8b561dc5a2db22a151eb499fb2a8512769cd0`, merge `606fd2e279eb766976db18473cd45e7cbd142108`. Independent focused G4 PASS theo bằng chứng owner cung cấp, 463/463 backend tests do reviewer báo PASS. PR CI run 44270404911 completed/success; merge-push CI run 44271243633 tại thời điểm soạn **chưa được xác nhận completed/success**; phải kiểm lại trước cấp G3 P1-01. Manual HTTPS/backup/owner còn NOT RUN, không được đánh dấu production-ready. |
+| Closure #2 P0-08/12 | **DEFERRED theo owner B01**: không xây `reset-staff-mfa`/owner coverage/banner ở P0; không được nói DONE. Tài khoản và TOTP hiện hữu giữ nguyên. |
+| P0 vận hành | Trước dữ liệu thật/go-live phải kiểm HTTPS, một owner đã đổi password + TOTP, CSRF/lockout/logout, settings audit và backup/restore; owner thứ hai là khuyến nghị, không gate. |
+| P1-01 | **HOLD / NOT AUTHORIZED G3** cho đến khi B01 qua G4/CI/merge và P0 Closure #1 CI merge-head PASS, scoped readiness kiểm lại role/helper. Khi đủ thì owner có thể giao G3 migration trên DB giả; không đòi Closure #2/manual owner A/B. |
+| P1-04 | D12: audit entity/path cho các nghiệp vụ quan trọng, che PII mặc định trước khi bật audit entity, không chặn P1-01. |
+| P1-07 | Import variant key/match/upsert vẫn OPEN tại task P1-07; không chặn P1-01. |
 
-Không dùng tp_readonly query tay điều tra; read identity riêng tối thiểu/no IAM creds/DP keys mặc định. Owner B qua staff.manage/cookie/CSRF và session onboarding riêng, không Staff UI. Runtime, grants thực, MFA recovery và P0 acceptance vẫn NOT RUN. Evidence: [A01](../reviews/a01-amendment-evidence.md); task detail [P1-01](p1-01-implementation.md). Bản cập nhật hồ sơ này cần G4 tầng B riêng; không mở lại G4 tầng A của A01.
+Không dùng `tp_readonly` để điều tra/query tay. B01 không cấp quyền triển khai production hoặc tự động bỏ G4/CI. Trạng thái lịch sử A01 xem [ADR A01](../decisions/ADR-PROPOSAL-A01-p0-closure-p1-owner-decisions.md); cập nhật mới ở [ADR B01](../decisions/ADR-B01-right-sized-operations.md).

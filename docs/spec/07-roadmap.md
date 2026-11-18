@@ -18,18 +18,18 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P0-02 | `infra/compose.dev.yml` (postgres 17, api, store, admin), `.env.example`, README chạy local; closure #1 role SQL/wrapper mới+existing DB 06 §5, runtime tp_app và runbook HTTPS | S | P0-01 |
 | P0-03 | Cross-cutting backend: `IClock`, `BusinessCalendar`, `Money`, `Result<T>`/`Error`, `ICommandHandler/IQueryHandler` + decorator validation/transaction, ProblemDetails mapping, correlation id middleware, log JSON che PII | M | P0-01 |
 | P0-04 | `AppDbContext` nhiều schema, quy ước snake_case + tên constraint tường minh, mapping `xmin` (cột hệ thống); migration đầu chỉ tạo schema `platform` với 9 bảng: `settings`, `provinces`, `wards`, `audit_logs` (UUID/TEXT identity theo G26), `outbox_messages`, `idempotency_keys`, `inbound_webhooks`, `notification_logs`, `data_protection_keys`. `provinces`/`wards` chỉ có cấu trúc, không seed danh mục. Tạo extension `unaccent`, `pg_trgm`, `btree_gist` và `public.f_unaccent`; kiểm migration từ DB rỗng, constraint/index parity và transaction `IUnitOfWork` thật.; closure #1 thêm migration grants nền qua helper chung, không sửa migration cũ | M | P0-03 |
-| P0-05 | Audit interceptor (02 §5.4) + attribute `[Audited]`, mapping UUID/TEXT identity, danh sách field/path PII/secret (cả JSON lồng nhau), ghi audit cùng transaction và test rollback; D12 entity/path deny-by-default/nested/rollback, phần catalog trước P1-04 | M | P0-04 |
+| P0-05 | Audit interceptor (02 §5.4) + `[Audited]` cho thao tác quan trọng theo FR-PLT-01; mapping UUID/TEXT, redact PII/secret kể cả JSON lồng, ghi cùng transaction/rollback. Không mở rộng audit mọi entity/UI; audit đã triển khai ở P0 giữ nguyên, catalog giá và thao tác nhạy cảm kiểm theo từng feature | M | P0-04 |
 | P0-06 | Outbox + dispatcher + khung `PeriodicJob` có advisory lock | M | P0-04 |
 | P0-07 | Idempotency middleware/filter (02 §5.3) | S | P0-04 |
-| P0-08 | IAM nhân viên: Identity schema `iam`, cookie `AdminCookie`, CSRF, login/logout/me, đổi mật khẩu, TOTP, khóa tài khoản, rate limit, role+permission seed (02 §7), quản lý nhân viên, lệnh CLI `bootstrap-owner`; closure #2 reset-staff-mfa BR-IAM-07/08, audit nguyên tử/revoke/password+TOTP lại; tạo owner thứ hai qua Admin API bảo vệ | L | P0-04 |
+| P0-08 | IAM nhân viên: Identity `iam`, cookie `AdminCookie`, CSRF, login/logout/me, đổi mật khẩu, TOTP owner, lockout/rate limit, role/permission, staff API, CLI `bootstrap-owner`. Không triển khai CLI `reset-staff-mfa` ở P0; recovery offline khi cần theo BR-IAM-07 | L | P0-04 |
 | P0-09 | Settings module (`platform.settings` + API `admin/settings/{group}`), seed setting mặc định; CLI `import-provinces <csv>` kiểm provenance/CSV, phân biệt full snapshot/delta, dry-run, import transaction/idempotent và kiểm dữ liệu sẵn cho luồng dùng địa chỉ | S | P0-04 |
 | P0-10 | ArchitectureTests (02 §3) + Testcontainers fixture + test migration từ rỗng | S | P0-04 |
 | P0-11 | CI `ci.yml` (06 §7 bước 1–4) | S | P0-10 |
-| P0-12 | Admin app khung: layout, đăng nhập (+TOTP), menu theo permission, trang 403/404, TanStack Query + client sinh từ OpenAPI, form chuẩn (RHF + Zod), bảng chuẩn (TanStack Table, phân trang server); closure #2 ownerMfaCoverageOk chỉ owner; không giả định Staff UI để nghiệm thu owner thứ hai | M | P0-08 |
+| P0-12 | Admin khung: layout, đăng nhập (+TOTP), menu permission, 403/404, TanStack Query/API client, RHF+Zod, bảng phân trang. Không yêu cầu `ownerMfaCoverageOk`/banner hay Staff UI để đóng P0; owner thứ hai là tùy chọn | M | P0-08 |
 
 **DoD P0:** `docker compose -f infra/compose.dev.yml up` chạy được; owner đăng nhập admin bằng TOTP; CI xanh.
 
-**A01 — đóng P0 trước P1-01:** closure #1 remediation P0-02/P0-04 (roles/grants/runtime/runbook, dùng tests P0-09/10); #2 P0-08/P0-12 (recovery/coverage); nghiệm thu HTTPS và hai owner qua Admin API bảo vệ, settings/audit/CSRF/lockout/logout, cập nhật DONE bằng evidence/SHA thật. Không tạo task ID mới/gộp closure và P1-01. Runbook docs/plans/p0-closure-acceptance.md; tp_readonly chỉ backup kiểm soát, điều tra dùng quyền riêng. Approval amendment không cho G3/publish.
+**B01 — gate P1-01 tinh gọn, thay phần A01 D8/D9:** Closure #1 DB roles/grants đã merge qua PR #22; yêu cầu G4/CI bản merge và amendment B01, scoped readiness và owner giao G3 P1-01 riêng. Closure #2 MFA recovery/coverage bị **bỏ khỏi P0**, không tự động code; không bắt hai owner và nghiệm thu manual HTTPS trước DDL trên DB giả. Trước dữ liệu thật/go-live vẫn bắt buộc HTTPS, owner TOTP, CSRF, kiểm quyền, audit quan trọng và backup/restore theo runbook. Không đánh dấu P0 DONE khi chưa nghiệm thu thực; không tạo task ID mới.
 
 **Nghiệm thu**
 - AC-P0-01: Sai mật khẩu 5 lần → tài khoản bị khóa 15 phút (BR-IAM-01).
@@ -39,8 +39,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
   Đây là nghiệm thu tích hợp P0-04 (bảng), P0-05 (interceptor/che dữ liệu) và P0-09 (settings); riêng P0-04 tạo bảng chưa đạt AC này. Giá trị trước/sau phải tuân thủ quy tắc che PII/secret tại 02 §5.4.
 - AC-P0-05: Test kiến trúc fail nếu Application tham chiếu EF Core hoặc gọi `DateTime.Now`.
 
-- AC-P0-06: operator được ủy quyền reset owner A → request kế tiếp với cookie cũ 401; lần login mới chỉ onboarding cho tới **đổi password và verify TOTP** trong cả hai mode có/không `--reset-password`; đúng một audit system/state_change không chứa secret/PII. Test staff không phải owner cũng không bỏ qua reenrollment.
-  Test operator không quyền/không HTTP, target sai, cancel/audit rollback, concurrent reset, pending secret/mã cũ, hai mode reset password, staff khác giữ phiên, coverage 0/1/2. Tạo và kiểm owner thứ hai qua API staff.manage/CSRF, không Staff UI hoặc tp_readonly điều tra.
+- AC-P0-06 (B01): Với một owner mới, đổi mật khẩu khởi tạo, setup/verify TOTP, đăng nhập lại qua HTTPS thì owner truy cập API được phân quyền; thiếu/sai TOTP hoặc chưa xong onboarding bị từ chối. Đổi mật khẩu phải làm session cũ hết hiệu lực (BR-IAM-06); logout/cookie cũ không tái sử dụng được. Không cần CLI recovery, owner coverage flag hoặc tài khoản thứ hai cho nghiệm thu này.
 
 ---
 

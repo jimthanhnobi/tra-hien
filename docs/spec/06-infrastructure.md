@@ -251,7 +251,7 @@ Mục tiêu: RPO ≤ 24h, RTO ≤ 4h (NFR-05). Khi đơn > 30/ngày: bật WAL a
 
 - [ ] Domain, Cloudflare (Full strict), Caddy cấp chứng chỉ OK.
 - [ ] Email: SPF, DKIM, DMARC; gửi thử email đơn hàng không vào spam.
-- [ ] Có ≥2 owner active/đã đổi password/TOTP trên hai thiết bị riêng; owner thứ hai tạo và kiểm qua Admin API bảo vệ (staff.manage + cookie/CSRF), không giả định Staff UI; diễn tập recovery BR-IAM-07 trên DB dev. Tạo sales/content; đổi mọi mật khẩu mặc định.
+- [ ] Có ít nhất một owner Production active đã đổi mật khẩu khởi tạo, verify TOTP và đăng nhập lại thành công qua HTTPS; tài khoản owner thứ hai được khuyến khích nhưng không bắt buộc. Lưu recovery/backup ngoài VPS an toàn, ghi nhận rủi ro mất TOTP khi chưa có tool offline; không triển khai CLI recovery ở P0. Tạo sales/content tài khoản riêng, đổi mọi mật khẩu mặc định.
 - [ ] Backup chạy bằng tp_readonly có kiểm soát, không dùng làm tài khoản điều tra; quyền điều tra riêng không đọc IAM credentials/Data Protection keys mặc định. Restore drill cô lập thành công, khóa age cất ngoài VPS.
 - [ ] Uptime monitor + Telegram cảnh báo hoạt động.
 - [ ] Trang chính sách đổi trả, vận chuyển, thanh toán, bảo mật, điều khoản đã publish (BR-CNT-03).
@@ -267,6 +267,10 @@ Mục tiêu: RPO ≤ 24h, RTO ≤ 4h (NFR-05). Khi đơn > 30/ngày: bật WAL a
 - [ ] Không còn dữ liệu demo trong DB production.
 
 
-## 11. P0 closure acceptance (A01)
+## 11. P0 readiness tinh gọn (B01, thay gate A01 D9)
 
-Hoàn tất closure #1 (roles/grants/runtime tp_app/runbook) và #2 (MFA recovery/coverage) rồi owner nghiệm thu trước P1-01. Runbook [p0-closure-acceptance.md](../plans/p0-closure-acceptance.md) có nhánh DB mới/existing, HTTPS, bootstrap owner đầu, **tạo owner thứ hai qua Admin API được bảo vệ**, đổi password/TOTP/kiểm quyền, settings/audit/CSRF/lockout/logout. Không dùng tp_readonly cho truy vấn kiểm audit; dùng admin/audit có audit.read hoặc quyền điều tra tối thiểu riêng. Chỉ cập nhật DONE bằng kết quả thật, G4 độc lập/CI đúng published SHA và owner merge theo workflow. Chưa cho phép thực thi runbook hay triển khai closure từ amendment tài liệu.
+Closure #1 (roles/grants/runtime `tp_app`) đã merge qua [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22). Trước **P1-01 migration trên DB giả**, yêu cầu: G4/CI của Closure #1 và amendment B01 theo workflow, grants/preflight đã có trong base, scoped G1/G2 đúng, owner giao G3 cho P1-01. **Không yêu cầu** Closure #2 recovery CLI, `ownerMfaCoverageOk`, hai owner hoặc nghiệm thu Caddy/manual full-stack làm blocker cho DDL P1-01.
+
+Trước **dữ liệu thật hoặc go-live**, operator mới phải nghiệm thu HTTPS/Admin, owner thực tế đổi password + TOTP, cookie/CSRF/lockout/logout, audit một thao tác settings, backup mã hóa và kiểm khả năng restore, quyền DB đúng môi trường; ghi bằng chứng ở [runbook P0](../plans/p0-closure-acceptance.md). Không gọi P0/production-ready DONE khi còn gate bắt buộc chưa chạy; P1-01 vẫn cần owner giao task riêng.
+
+`tp_readonly` chỉ dùng backup được kiểm soát, không cho phép điều tra tuỳ ý; quy tắc bảo vệ PII/secret và an toàn PostgreSQL không được hạ để giảm scope. ADR A01 là lịch sử, B01 chỉ ghi đè phần IAM recovery/hai owner/gate P1 và phạm vi audit.

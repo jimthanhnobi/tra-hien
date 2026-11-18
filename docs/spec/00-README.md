@@ -1,6 +1,6 @@
 # TeaPremium v2 — Bộ đặc tả hệ thống
 
-> Phiên bản: 2.0 · Ngày chốt: 16/11/2026 · Trạng thái: **Đã chốt yêu cầu, chưa code**
+> Phiên bản: 2.0 · Ngày chốt: 16/11/2026 · Trạng thái: **Đang triển khai; xem B01 bên dưới để biết gate hiện hành**
 > Đây là nguồn sự thật (source of truth) cho việc viết code. Code mâu thuẫn với spec là bug của code,
 > trừ khi spec được sửa trước bằng một mục trong `## Nhật ký quyết định` bên dưới.
 
@@ -110,9 +110,19 @@ Code và test phải ghi mã luật ở comment hoặc tên test, ví dụ:
 | DEC-26 | SKU sequence toàn catalog + UNIQUE + retry có giới hạn; mã đã cấp không tự đổi theo type/material/thêm variant | BR-CAT-14, A01 D3 |
 | DEC-27 | Mô tả < 150 từ không chặn publish do số từ, chỉ thin-description noindex; manual/điều kiện SEO khác và metadata không nới | BR-SEO-34, A01 D4 |
 | DEC-28 | Evidence private: ảnh ≤15 MiB, mp4/mov ≤50 MiB chỉ purpose=evidence | A01 D7 |
-| DEC-29 | ≥2 owner TOTP/thiết bị riêng và recovery CLI được ủy quyền, audit nguyên tử/revoke/password+TOTP lại; owner thứ hai qua Admin API bảo vệ | BR-IAM-07/08, A01 D8/D9 |
+| DEC-29 | Owner Production bắt buộc TOTP; chỉ cần một owner đã hoàn tất onboarding. Không bắt buộc hai owner hoặc CLI reset MFA ở P0; tình huống mất TOTP xử lý qua quy trình ngoại tuyến có kiểm soát | B01 thay phần A01 D8/D9; BR-IAM-07/08 |
 | DEC-30 | Role SQL + grants migration chung; provisioning mới/existing giữ dữ liệu; tp_readonly chỉ backup kiểm soát, điều tra dùng quyền riêng | 03 §4, A01 D11 + bổ sung owner |
 
-## 7. Amendment A01 — owner approved 18/11/2026
+## 7. Amendment A01 — lịch sử được duyệt 18/11/2026
 
-Owner phê duyệt D1–D14 và finalize §8 tại ADR A01, bổ sung backup/điều tra tách quyền và owner thứ hai qua Admin API bảo vệ. Base `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`; amendment local **READY_FOR_LOCAL_G4**, chưa có commit SHA mới/G4 PASS/publish permission. Chỉ sửa đặc tả/workflow; không triển khai code/migration. Hợp đồng import variant P1-07 và các gap ngoài scope giữ OPEN theo task. Kiểm chứng ở `docs/reviews/a01-amendment-evidence.md`.
+A01 (D1–D14) đã owner-approved; amendment/spec qua [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20), evidence qua [PR #21](https://github.com/jimthanhnobi/tra-hien/pull/21). Quyết định kinh doanh và DB khác vẫn giữ hiệu lực; P1-07 variant import key vẫn OPEN. Hồ sơ gốc trong `docs/decisions/ADR-PROPOSAL-A01-p0-closure-p1-owner-decisions.md` giữ nguyên lịch sử.
+
+## 8. B01 — right-size cho quy mô shop nhỏ (owner decision 18/11/2026)
+
+Quy mô lập kế hoạch: 10–20 người đồng thời, 100–1.000 lượt khách/ngày, 3–4 tài khoản Admin. B01 thay thế **chỉ** phần A01 D8/D9/DEC-29 và phạm vi audit D12 theo `docs/decisions/ADR-B01-right-sized-operations.md`:
+
+- Không triển khai `reset-staff-mfa` CLI, `ownerMfaCoverageOk`/banner hay bắt buộc hai owner ở P0; owner Production vẫn phải có TOTP, đổi mật khẩu ban đầu và đăng nhập an toàn. Người vận hành mất TOTP xử lý qua SSH/Identity có kiểm soát theo runbook, **không UPDATE tay các cột Identity/TOTP**.
+- Audit chỉ bật cho những thao tác nghiệp vụ quan trọng; giữ bảo vệ PII/secret, transaction, audit ledger và các audit đã triển khai. Không thêm logger theo dõi mọi thao tác Admin.
+- [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22) đã merge Closure #1 (roles/grants). P1-01 chỉ được owner giao G3 khi B01 được review/merge, CI phù hợp và scoped readiness xác minh DB nền; nghiệm thu HTTPS/TOTP/backup thực tế là gate **trước dữ liệu thật/go-live**, không phải blocker cho migration trên DB giả.
+
+B01 chỉ sửa tài liệu; trạng thái G4/CI/publish của **bản amendment B01** được ghi trong PR riêng, không mặc định PASS.
