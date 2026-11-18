@@ -10,4 +10,3 @@
 /.dockerignore text eol=lf
 /infra/** text=auto eol=lf
 /docs/plans/p0-02-implementation.md text eol=lf
-/backend/tests/TeaPremium.IntegrationTests/Fixtures/v5.2.0/*.gz binary

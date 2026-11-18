@@ -8,7 +8,6 @@ using TeaPremium.Infrastructure;
 using TeaPremium.Infrastructure.Persistence;
 using TeaPremium.Infrastructure.Iam;
 using TeaPremium.Api.Iam;
-using TeaPremium.Api.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
@@ -36,12 +35,6 @@ if (args is ["bootstrap-owner"])
     return;
 }
 
-if (args.FirstOrDefault() == "import-provinces")
-{
-    Environment.ExitCode = await TeaPremium.Api.AdministrativeData.ImportProvincesConsole.RunAsync(app.Services, args);
-    return;
-}
-
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("CI"))
     app.MapOpenApi();
 
@@ -57,7 +50,6 @@ app.UseMiddleware<AdminCsrfMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<IdempotencyRequestBufferingMiddleware>();
 app.MapStaffIam();
-app.MapSettings();
 
 app.Run();
 

@@ -14,17 +14,8 @@ using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.IntegrationTests;
 
-public sealed class AuditInterceptorTests : IClassFixture<PlatformDatabaseFixture>
+public sealed class AuditInterceptorTests(PlatformDatabaseFixture fixture) : IClassFixture<PlatformDatabaseFixture>
 {
-    private readonly PlatformDatabaseFixture fixture;
-    public AuditInterceptorTests(PlatformDatabaseFixture fixture)
-    {
-        this.fixture = fixture;
-        // These characterization cases deliberately exercise CREATE/DELETE on known
-        // audited keys. Isolate them from the P0-09 defaults in this disposable fixture.
-        using var db = fixture.CreateContext();
-        db.Database.ExecuteSqlRaw("DELETE FROM platform.settings WHERE key IN ('shipping.flat_fee_vnd','orders.max_quantity_per_line_web','orders.bank_transfer_hold_hours','returns.window_days','seo.handling_days')");
-    }
     private static readonly DateTimeOffset Instant = new(2026, 11, 17, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
