@@ -80,7 +80,7 @@ TeaPremium.Api/Endpoints/Admin/OrdersEndpoints.cs
 Không dùng MediatR. Mỗi use case:
 
 ```csharp
-public sealed record ConfirmOrderCommand(Guid OrderId, uint RowVersion) : ICommand<OrderDto>;
+public sealed record ConfirmOrderCommand(Guid OrderId, string RowVersion) : ICommand<OrderDto>;
 
 public sealed class ConfirmOrderHandler(IOrderRepository orders, IUnitOfWork uow, IClock clock, ICurrentActor actor)
     : ICommandHandler<ConfirmOrderCommand, OrderDto>
@@ -105,7 +105,7 @@ public sealed class ConfirmOrderHandler(IOrderRepository orders, IUnitOfWork uow
 ### 5.2 Giao dịch và đồng thời
 - Mỗi command chạy trong **một transaction** (`IUnitOfWork.ExecuteAsync`).
 - Adapter DB của P0-04 dùng cùng `DbContext`/transaction cho command, cho phép nhiều `SaveChanges` trong transaction; trước commit Result thành công phải lưu các thay đổi EF còn pending. Result lỗi, exception hoặc cancellation phải rollback cả thay đổi đã save trong transaction. Giữ nguyên contract `IUnitOfWork` của P0-03.
-- Khóa lạc quan: các aggregate sửa được từ Admin (`products`, `variants`, `orders`, `customers`, `campaigns`) dùng `xmin` làm concurrency token; client gửi `rowVersion`; lệch → HTTP 409 `concurrency_conflict`.
+- Khóa lạc quan: các aggregate sửa được từ Admin (`products`, `variants`, `orders`, `customers`, `campaigns`) dùng `xmin` làm concurrency token; API trả `rowVersion` chuỗi mờ (nguồn xmin uint; IAM giữ ConcurrencyStamp riêng, không lộ SecurityStamp); client gửi lại, không phân tích; lệch → HTTP 409 `concurrency_conflict`.
 - Tồn kho dùng **UPDATE có điều kiện nguyên tử**, không đọc-rồi-ghi:
   ```sql
   UPDATE inventory.stock_levels
@@ -123,7 +123,7 @@ public sealed class ConfirmOrderHandler(IOrderRepository orders, IUnitOfWork uow
 - `SaveChanges` interceptor ghi `platform.audit_logs` cho mọi entity đánh dấu `[Audited]`: entity, id, action, actor (staff/customer/system), thay đổi trước/sau theo field, correlation id.
 - Định danh audit: entity có khóa chính UUID dùng `entity_id`; khóa chính TEXT dùng `entity_key`; **đúng một** trường có giá trị, `entity_key` không rỗng. Không tự ép UUID sang TEXT. `entity_type` là tên bảng ổn định gồm schema, ví dụ `platform.settings`, không phải tên lớp C#; đổi tên lớp không đổi lịch sử audit. Đổi tên bảng DB phải có chính sách tương thích truy vấn lịch sử được duyệt trước. Audit là tham chiếu lịch sử đa loại, không đặt FK chung tới mọi bảng nguồn.
 - Nếu về sau một entity khóa ghép được đánh dấu `[Audited]`, biểu diễn khóa trong `entity_key` phải xác định, không va chạm và tương thích với log cũ qua các phiên bản; task đánh dấu entity đó phải định nghĩa định dạng và test tương ứng. P0-04 không xây framework serialize khóa ghép.
-- Field PII (`phone`, `email`, `address_*`, `full_name`, `receiver_*`, `notes`) ghi `"[redacted]"`; field tiền, trạng thái, giá, giá vốn được ghi giá trị thật khi không chứa PII/secret. Giá trị `changes` trước/sau, kể cả object/array JSON lồng nhau, phải được lọc theo field/path trước khi lưu; field chưa được phân loại an toàn để audit thì mặc định không ghi giá trị nguyên văn. Setting chứa thông tin ngân hàng, token hoặc credential cần chính sách che riêng; P0-05 xác định danh sách/path và kiểm thử bảo mật, không để P0-04 triển khai redaction.
+- Giá trị trước/sau được lọc theo **bảng phân loại field/path cho từng `entity_type`** (`Safe`/`Pii`/`Secret`). Field/path chưa khai báo → `[redacted]`, áp dụng đệ quy JSON/object/array, không để tên key không tin cậy chứa PII lọt log. Mỗi task đánh dấu `[Audited]` khai báo phân loại và test. Các ứng viên Safe như slug/SKU/code, tên sản phẩm, tiền/số lượng/trạng thái/thời điểm phải được xét **cụ thể từng entity và kiểu giá trị**, không whitelist toàn cục bằng tên/hậu tố. Tên nghệ nhân là tên người → Pii mặc định; muốn audit nguyên văn phải có quyết định riêng. Tên/SĐT/email/địa chỉ người, free-text note, token/secret luôn che; không tự coi tên material/product là Safe nếu có nội dung nhạy cảm. Giữ nguyên phân loại settings/bank/credential hiện có, audit cùng transaction và identity UUID/TEXT G26. D8 dùng cùng chính sách, không tự ghi raw reason/operator vào changes.
 - Thay đổi nghiệp vụ được audit và bản ghi audit phải nằm cùng transaction: audit thất bại thì không commit thay đổi nghiệp vụ. Tuân theo `IUnitOfWork.ExecuteAsync` (commit chỉ khi Result thành công; rollback khi Result lỗi, exception hoặc cancellation). Raw SQL ngoài interceptor không tự có audit, nên thao tác trên bảng `[Audited]` phải đi qua đường có audit hoặc cơ chế được đặc tả riêng.
 - Cấm `ExecuteUpdate/ExecuteDelete` trên bảng có audit, **trừ** `stock_levels` (đã có sổ `stock_movements`) và các job dọn dẹp ghi rõ trong spec.
 - DB: role ứng dụng không có quyền `UPDATE/DELETE/TRUNCATE` trên `platform.audit_logs` và `inventory.stock_movements`.
@@ -132,6 +132,7 @@ public sealed class ConfirmOrderHandler(IOrderRepository orders, IUnitOfWork uow
 - Thay đổi cần tác động bên ngoài (email, Telegram, sau này webhook/SePay/GHN) ghi `platform.outbox_messages` **trong cùng transaction**.
 - `OutboxDispatcher` (BackgroundService) lấy batch bằng `FOR UPDATE SKIP LOCKED`, gửi, đánh dấu `processed_at`; lỗi thì tăng `attempts`, backoff lũy thừa, tối đa 10 lần rồi `dead`.
 - Sự kiện nội bộ trong cùng process (ví dụ `OrderDelivered` → cập nhật chỉ số khách, xét giới thiệu) cũng đi qua outbox để chạy lại được.
+- P1-10 có consumer InventoryAlert nội bộ idempotent ngay khi phát message, xử lý và hoàn tất an toàn không cần Telegram. Lỗi theo backoff/giới hạn 10 lần/dead ở trên; không treo thiếu handler. P2-13 chỉ gửi cảnh báo hiện tại/digest, không phát lại message P1 cũ; test duplicate/error/exhaustion và stale alerts.
 - Job định kỳ (`PeriodicJob`), mỗi job giữ `pg_try_advisory_lock` riêng để an toàn khi chạy nhiều instance:
 
 | Job | Chu kỳ | Việc |
@@ -178,10 +179,11 @@ Sinh payload EMVCo theo chuẩn VietQR (NAPAS) **tại server** từ cấu hình
 - Log JSON ra stdout, có `correlation_id`; không log body request; middleware che PII.
 - Health: `/health/live` (process), `/health/ready` (DB + migration đã áp đủ).
 
-### 5.10 Upload ảnh
-- `POST /admin/media/upload-intents` → kiểm MIME (jpeg, png, webp, avif), kích thước ≤ 15MB → trả presigned PUT R2 (hết hạn 10 phút) + `upload_id`.
-- Trình duyệt PUT thẳng lên R2. `POST /admin/media/upload-intents/{id}/complete` → server HEAD object, đọc kích thước ảnh, tạo `media_assets`.
-- Biến thể ảnh (thumbnail, kích thước responsive): dùng Cloudflare Image Resizing **hoặc** Next.js Image loader trỏ R2. Chọn cấu hình ở `06-infrastructure.md`. DB chỉ lưu bản gốc.
+### 5.10 Upload ảnh và evidence
+- Upload intent kiểm whitelist ảnh jpeg/png/webp/avif ≤15 MiB; chỉ purpose=evidence thêm mp4/quicktime ≤50 MiB, giới hạn bytes đúng schema.sql. Ảnh evidence vẫn ≤15 MiB. R2 bucket/token tách dev/prod, token theo bucket/quyền object tối thiểu; không key toàn quyền trong app (D6).
+- PUT presigned R2 hết hạn 10 phút; complete kiểm object thực bằng HEAD và nội dung/MIME, kích thước đúng intent; đọc width/height cho ảnh. Không tin đuôi file/Content-Type client, sai không tạo asset công khai. Evidence bucket private, chỉ ký GET sau kiểm quyền/đối tượng, hết hạn ≤10 phút; không domain public.
+- Intent nhận slugHint? theo BR-SEO-82, validate/sanitize; fallback evidence/branding không chứa PII và không lấy email/tên khách làm key. Purpose phải khớp permission (05 §4.2).
+- Biến thể ảnh dùng Cloudflare Image Resizing hoặc Next Image loader; DB lưu bản gốc. Kiểm provider/permissions thực tế tại P1-02, không suy từ owner có tài khoản.
 
 ## 6. Xác thực
 
@@ -197,6 +199,8 @@ Sinh payload EMVCo theo chuẩn VietQR (NAPAS) **tại server** từ cấu hình
 - Endpoint `admin/*` chỉ chấp nhận scheme `AdminCookie`; `account/*` chỉ `CustomerCookie`. Không có token trong localStorage.
 - Rate limit (theo IP thật qua header `CF-Connecting-IP` chỉ khi request đến từ dải IP Cloudflare đã cấu hình ở Caddy):
   đăng nhập 10/phút/IP và 5 lần sai/15 phút/tài khoản; đặt đơn 10/phút/IP; tra đơn 20/phút/IP; đăng ký 5/giờ/IP.
+
+BR-IAM-07/08 quy định recovery CLI không HTTP, operator authorization, audit nguyên tử/revoke/password+TOTP lại. Owner thứ hai được tạo qua Admin API có staff.manage + CSRF bởi owner đã hoàn tất onboarding; không giả định Staff UI có sẵn. Runbook và test ở closure P0-08/P0-12; dữ liệu thật chỉ sau checklist hai owner/thiết bị riêng.
 
 ## 7. Phân quyền
 

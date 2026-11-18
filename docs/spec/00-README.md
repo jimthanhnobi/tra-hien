@@ -106,3 +106,13 @@ Code và test phải ghi mã luật ở comment hoặc tên test, ví dụ:
 | DEC-22 | URL sản phẩm phẳng `/san-pham/{slug}`; bộ lọc noindex; tổ hợp có giá trị tìm kiếm làm trang chủ đề `/chu-de/{slug}` | Tránh trùng lặp/chỉ mục rác, vẫn bắt được từ khóa dài |
 | DEC-23 | Hàng độc bản đã bán giữ trang 180 ngày (SoldOut + gợi ý tương tự), sau đó 301 về nghệ nhân/chất liệu/danh mục | Giữ giá trị SEO, tránh trang chết |
 | DEC-24 | Feed Google Merchant Center cho hiển thị sản phẩm miễn phí; đánh giá chỉ từ người mua thật | Thêm kênh hiển thị trên Google, tín hiệu tin cậy |
+| DEC-25 | Nhập liệu nháp được thiếu dữ liệu; publish đòi giá của active, inactive được NULL nhưng không bán; kích hoạt validate giá | BR-CAT-13/15, A01 D2/D5 |
+| DEC-26 | SKU sequence toàn catalog + UNIQUE + retry có giới hạn; mã đã cấp không tự đổi theo type/material/thêm variant | BR-CAT-14, A01 D3 |
+| DEC-27 | Mô tả < 150 từ không chặn publish do số từ, chỉ thin-description noindex; manual/điều kiện SEO khác và metadata không nới | BR-SEO-34, A01 D4 |
+| DEC-28 | Evidence private: ảnh ≤15 MiB, mp4/mov ≤50 MiB chỉ purpose=evidence | A01 D7 |
+| DEC-29 | ≥2 owner TOTP/thiết bị riêng và recovery CLI được ủy quyền, audit nguyên tử/revoke/password+TOTP lại; owner thứ hai qua Admin API bảo vệ | BR-IAM-07/08, A01 D8/D9 |
+| DEC-30 | Role SQL + grants migration chung; provisioning mới/existing giữ dữ liệu; tp_readonly chỉ backup kiểm soát, điều tra dùng quyền riêng | 03 §4, A01 D11 + bổ sung owner |
+
+## 7. Amendment A01 — owner approved 18/11/2026
+
+Owner phê duyệt D1–D14 và finalize §8 tại ADR A01, bổ sung backup/điều tra tách quyền và owner thứ hai qua Admin API bảo vệ. Base `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`; amendment local **READY_FOR_LOCAL_G4**, chưa có commit SHA mới/G4 PASS/publish permission. Chỉ sửa đặc tả/workflow; không triển khai code/migration. Hợp đồng import variant P1-07 và các gap ngoài scope giữ OPEN theo task. Kiểm chứng ở `docs/reviews/a01-amendment-evidence.md`.

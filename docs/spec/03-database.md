@@ -1,6 +1,6 @@
 # 03 — Cơ sở dữ liệu
 
-DDL đích: `schema.sql`. Ghi nhận chạy thử PostgreSQL 16/17 với 78 bảng, 11 schema là bằng chứng lịch sử trước F-02; amendment F-02 thêm một bảng đích (79 bảng, 11 schema theo đếm tĩnh), **chưa chạy SQL/migration**. File này giải thích **vì sao** và các quy ước mà DDL không tự nói được.
+DDL đích: `schema.sql`. A01 owner-approved 18/11/2026: **79 bảng, 11 schema, 2 sequence khai báo tường minh** (crm.customer_code_seq và catalog.sku_number_seq; không tính sequence ngầm của serial). Thống kê tĩnh; kết quả DDL PostgreSQL 17 của amendment nằm trong docs/reviews/a01-amendment-evidence.md, không thay bằng chứng EF migration/runtime.
 
 ## 1. Quy ước
 
@@ -12,7 +12,7 @@ DDL đích: `schema.sql`. Ghi nhận chạy thử PostgreSQL 16/17 với 78 bả
 | Tiền | `bigint` VND, hậu tố `_vnd`. |
 | Thời gian | `timestamptz`, hậu tố `_at`. Ngày thuần (`date`) hậu tố `_on`. |
 | Enum | `text` + `CHECK`. Đổi tập giá trị = migration sửa CHECK. Domain có `static class` hằng số tương ứng. |
-| Concurrency | `xmin` (Npgsql: `.IsRowVersion()` trên property `uint Version`), áp cho `products, variants, orders, customers, campaigns, receipts, stocktakes, return_requests, vouchers`. |
+| Concurrency | API `rowVersion` là chuỗi mờ; client chỉ gửi lại, IAM dùng ConcurrencyStamp riêng, không SecurityStamp. `xmin` (Npgsql: `.IsRowVersion()` trên property `uint Version`), áp cho `products, variants, orders, customers, campaigns, receipts, stocktakes, return_requests, vouchers`. |
 | Xóa | Không xóa cứng dữ liệu nghiệp vụ. Dùng trạng thái (`archived`, `inactive`, `cancelled`, `erased`). Ngoại lệ: giỏ hàng, link click cũ, idempotency key, upload hết hạn (job dọn). |
 | FK chéo schema | Được phép (một database). Ranh giới module giữ ở tầng code (02 §3). |
 | Tên constraint/index | `pk_`, `fk_`, `ux_` (unique), `ix_`, `ck_`, `ex_` (exclusion). EF Core phải đặt tên tường minh trùng với DDL. Cả 19 PK/FK/UNIQUE/CHECK của chín bảng `platform` thuộc P0-04 có tên tường minh trong `schema.sql`, gồm `ck_audit_entity_identity`; migration và EF mapping phải dùng đúng tên, cột và biểu thức đó. Các constraint ở bảng khác có thể còn tên PostgreSQL tự sinh; báo chênh lệch khi review migration ở task tương ứng, không đổi DDL ngoài chín bảng này theo F-01. Giữ các index tường minh hiện có; PK/UNIQUE chỉ dùng index ngầm của PostgreSQL, không tạo index trùng. |
@@ -56,12 +56,14 @@ platform.settings, audit_logs, outbox_messages, idempotency_keys, inbound_webhoo
 - Chất liệu và nghệ nhân **không** là thuộc tính EAV mà là cột FK của `products`, vì có trang SEO riêng và dùng cho CRM.
 
 ### 3.2 Variant và hàng độc bản
-- Mọi product có ≥ 1 variant; giá, SKU, tồn nằm ở variant.
+- Mọi product có ≥ 1 variant; giá, SKU, tồn nằm ở variant. sku_base cấp một lần từ catalog.sku_number_seq, prefix/type/material theo BR-CAT-14; mã đã cấp không tự đổi, UNIQUE + retry có giới hạn và khóa theo product bảo vệ concurrent requests. Prefix/code có thể NULL khi cấu hình chưa hoàn tất; cấp mã phải validate.
+- Draft được thiếu giá; inactive được price_vnd NULL kể cả khi product active, không bán. Publish đòi giá mọi variant active, kích hoạt phải validate, active đã publish không sửa giá về NULL (BR-CAT-15). CHECK cột không thay luật liên bảng. description_word_count là số từ dẫn xuất; robots_noindex là cờ thủ công, không bị logic thin-description ghi đè.
 - `is_unique_piece = true` ⇒ app không cho `on_hand > 1` (BR-INV-09). Không đặt bằng trigger để lỗi trả về rõ ràng cho người dùng.
 
 ### 3.3 Tồn kho = bảng số dư + sổ biến động
+- `stock_levels.reserved` có từ P1-01; bảng reservations + FK order_line chỉ tạo P2-05. P1 đối soát movements/on_hand; đối soát reservation chỉ khi có bảng, không tuyên bố đã kiểm trước P2-05.
 - `stock_levels` giữ số dư để đọc nhanh và giữ hàng nguyên tử (02 §5.2).
-- `stock_movements` là sổ append-only; `on_hand_after` giúp đối soát. Job kiểm tra hằng đêm: `Σ quantity = on_hand` cho mọi variant; lệch → cảnh báo Telegram.
+- `stock_movements` là sổ append-only; `on_hand_after` giúp đối soát. Job kiểm tra hằng đêm: `Σ quantity = on_hand` cho mọi variant; lệch → InventoryAlert nội bộ P1 an toàn/idempotent, retry có giới hạn; Telegram từ P2-13 theo trạng thái hiện tại, không replay cảnh báo cũ.
 - `reservations` gắn từng `order_line`; tổng `quantity` của reservation `active` theo variant = `stock_levels.reserved` (kiểm hằng đêm).
 - Giá vốn bình quân `avg_cost_vnd` cập nhật khi nhập kho (BR-INV-05). `order_lines.unit_cost_vnd` chốt lúc xuất kho → báo cáo lãi không đổi khi giá nhập sau này thay đổi.
 
@@ -108,7 +110,18 @@ platform.settings, audit_logs, outbox_messages, idempotency_keys, inbound_webhoo
 |---|---|---|
 | `tp_owner` | Sở hữu mọi schema/bảng, chạy migration | Migration bundle khi deploy |
 | `tp_app` | `SELECT, INSERT, UPDATE, DELETE` trên bảng nghiệp vụ; `USAGE` sequence | API |
-| `tp_readonly` | `SELECT` | Backup (`pg_dump`), truy vấn tay khi điều tra |
+| `tp_readonly` | SELECT cho backup đầy đủ và SELECT sequence cần cho pg_dump; không DML/DDL/nextval | Chỉ tài khoản backup có kiểm soát, không dùng truy vấn thủ công tùy ý |
+
+
+A01/D11: `infra/postgres/init-roles.sql` là nguồn role chung, idempotent cho volume mới **và DB hiện hữu**, không tự reset password/role/DB/data. Wrapper `infra/postgres/init-roles.sh` truyền biến bí mật đúng cách (mount SQL có biến psql không tự nhận env). Với DB hiện hữu chạy cùng SQL ngoài init hook, backup/preflight ownership trước; bất thường dừng để owner duyệt remediation từng object, không xóa volume hoặc REASSIGN OWNED hàng loạt.
+
+Quyền object do migration bổ sung cấp, qua helper `backend/src/TeaPremium.Infrastructure/Persistence/GrantsSql.cs` sinh SQL cố định lúc tạo migration; không đổi migration cũ khi helper đổi. Closure #1 sửa quyền platform/iam hiện hữu, P1-01 cấp 5 schema mới; app USAGE schema/sequence, DML theo bảng và các REVOKE dưới đây; quyền đọc history/readiness, EXECUTE f_unaccent/advisory lock theo spec. Default privileges gắn đúng tp_owner và không thay grants/revoke explicit ngoại lệ. Test dùng SQL/helper/migrations chung, đăng nhập thật app/backup, không dùng GRANT thay thế để né thiếu quyền. Runtime dev/prod dùng tp_app không owner/superuser/CREATEDB/CREATEROLE/BYPASSRLS/DDL hoặc thừa kế đặc quyền.
+
+`scripts/dev-migrate.ps1` preflight role trước **toàn chuỗi**; helper cũng kiểm đầu migration mới. Chạy EF trực tiếp bỏ preflight vẫn có thể lỗi ở GRANT migration P0-09 cũ; không sửa migration cũ để giấu thứ tự. Re-run provisioning/idempotent SQL giữ dữ liệu/IAM/ledger/password/sequence; kiểm empty/existing/missing-role và quyền âm. Các artifact này thuộc closure #1, chưa được tạo bởi amendment tài liệu.
+
+**Backup và điều tra tách biệt (bổ sung owner):** tp_readonly có thể đọc dữ liệu nhạy cảm cần cho backup đầy đủ, kể cả IAM credentials/Data Protection keys, nên credential chỉ được cấp cho job/container backup được ủy quyền, bảo vệ bằng secret/OS/network và audit truy cập; không cung cấp cho người truy vấn tùy ý hoặc ứng dụng. SELECT không tự phân biệt pg_dump với SQL tay; giới hạn sử dụng được thực thi qua kiểm soát credential/execution, phải kiểm chứng ở closure/P3-10.
+
+Điều tra dùng danh tính/session riêng được owner phê duyệt theo vụ việc, quyền read tối thiểu theo bảng/cột/view đã che dữ liệu, có audit/thời hạn/thu hồi; không kế thừa tp_readonly/tp_owner hoặc quyền đọc chung IAM credentials, token/security stamp/authenticator secret và platform.data_protection_keys.xml. Không SELECT * các bảng nhạy cảm. Chỉ sự cố cần dữ liệu nhạy cảm mới có ủy quyền riêng; không ngầm cấp qua “readonly”. Test kiểm deny sensitive columns và tách credential backup/điều tra; restore drill dùng môi trường cô lập, output không chứa secret.
 
 Ngoại lệ thu hồi quyền của `tp_app`:
 ```sql
@@ -172,6 +185,8 @@ Giá trị tiền mặc định chỉ là gợi ý để chạy dev; chủ shop 
 | `wine_set` (Bộ ly/bình rượu) | `set_size` · `capacity_ml` · `dimensions` |
 | `accessory` (Phụ kiện: ngắt nước, kẹp, lọc...) | `dimensions` |
 
+Mã SKU seed tham chiếu: teapot→AM, cup→CH, pitcher→TO, tea_tray→KH, tea_caddy→HU, vase→BB, incense→XT, wine_set→RU, accessory→PK. Materials: tử nê TN, lục nê LN, đoạn nê DN, chu nê CN, hồng nê HN, hắc nê HE, gang GA, thủy tinh TT, gốm GM, sứ SU, đồng hợp kim DO, gỗ GO, đá DA. XX dành cho chưa chọn material. Owner sửa prefix/code trong Admin không đổi mã đã cấp.
+
 Mỗi product type có `google_product_category` để map feed Merchant (chọn từ danh mục sản phẩm của Google khi làm P3-15, Admin sửa được).
 
 Materials gợi ý: tử nê, lục nê, đoạn nê, chu nê, hồng nê, hắc nê, gang, thủy tinh, gốm, sứ, đồng hợp kim, gỗ, đá. Chủ shop sửa tên/mô tả trước khi publish.
@@ -194,7 +209,7 @@ Materials gợi ý: tử nê, lục nê, đoạn nê, chu nê, hồng nê, hắc
 ## 8. Chính sách migration
 
 1. Migration EF Core đặt tên `yyyyMMddHHmm_<Mô_tả>`; đặt tên constraint/index tường minh.
-2. Trước go-live: được sửa migration tùy ý (DB dev tạo lại từ đầu). **Sau go-live: chỉ thêm (additive)**. Đổi tên/xóa cột theo 3 bước: thêm cột mới → backfill + code đọc cả hai → bỏ cột cũ ở bản sau.
+2. Closure/P1-01 chỉ thêm migration, không sửa migration lịch sử. Chỉ DB dev/test dùng một lần, chưa có dữ liệu thật và scope được duyệt mới được tạo lại để phát triển; không xóa DB/volume để áp role/grant. **Từ lần nhập dữ liệu thật đầu tiên (có thể trước go-live): chỉ roll forward**, backup trước migration; revert source không tự rollback DB. Sau go-live chỉ additive; đổi tên/xóa cột theo 3 bước: thêm cột mới → backfill + code đọc cả hai → bỏ cột cũ ở bản sau. Down chỉ trên DB dùng một lần, từ chối trước xóa nếu có dữ liệu/dependency ngoài scope; không DROP SCHEMA CASCADE làm mất object khác.
 3. CI sinh `dotnet ef migrations script --idempotent` làm artifact để review SQL.
 4. Deploy chạy migration bundle bằng `tp_owner` **sau backup**, trước khi khởi động API mới. API không tự migrate.
 5. `/health/ready` báo lỗi nếu còn migration chưa áp.

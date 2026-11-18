@@ -1,5 +1,7 @@
 # Rà soát phù hợp kiến trúc Trà Hiên V2
 
+**Cập nhật hiện hành A01 (18/11/2026):** owner-approved amendment local READY_FOR_LOCAL_G4; xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; implementation/CI/G4 chưa được xác nhận từ amendment này.
+
 **Trạng thái:** PROPOSED — tài liệu rà soát, chưa phê duyệt sửa đặc tả hay triển khai. **Nguồn:** `AGENTS.md`; toàn bộ `docs/spec/00-README.md` đến `09-seo.md` và `schema.sql`; `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md`. Nhánh `docs/audit-spec-v2`, HEAD `06c43babb9df37bf1a57f8c5dfee0e1e7eb57b58`; `docs/spec/` không đổi so với commit audit `cadce575597738bf40ad7c45689482de5a5fbc3d`. Các đường dẫn và số dòng dưới đây tham chiếu đúng nguồn spec, không biến tài liệu phân tích thành yêu cầu mới.
 
 ## Kết luận cho P0-01
@@ -53,3 +55,11 @@
 ## Cập nhật readiness P0-04 tại `origin/main` 9cc5429 (16/11/2026)
 
 P0-01…P0-03 đã được gộp; đoạn kết luận P0-01 phía trên là hồ sơ tại thời điểm audit trước đó. Review P0-04 nằm ở `docs/plans/p0-04-readiness.md`; hai ADR trong `docs/decisions/` giữ phân tích phương án. Ngày 16/11/2026, owner duyệt G26/G01 Option B và chấp nhận bản sửa spec sau G4 GO. DEC-01..24 và task IDs giữ nguyên. **G26/G01 SPEC AMENDMENT — OWNER ACCEPTED (G4 GO); F-01 DDL AMENDMENT — OWNER APPROVED (G4 GO); P0-04 IMPLEMENTATION — NOT AUTHORIZED.** F-01 có ma trận 19 tên constraint được owner duyệt cho chín bảng ở readiness doc; DDL đích đã sửa đúng phạm vi và qua G4 độc lập. F-02 tiếp tục là điều kiện P0-09, không cản migration cấu trúc P0-04.
+
+## A01 — scoped conformance 18/11/2026
+
+Owner approved D1–D14/finalize, chỉ amendment specs/workflow; base 288ca8b55cab2017c9ee42bd35036e2d2e5bd87c → local UNCOMMITTED, READY_FOR_LOCAL_G4. Tái sử dụng G2 baseline, kiểm source diff/affected contracts; không thay Modular Monolith/.NET10/PG17/2 Next apps/same-origin, không roadmap thứ hai.
+
+Chia 25 bảng/5 schema + SKU sequence P1-01; hoãn reservations/FK P2-05, reviews P5-07, redirects nền P1/editor P3; constraints nullable/word count không thay business invariants. Grant helper SQL versioned và role SQL mới/existing, runtime least privilege; backup role có kiểm soát và điều tra per-case không đọc IAM creds/DP keys mặc định. Khả năng tách quyền được đặc tả, runtime tests chưa có. Owner B tạo/kiểm bằng Admin API bảo vệ không phụ thuộc Staff UI.
+
+D3 giữ SKU đã cấp, D4 manual/thin riêng/metadata không nới, D5 inactive NULL/validate activate, D8 recovery nguyên tử/revoke, D14 internal consumer bounded/no stale replay; scoped feasibility phù hợp design đã chốt. DDL PostgreSQL 17.12 PASS không thay EF/API/R2/CI evidence. GO cho independent G4 amendment; HOLD mọi G3 closure/P1-01 tới khi owner giao và gate đủ. Hợp đồng importer OPEN P1-07, G03 và gap pha sau giữ mốc.

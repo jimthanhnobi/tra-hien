@@ -109,7 +109,8 @@ services:
                -c log_min_duration_statement=500 -c timezone=UTC
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./postgres/init-roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
+      - ./postgres/init-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+      - ./postgres/init-roles.sql:/opt/teapremium/init-roles.sql:ro # wrapper gọi SQL chung với biến psql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -189,24 +190,13 @@ admin.example.vn {
 
 ## 5. Database
 
-`infra/postgres/init-roles.sql` (chạy một lần khi khởi tạo volume):
-```sql
-CREATE ROLE tp_owner LOGIN PASSWORD :'owner_pw';
-CREATE ROLE tp_app LOGIN PASSWORD :'app_pw';
-CREATE ROLE tp_readonly LOGIN PASSWORD :'ro_pw';
-CREATE DATABASE teapremium OWNER tp_owner;
-\c teapremium
-REVOKE ALL ON SCHEMA public FROM PUBLIC;
-GRANT USAGE ON SCHEMA public TO tp_app, tp_readonly;
--- Sau khi migration tạo các schema, migration cuối mỗi đợt chạy script cấp quyền:
---   GRANT USAGE ON SCHEMA <s> TO tp_app, tp_readonly;
---   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA <s> TO tp_app;
---   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA <s> TO tp_app;
---   GRANT SELECT ON ALL TABLES IN SCHEMA <s> TO tp_readonly;
---   ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner IN SCHEMA <s> GRANT ... (như trên);
---   + các REVOKE ở 03-database.md §4.
-```
-Mật khẩu truyền bằng biến môi trường lúc khởi tạo, không ghi vào file.
+`infra/postgres/init-roles.sql` là nguồn provisioning chung theo 03 §4/DEC-30; wrapper init-roles.sh gọi SQL với biến psql được truyền qua kênh bí mật. Chỉ mount file SQL không tự chuyển env thành biến psql. Các artifact/script này triển khai ở closure #1, không được tạo bởi amendment này.
+
+- Volume mới: tạo tp_owner/tp_app/tp_readonly nếu thiếu, thuộc tính tối thiểu; tạo DB chỉ nếu chưa có, owner tp_owner (CREATE DATABASE ngoài transaction). Cấu hình init phân biệt maintenance DB và application DB, không để POSTGRES_DB tự tạo application DB sai owner rồi âm thầm đổi ownership.
+- Existing DB/volume: init hook không chạy lại; operator được owner ủy quyền chạy **cùng SQL**, backup/preflight DB/object owner trước. Không drop/recreate role/DB, reset password, xóa volume/down -v hoặc REASSIGN OWNED hàng loạt. Ownership bất thường dừng, owner duyệt remediation theo object riêng. Rotation password là thao tác riêng.
+- scripts/dev-migrate.ps1 kiểm roles/ownership trước cả chuỗi, chạy migration bằng tp_owner; helper GrantsSql sinh SQL cố định cho migration bổ sung theo 03 §4 (USAGE/grants/revoke ngoại lệ, default privileges đúng creator). Không sửa migration cũ. Missing role báo đúng path; EF chạy thẳng bỏ preflight có thể lỗi ở GRANT P0-09 cũ. API dev/prod dùng tp_app; không dùng owner/superuser để né thiếu quyền.
+- Test fixture dùng cùng role SQL/helper/migration, login thật app/backup, kiểm quyền âm/append-only/DDL và existing-data fingerprint, provisioning/re-run/idempotent không đổi dữ liệu/password/sequence. Không nhầm DDL target test với EF migration hoặc triển khai thật.
+- tp_readonly **chỉ backup có kiểm soát**, credential chỉ cho job backup, không truy vấn tay tùy ý. Full backup có thể chứa IAM credentials và Data Protection keys: hạn chế truy cập/secret/network, mã hóa, audit và restore cô lập. Điều tra dùng identity/quyền read riêng theo vụ việc, cột/view đã che dữ liệu, không thừa kế role backup/owner, mặc định không đọc IAM credentials/tokens/security stamps hoặc Data Protection xml (03 §4). SELECT không tự phân biệt pg_dump/SQL tay; phải kiểm credential và execution controls.
 
 ## 6. Backup và khôi phục
 
@@ -261,8 +251,8 @@ Mục tiêu: RPO ≤ 24h, RTO ≤ 4h (NFR-05). Khi đơn > 30/ngày: bật WAL a
 
 - [ ] Domain, Cloudflare (Full strict), Caddy cấp chứng chỉ OK.
 - [ ] Email: SPF, DKIM, DMARC; gửi thử email đơn hàng không vào spam.
-- [ ] Owner bật TOTP; tạo tài khoản sales/content; đổi mọi mật khẩu mặc định.
-- [ ] Backup chạy, diễn tập restore thành công 1 lần, khóa `age` cất ngoài VPS.
+- [ ] Có ≥2 owner active/đã đổi password/TOTP trên hai thiết bị riêng; owner thứ hai tạo và kiểm qua Admin API bảo vệ (staff.manage + cookie/CSRF), không giả định Staff UI; diễn tập recovery BR-IAM-07 trên DB dev. Tạo sales/content; đổi mọi mật khẩu mặc định.
+- [ ] Backup chạy bằng tp_readonly có kiểm soát, không dùng làm tài khoản điều tra; quyền điều tra riêng không đọc IAM credentials/Data Protection keys mặc định. Restore drill cô lập thành công, khóa age cất ngoài VPS.
 - [ ] Uptime monitor + Telegram cảnh báo hoạt động.
 - [ ] Trang chính sách đổi trả, vận chuyển, thanh toán, bảo mật, điều khoản đã publish (BR-CNT-03).
 - [ ] **Kiểm tra quy định hiện hành về website thương mại điện tử bán hàng** (thông báo với Bộ Công Thương, thông tin bắt buộc trên website) và nghĩa vụ hóa đơn/thuế của hộ kinh doanh với kế toán.
@@ -275,3 +265,8 @@ Mục tiêu: RPO ≤ 24h, RTO ≤ 4h (NFR-05). Khi đơn > 30/ngày: bật WAL a
 - [ ] Google Merchant Center: xác minh website, cấu hình giao hàng/đổi trả, nộp feed `/feeds/google-merchant.xml`, bật hiển thị miễn phí.
 - [ ] Google Business Profile (nếu có địa chỉ đón khách), NAP khớp website.
 - [ ] Không còn dữ liệu demo trong DB production.
+
+
+## 11. P0 closure acceptance (A01)
+
+Hoàn tất closure #1 (roles/grants/runtime tp_app/runbook) và #2 (MFA recovery/coverage) rồi owner nghiệm thu trước P1-01. Runbook [p0-closure-acceptance.md](../plans/p0-closure-acceptance.md) có nhánh DB mới/existing, HTTPS, bootstrap owner đầu, **tạo owner thứ hai qua Admin API được bảo vệ**, đổi password/TOTP/kiểm quyền, settings/audit/CSRF/lockout/logout. Không dùng tp_readonly cho truy vấn kiểm audit; dùng admin/audit có audit.read hoặc quyền điều tra tối thiểu riêng. Chỉ cập nhật DONE bằng kết quả thật, G4 độc lập/CI đúng published SHA và owner merge theo workflow. Chưa cho phép thực thi runbook hay triển khai closure từ amendment tài liệu.

@@ -38,6 +38,16 @@ changed files, tests and risks. Return READY_FOR_LOCAL_G4, then STOP.
 G3 không đồng nghĩa với lệnh publish. Không cam kết CI đã chạy nếu code chưa được push. Chỉ test trên environment được phép, không động vào production.
 
 ## 5. G4 local → sửa → Publish → CI → owner merge
+
+**A01 — phân tầng độ sâu, không bỏ gate:**
+
+| Tầng | Phạm vi | Review |
+|---|---|---|
+| A | Migration/DDL/grants, tiền, kho, auth/quyền/CSRF/PII, checkout công khai, index/canonical/sitemap | G4 độc lập đầy đủ |
+| B | UI Admin dùng API đã review, CRUD không tiền/kho/PII, tài liệu, refactor không đổi hành vi | G4 độc lập, diff/checklist/test theo scope; hồ sơ ngắn |
+
+Task chạm cả hai → A. A/B cùng yêu cầu session mới/cùng worktree, toàn change set kể cả untracked, G4 PASS, owner cho publish, CI đúng published SHA và owner merge. Mục tiêu hồ sơ 1–2 trang khi đủ evidence, không cắt acceptance/security/test proof để đạt giới hạn trang. Amendment tài liệu+DDL A01 thuộc A, dừng local để reviewer độc lập kiểm.
+
 **G4 độc lập, context/session mới**, đọc cùng local worktree với G3. Bắt buộc rà soát `git diff origin/main`, `git diff --cached`, `git status --short` và `git ls-files --others --exclude-standard`; **đọc trực tiếp nội dung file untracked** vì `git diff` không tự hiển thị chúng. Đối chiếu spec, tests và thực tế hệ thống, không chỉ báo cáo implementer.
 ```text
 Use $review-gate for the approved P*-* task, in a fresh independent session.

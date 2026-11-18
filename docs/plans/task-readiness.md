@@ -1,5 +1,7 @@
 # Mức sẵn sàng task P0–P6
 
+**Cập nhật hiện hành A01 (18/11/2026):** owner-approved amendment local READY_FOR_LOCAL_G4; xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; implementation/CI/G4 chưa được xác nhận từ amendment này.
+
 **Trạng thái:** PROPOSED. Bám `docs/spec/07-roadmap.md`; giữ nguyên mọi ID task và AC, không sửa dependency trong spec. Đối chiếu `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md` và [rà soát kiến trúc](../architecture/conformance-review.md). “GO” ở đây là đủ rõ để giao task theo gate G2/G3 của `AGENTS.md`, không phải xác nhận code đã chạy.
 
 Riêng **F-02 contract/DDL đã OWNER APPROVED sau independent focused G4 PASS**, tài liệu được gộp tại `cf833bb149771b4380bce82d82769166a73ac145`. Dòng F-02 dưới đây và §9 của readiness doc ghi gate hiện hành; các hồ sơ P0-01/P0-04 bên dưới giữ mốc lịch sử của chúng.
@@ -94,3 +96,18 @@ git diff --check
 ## Cập nhật gate P0-04 tại `origin/main` 9cc5429 (16/11/2026)
 
 P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi tại thời điểm lập kế hoạch. Ngày 16/11/2026, owner duyệt G26 Option B/G01 Option B và chấp nhận bản sửa `docs/spec/` sau G4 GO. Hai ADR trong `docs/decisions/` giữ lịch sử đề xuất. **G26/G01 SPEC AMENDMENT — OWNER ACCEPTED (G4 GO); F-01 DDL AMENDMENT — OWNER APPROVED (G4 GO); P0-04 IMPLEMENTATION — NOT AUTHORIZED.** `docs/plans/p0-04-readiness.md` ghi ma trận F-01 đã duyệt và DDL đã qua G4 độc lập. F-02 là điều kiện riêng của P0-09/CRM; AC-P0-04 chỉ kiểm được khi P0-05/P0-09 triển khai cùng schema đã chốt.
+
+## A01 — trạng thái hiện hành 18/11/2026
+
+Các đoạn PROPOSED/NOT AUTHORIZED lịch sử ở trên giữ mốc của task cũ, không cấp lệnh chạy lại. Owner phê duyệt A01/finalize + hai bổ sung backup/điều tra và owner B API; base 288ca8b55cab2017c9ee42bd35036e2d2e5bd87c, amendment local UNCOMMITTED.
+
+| Phạm vi | Gate hiện hành |
+|---|---|
+| A01 amendment specs/workflow | OWNER APPROVED; READY_FOR_LOCAL_G4, G4 NOT RUN. DDL PG17.12/43 cases PASS; no implementation/EF/CI claim |
+| Closure #1, remediation P0-02/04 | NOT AUTHORIZED G3; cần giao riêng sau G4 amendment, source role/helper/migration chưa tạo; runbook mới chỉ design/NOT RUN |
+| Closure #2, remediation P0-08/12 | NOT AUTHORIZED G3; recovery/coverage/API owner B cần implement/test sau giao việc |
+| P1-01 | HOLD C1–C3; A01 accepted nhưng G4 amendment/closure #1/#2/runbook acceptance/merge+CI evidence chưa đủ; owner giao riêng |
+| P1-04 | D12 audit entity/path phải hoàn tất trước entity audited; không chặn P1-01 |
+| P1-07 | Variant key/import lại/ô trống/nhóm conflict/atomicity OPEN tại task; không auto-upsert thiếu khóa, không chặn P1-01 |
+
+Không dùng tp_readonly query tay điều tra; read identity riêng tối thiểu/no IAM creds/DP keys mặc định. Owner B qua staff.manage/cookie/CSRF và session onboarding riêng, không Staff UI. Evidence: docs/reviews/a01-amendment-evidence.md; task detail docs/plans/p1-01-implementation.md.

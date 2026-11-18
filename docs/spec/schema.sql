@@ -5,6 +5,10 @@
 -- do Identity tạo, chỉ ghi chú ở cuối file.
 -- Quy ước: tiền = bigint VND; thời gian = timestamptz UTC; id = uuid v7 do app sinh;
 -- enum = text + CHECK; concurrency = cột hệ thống xmin (không khai báo trong DDL).
+-- A01 owner-approved 18/11/2026: chuẩn bị tp_owner/tp_app/tp_readonly trước DDL.
+-- Artifact triển khai: infra/postgres/init-roles.sql (closure #1, chưa tạo ở amendment).
+-- Kiểm DDL amendment có thể tạo role fixture chỉ trên PostgreSQL 17 dùng một lần.
+-- tp_readonly chỉ dùng backup có kiểm soát, không cấp để truy vấn điều tra tùy ý (03 §4).
 -- =====================================================================
 
 CREATE EXTENSION IF NOT EXISTS unaccent;
@@ -140,15 +144,18 @@ CREATE TABLE platform.data_protection_keys (
 CREATE TABLE media.assets (
   id             uuid PRIMARY KEY,
   storage_key    text NOT NULL UNIQUE,
-  mime_type      text NOT NULL CHECK (mime_type IN ('image/jpeg','image/png','image/webp','image/avif','video/mp4')),
-  byte_size      bigint NOT NULL CHECK (byte_size > 0),
+  mime_type      text NOT NULL CHECK (mime_type IN ('image/jpeg','image/png','image/webp','image/avif','video/mp4','video/quicktime')),
+  byte_size      bigint NOT NULL,
   width          int,
   height         int,
   checksum_sha256 text,
   default_alt    text,
   purpose        text NOT NULL DEFAULT 'catalog' CHECK (purpose IN ('catalog','content','evidence','branding')),
   created_by     uuid,
-  created_at     timestamptz NOT NULL DEFAULT now()
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ck_assets_size_by_kind CHECK (
+    (mime_type IN ('image/jpeg','image/png','image/webp','image/avif') AND byte_size > 0 AND byte_size <= 15728640) OR
+    (purpose = 'evidence' AND mime_type IN ('video/mp4','video/quicktime') AND byte_size > 0 AND byte_size <= 52428800))
 );
 
 CREATE TABLE media.upload_sessions (
@@ -156,14 +163,18 @@ CREATE TABLE media.upload_sessions (
   storage_key    text NOT NULL UNIQUE,
   original_name  text NOT NULL,
   mime_type      text NOT NULL,
-  expected_bytes bigint NOT NULL CHECK (expected_bytes > 0 AND expected_bytes <= 15728640),
+  expected_bytes bigint NOT NULL,
   purpose        text NOT NULL,
   status         text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','completed','expired','failed')),
   created_by     uuid,
   created_at     timestamptz NOT NULL DEFAULT now(),
   expires_at     timestamptz NOT NULL,
   completed_at   timestamptz,
-  asset_id       uuid REFERENCES media.assets(id)
+  asset_id       uuid REFERENCES media.assets(id),
+  CONSTRAINT ck_upload_size_by_kind CHECK (
+    purpose IN ('catalog','content','evidence','branding') AND (
+      (mime_type IN ('image/jpeg','image/png','image/webp','image/avif') AND expected_bytes > 0 AND expected_bytes <= 15728640) OR
+      (purpose = 'evidence' AND mime_type IN ('video/mp4','video/quicktime') AND expected_bytes > 0 AND expected_bytes <= 52428800)))
 );
 CREATE INDEX ix_upload_pending ON media.upload_sessions(expires_at) WHERE status = 'pending';
 
@@ -173,6 +184,7 @@ CREATE INDEX ix_upload_pending ON media.upload_sessions(expires_at) WHERE status
 CREATE TABLE catalog.product_types (
   id             uuid PRIMARY KEY,
   code           text NOT NULL UNIQUE CHECK (code ~ '^[a-z0-9_]{2,40}$'),
+  sku_prefix     text CONSTRAINT ck_product_types_sku_prefix CHECK (sku_prefix ~ '^[A-Z]{2,4}$'),
   name           text NOT NULL,
   description    text,
   google_product_category text,                 -- map cho feed Merchant (BR-SEO-80)
@@ -213,6 +225,7 @@ CREATE TABLE catalog.attribute_options (
 
 CREATE TABLE catalog.materials (
   id             uuid PRIMARY KEY,
+  sku_code       text CONSTRAINT ux_materials_sku_code UNIQUE CONSTRAINT ck_materials_sku_code CHECK (sku_code ~ '^[A-Z]{2,3}$' AND sku_code <> 'XX'),
   slug           text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
   name           text NOT NULL,
   kind           text NOT NULL CHECK (kind IN ('clay','metal','glass','ceramic','porcelain','wood','stone','other')),
@@ -264,6 +277,7 @@ CREATE INDEX ix_categories_parent ON catalog.categories(parent_id);
 
 CREATE TABLE catalog.products (
   id             uuid PRIMARY KEY,
+  sku_base       text NOT NULL CONSTRAINT ux_products_sku_base UNIQUE CONSTRAINT ck_products_sku_base CHECK (sku_base ~ '^[A-Z]{2,4}-[A-Z]{2,3}-[0-9]{4,}$' AND length(sku_base) <= 40),
   product_type_id uuid NOT NULL REFERENCES catalog.product_types(id),
   slug           text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
   name           text NOT NULL CHECK (length(name) BETWEEN 2 AND 200),
@@ -272,6 +286,7 @@ CREATE TABLE catalog.products (
   description_json jsonb,
   description_html text,
   care_html      text,
+  description_word_count int NOT NULL DEFAULT 0 CONSTRAINT ck_products_word_count CHECK (description_word_count >= 0),
   primary_category_id uuid REFERENCES catalog.categories(id),
   material_id    uuid REFERENCES catalog.materials(id),
   artisan_id     uuid REFERENCES catalog.artisans(id),
@@ -286,7 +301,7 @@ CREATE TABLE catalog.products (
   is_featured    boolean NOT NULL DEFAULT false,
   search_text    text NOT NULL DEFAULT '',      -- app duy trì (BR-CAT-10)
   seo_title      text, seo_description text, canonical_url text,
-  robots_noindex boolean NOT NULL DEFAULT false,
+  robots_noindex boolean NOT NULL DEFAULT false, -- cờ thủ công; thin_description suy từ word_count (BR-SEO-34)
   og_media_id    uuid REFERENCES media.assets(id),
   created_by     uuid, updated_by uuid,
   created_at     timestamptz NOT NULL DEFAULT now(),
@@ -299,6 +314,7 @@ CREATE INDEX ix_products_category ON catalog.products(primary_category_id);
 CREATE INDEX ix_products_material ON catalog.products(material_id);
 CREATE INDEX ix_products_artisan ON catalog.products(artisan_id);
 CREATE INDEX ix_products_search ON catalog.products USING gin (search_text gin_trgm_ops);
+CREATE SEQUENCE catalog.sku_number_seq START 1; -- app nextval một lần; không MAX+1 (BR-CAT-14)
 
 CREATE TABLE catalog.product_categories (
   product_id     uuid NOT NULL REFERENCES catalog.products(id) ON DELETE CASCADE,
@@ -321,7 +337,7 @@ CREATE TABLE catalog.variants (
   sku            text NOT NULL UNIQUE CHECK (sku ~ '^[A-Z0-9][A-Z0-9-]{1,39}$'),
   name           text,                          -- "245ml"; NULL nếu product chỉ có 1 variant
   position       int NOT NULL DEFAULT 0,
-  price_vnd      bigint NOT NULL CHECK (price_vnd > 0 AND price_vnd <= 10000000000),
+  price_vnd      bigint CONSTRAINT ck_variants_price CHECK (price_vnd IS NULL OR (price_vnd > 0 AND price_vnd <= 10000000000)), -- BR-CAT-04/15 app: active/publish/kích hoạt
   is_unique_piece boolean NOT NULL DEFAULT false,
   weight_g       int CHECK (weight_g IS NULL OR weight_g > 0),
   package_dims_cm jsonb,                        -- {"l":20,"w":15,"h":12}

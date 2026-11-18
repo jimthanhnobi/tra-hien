@@ -1,5 +1,7 @@
 # Kiểm kê nguồn đặc tả TeaPremium V2
 
+**Cập nhật hiện hành A01 (18/11/2026):** owner-approved amendment local READY_FOR_LOCAL_G4; xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; implementation/CI/G4 chưa được xác nhận từ amendment này.
+
 **Đầu vào audit:** commit `cadce575597738bf40ad7c45689482de5a5fbc3d`, bộ spec ghi phiên bản 2.0 ngày 16/11/2026 tại `docs/spec/00-README.md:3`. Đọc toàn bộ 10 Markdown và `schema.sql`; không có file nguồn nào bị bỏ qua. Đây là kiểm kê nội dung, không xác nhận tuyên bố “đã chạy thử SQL” (`03-database.md:3`) hay chữ “đã chốt” là bằng chứng kiểm thử hoặc phê duyệt độc lập.
 
 ## Nguồn và vai trò
@@ -135,3 +137,11 @@ Các mã gốc và dòng định nghĩa riêng được liệt kê trong [tracea
 ## Kết luận phạm vi
 
 Đã kiểm tra định danh, vai trò, luồng kho–đơn–thanh toán–CRM, API/CSRF/quyền, schema, SEO, roadmap và vận hành. Chưa chạy SQL trên PostgreSQL, chưa xác minh dịch vụ hoặc pháp luật bên ngoài, chưa chạy code/test vì đây là audit nguồn. Danh sách mâu thuẫn và khoảng trống nằm trong [spec-gaps.md](spec-gaps.md); ánh xạ task và kiểm thử nằm trong [traceability.md](traceability.md).
+
+## A01 — delta inventory 18/11/2026 (TARGETED)
+
+Owner approved A01 D1–D14/finalize và bổ sung backup/điều tra + owner thứ hai API. Full baseline vẫn cadce575597738bf40ad7c45689482de5a5fbc3d; đã kiểm diff tới 288ca8b55cab2017c9ee42bd35036e2d2e5bd87c và các nguồn bị tác động. Revision amendment UNCOMMITTED, SHA256/log ở docs/reviews/a01-amendment-evidence.md; không gọi đây là full audit mới.
+
+Coverage: 00 DEC/precedence, 02 audit/auth/upload/rowVersion, 03 schema meaning/roles/seed/lifecycle, schema.sql toàn DDL target, 04 IAM/CAT/INV/PRC/RET, 05 auth/media/publish/inventory contracts, 06 provisioning/backup/go-live, 07 task/dependency/AC, 09 SEO index/lifecycle/audit/feed. 01/08 không sửa, giữ baseline tham chiếu/legacy.
+
+Delta: BR-CAT-14/15, BR-IAM-07/08 (+4 BR); AC-P0-06/AC-P1-09/10 (+3 AC); DEC-25…30 (+6 DEC). Không thêm FR/NFR/task ID/bảng đích. DDL target hiện 79 bảng, 11 schema; A01 thêm 1 sequence explicit (tổng 2, không tính serial). DDL PostgreSQL 17.12/43 ca constraints + sequence PASS; EF/runtime/CI/G4 NOT RUN. Các số đếm baseline ở trên là lịch sử, không thay bằng chứng code.
