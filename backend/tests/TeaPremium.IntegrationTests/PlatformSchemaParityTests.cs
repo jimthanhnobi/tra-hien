@@ -89,9 +89,6 @@ public sealed class PlatformSchemaParityTests(PlatformDatabaseFixture fixture) :
             "The approved platform DDL boundary changed; review the P0-10 reference scope.");
         // Execute only the approved P0 platform tables, never the full future-phase DDL.
         var platform = ddl[start..end].Replace("platform.", ReferenceSchema + ".", StringComparison.Ordinal);
-        var ledgerStart = ddl.IndexOf("CREATE TABLE platform.administrative_data_imports", StringComparison.Ordinal);
-        Assert.True(ledgerStart > end, "The approved F-02 DDL must be available as a separate P0-09 block.");
-        platform += ddl[ledgerStart..].Replace("platform.", ReferenceSchema + ".", StringComparison.Ordinal);
         var function = ddl[functionStart..functionEnd].Replace("FUNCTION public.f_unaccent", "FUNCTION " + ReferenceSchema + ".f_unaccent", StringComparison.Ordinal);
         await using var command = new NpgsqlCommand($"CREATE SCHEMA {ReferenceSchema};\n{platform}\n{function}", connection, transaction);
         await command.ExecuteNonQueryAsync();

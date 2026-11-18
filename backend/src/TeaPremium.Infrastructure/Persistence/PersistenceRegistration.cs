@@ -29,10 +29,6 @@ public static class PersistenceRegistration
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<EfUnitOfWork>());
         services.AddScoped<IOutboxWriter, EfOutboxWriter>();
         services.AddScoped<OutboxBatchProcessor>();
-        services.AddScoped<TeaPremium.Application.Settings.ISettingsStore, TeaPremium.Infrastructure.Settings.EfSettingsStore>();
-        services.AddScoped<TeaPremium.Infrastructure.AdministrativeData.ImportEnvironment>();
-        services.AddScoped<TeaPremium.Application.AdministrativeData.IAdministrativeImport, TeaPremium.Infrastructure.AdministrativeData.EfAdministrativeImport>();
-        services.AddScoped<TeaPremium.Application.AdministrativeData.IAdministrativeReferenceData, TeaPremium.Infrastructure.AdministrativeData.EfAdministrativeReferenceData>();
         return services;
     }
 }

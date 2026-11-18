@@ -30,7 +30,6 @@ public sealed class PlatformDatabaseFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
-        await ExecuteAsync("CREATE ROLE tp_app LOGIN PASSWORD 'Disposable-Test-Only!'; CREATE ROLE tp_readonly NOLOGIN; CREATE ROLE tp_owner NOLOGIN");
         await using var db = CreateContext();
         await db.Database.MigrateAsync();
     }
@@ -60,18 +59,18 @@ public sealed class PlatformDatabaseTests(PlatformDatabaseFixture fixture) : ICl
     public async Task MigrationCreatesExactPlatformShape()
     {
         var tables = Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'platform' AND table_type = 'BASE TABLE'"), System.Globalization.CultureInfo.InvariantCulture);
-        Assert.Equal(10, tables);
-        Assert.Equal("administrative_data_imports,audit_logs,data_protection_keys,idempotency_keys,inbound_webhooks,notification_logs,outbox_messages,provinces,settings,wards", await fixture.ScalarAsync("SELECT string_agg(table_name, ',' ORDER BY table_name) FROM information_schema.tables WHERE table_schema = 'platform' AND table_type = 'BASE TABLE'"));
-        Assert.Equal(30, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname = 'platform'"), System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(20, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_indexes WHERE schemaname = 'platform'"), System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(9, tables);
+        Assert.Equal("audit_logs,data_protection_keys,idempotency_keys,inbound_webhooks,notification_logs,outbox_messages,provinces,settings,wards", await fixture.ScalarAsync("SELECT string_agg(table_name, ',' ORDER BY table_name) FROM information_schema.tables WHERE table_schema = 'platform' AND table_type = 'BASE TABLE'"));
+        Assert.Equal(19, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname = 'platform'"), System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(18, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_indexes WHERE schemaname = 'platform'"), System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(8, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_indexes WHERE schemaname = 'platform' AND indexname LIKE 'ix_%'"), System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(12, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_indexes WHERE schemaname = 'platform' AND indexname NOT LIKE 'ix_%'"), System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(10, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_indexes WHERE schemaname = 'platform' AND indexname NOT LIKE 'ix_%'"), System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(3, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_extension WHERE extname IN ('unaccent','pg_trgm','btree_gist')"), System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal("dang", await fixture.ScalarAsync("SELECT public.f_unaccent('Đặng')"));
         Assert.Equal(0, Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM information_schema.columns WHERE table_schema = 'platform' AND column_name = 'xmin'"), System.Globalization.CultureInfo.InvariantCulture));
 
         const string expected = "ck_audit_entity_identity,ck_audit_logs_action,ck_audit_logs_actor_type,ck_inbound_webhooks_status,ck_notification_logs_channel,ck_notification_logs_status,ck_outbox_messages_status,ck_settings_key_format,fk_wards_provinces_province_code,pk_audit_logs,pk_data_protection_keys,pk_idempotency_keys,pk_inbound_webhooks,pk_notification_logs,pk_outbox_messages,pk_provinces,pk_settings,pk_wards,ux_inbound_webhooks_provider_external_id";
-        Assert.Equal(expected, await fixture.ScalarAsync("SELECT string_agg(c.conname, ',' ORDER BY c.conname) FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname = 'platform' AND c.conrelid <> 'platform.administrative_data_imports'::regclass"));
+        Assert.Equal(expected, await fixture.ScalarAsync("SELECT string_agg(c.conname, ',' ORDER BY c.conname) FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname = 'platform'"));
         Assert.Equal("ix_audit_actor,ix_audit_entity_id,ix_audit_entity_key,ix_audit_time,ix_idem_created,ix_notif_ref,ix_outbox_pending,ix_wards_province", await fixture.ScalarAsync("SELECT string_agg(indexname, ',' ORDER BY indexname) FROM pg_indexes WHERE schemaname='platform' AND indexname LIKE 'ix_%'"));
         Assert.Equal("scope, key", await fixture.ScalarAsync("SELECT string_agg(a.attname, ', ' ORDER BY u.ord) FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS u(attnum, ord) JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = u.attnum WHERE n.nspname='platform' AND t.relname='idempotency_keys' AND c.contype='p'"));
         Assert.Equal("provider, external_id", await fixture.ScalarAsync("SELECT string_agg(a.attname, ', ' ORDER BY u.ord) FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS u(attnum, ord) JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = u.attnum WHERE n.nspname='platform' AND t.relname='inbound_webhooks' AND c.contype='u'"));
@@ -444,13 +443,11 @@ public sealed class PlatformDatabaseTests(PlatformDatabaseFixture fixture) : ICl
         await using (var connection = new NpgsqlConnection(disposable.GetConnectionString()))
         {
             await connection.OpenAsync();
-            await using (var roles = new NpgsqlCommand("CREATE ROLE tp_app NOLOGIN; CREATE ROLE tp_readonly NOLOGIN", connection))
-                await roles.ExecuteNonQueryAsync();
             await using var command = new NpgsqlCommand(script, connection);
             await command.ExecuteNonQueryAsync();
             await command.ExecuteNonQueryAsync();
         }
-        Assert.Equal(10, await db.Database.SqlQueryRaw<int>("SELECT count(*)::integer AS \"Value\" FROM information_schema.tables WHERE table_schema='platform' AND table_type='BASE TABLE'").SingleAsync());
+        Assert.Equal(9, await db.Database.SqlQueryRaw<int>("SELECT count(*)::integer AS \"Value\" FROM information_schema.tables WHERE table_schema='platform' AND table_type='BASE TABLE'").SingleAsync());
         await db.GetService<IMigrator>().MigrateAsync("0");
         Assert.Equal(0, await db.Database.SqlQueryRaw<int>("SELECT count(*)::integer AS \"Value\" FROM information_schema.tables WHERE table_schema='platform' AND table_type='BASE TABLE'").SingleAsync());
     }
