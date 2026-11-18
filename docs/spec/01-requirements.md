@@ -187,7 +187,7 @@ Quyền chi tiết ở `02-architecture.md §7`. Một người có thể có nh
 
 ### 4.14 PLT — Nền tảng
 
-- **FR-PLT-01** Audit mọi thay đổi trên dữ liệu nghiệp vụ (ai, lúc nào, cái gì, trước/sau, che PII).
+- **FR-PLT-01** Audit có thể truy vết các thay đổi quan trọng: giá, tồn/sổ kho, trạng thái đơn/hoàn tiền, quyền nhân viên, cài đặt và thao tác nhạy cảm với dữ liệu khách. Lưu ai, lúc nào, hành động và các trường trước/sau được phép ghi; che PII/secret. Không yêu cầu audit từng lần xem trang hay mọi chỉnh sửa nội dung nhỏ. Các audit chuyên biệt FR-PRC/ORD/CRM vẫn giữ nguyên.
 - **FR-PLT-02** Job nền: hủy đơn quá hạn thanh toán, dọn giỏ hết hạn, dọn upload dở, tính lại chỉ số khách, gửi email/Telegram qua outbox, xóa dữ liệu theo thời hạn lưu.
 - **FR-PLT-03** Nhật ký thông báo đã gửi (email/Telegram) và trạng thái.
 

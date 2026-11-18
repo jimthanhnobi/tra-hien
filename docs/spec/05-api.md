@@ -92,15 +92,13 @@ Cột **Quyền** là permission tối thiểu. Mọi response có giá vốn/l�
 |---|---|---|
 | GET | `admin/auth/csrf` | — |
 | POST | `admin/auth/login` `{email, password, totpCode?}` | — |
-| POST | `admin/auth/logout` · GET `admin/auth/me` (user, roles, permissions; chỉ owner nhận ownerMfaCoverageOk theo BR-IAM-08) | đăng nhập |
+| POST | `admin/auth/logout` · GET `admin/auth/me` (user, roles, permissions; không có ownerMfaCoverageOk trong P0) | đăng nhập |
 | POST | `admin/auth/totp/setup` · `admin/auth/totp/verify` `{code}` | đăng nhập |
 | POST | `admin/auth/change-password` `{currentPassword,newPassword}` | đăng nhập |
 | GET/POST/PATCH | `admin/staff[/{id}]` (tạo, khóa, đổi vai trò, reset mật khẩu); POST `{email,displayName,initialPassword,roles}` | `staff.manage` |
 | GET | `admin/audit?entityType=&entityId=&actorId=&from=&to=` | `audit.read` |
 
-Tạo owner thứ hai dùng POST admin/staff với roles=["owner"] bởi owner đã hoàn tất password/TOTP, cookie AdminCookie + CSRF; owner mới dùng phiên riêng change-password rồi setup/verify TOTP, login lại và kiểm GET auth/me + staff/{id}. Không phụ thuộc Staff UI hoặc bootstrap-owner lần hai; kiểm 401/403/thiếu CSRF trong runbook.
-
-Không có endpoint HTTP reset MFA; dùng CLI BR-IAM-07 với operator authorization, audit cùng transaction, revoke và password/TOTP onboarding lại. Cờ coverage là độ phủ tài khoản active/đã đổi password/bật TOTP/không recovery pending, không chứng minh thiết bị độc lập.
+Tạo thêm owner (không bắt buộc) dùng POST `admin/staff` với `roles=["owner"]` bởi owner đã hoàn tất onboarding, cookie `AdminCookie` + CSRF; owner mới có phiên riêng đổi mật khẩu và verify TOTP. Không giả định có Staff UI. Không có endpoint HTTP reset MFA; CLI `reset-staff-mfa` và cờ coverage **không nằm trong P0** theo B01/BR-IAM-07/08. API hiện hữu về staff, login, password, TOTP và phân quyền giữ nguyên.
 
 ### 4.2 Catalog
 | Method | Path | Quyền |

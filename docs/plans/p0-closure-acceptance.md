@@ -1,13 +1,13 @@
 # P0 closure — runbook nghiệm thu theo A01
 
-**Trạng thái 18/11/2026:** Closure #1 được owner giao **G3 local**, remediation P0-02/P0-04/P0-09/P0-10, base/head `3a06ffb7b4f4f53a519c5032802be77ff5f04690` (PR #20/#21 đã merge). Independent G4 Tier A đã trả **BLOCK F1–F4**; owner chỉ cho sửa local và focused G4 tiếp theo chưa chạy. Test DB dùng một lần theo §2; nghiệm thu vận hành HTTPS/owner A/B, CI published HEAD và merge closure **chưa thực hiện**. Closure #2/P0 chưa DONE. Không tạo ID roadmap mới. FR-PLT-01, FR-IAM-02/03, BR-IAM-01/02/06/07/08, AC-P0-01…06, DEC-29/30; 03 §4, 05 §4.1, 06 §5/§11. Hồ sơ G3 và evidence fixes: [p0-closure-01-implementation.md](p0-closure-01-implementation.md).
+**Trạng thái 18/11/2026 (B01):** Closure #1 [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22) đã MERGED, G4 independent PASS theo evidence reviewer owner cung cấp; head `86d8b561dc5a2db22a151eb499fb2a8512769cd0`, merge `606fd2e279eb766976db18473cd45e7cbd142108`. PR CI run 44270404911 và merge CI run 44271243633 đều completed/success, mỗi run 3/3 jobs PASS. DB disposable tests 463/463 được reviewer báo PASS, nhưng HTTPS/owner thật/backup-restore **NOT RUN**. B01 hoãn Closure #2 CLI recovery/coverage, không đánh dấu P0/production-ready DONE. Hồ sơ Closure #1: [p0-closure-01-implementation.md](p0-closure-01-implementation.md).
 
 ## 1. Điều kiện và an toàn
 
 - Operator được owner ủy quyền, xác nhận đúng môi trường giả/dev và backup nếu DB đã có dữ liệu. Không down -v/drop DB/reset password/REASSIGN OWNED để áp quyền. Dừng khi ownership bất thường; remediation từng object cần owner cho phép.
 - Chỉ dùng identity giả khi diễn tập. Không ghi password, cookie, CSRF token, QR/shared TOTP secret, authenticator code hoặc backup/plaintext keys vào log/evidence/argv. Secret nhập tương tác hoặc công cụ an toàn được duyệt; không copy nguyên HTTP body/headers vào hồ sơ.
-- Hai phiên HTTP/cookie jar riêng A/B qua HTTPS cùng origin Admin, không dùng chung CSRF. Sau mỗi login/logout/change-password/verify TOTP phải lấy token mới theo session; mọi POST/PATCH có X-CSRF-TOKEN. Không bỏ auth/CSRF vì thao tác từ server.
-- Không giả định Staff UI hoàn chỉnh. Dùng Admin API/OpenAPI đúng published head đã review; body 05 §4.1, không sửa DB tay hoặc chạy bootstrap-owner lần hai để thêm owner.
+- Owner sử dụng một phiên HTTP/cookie jar riêng qua HTTPS cùng origin Admin, sau login/logout/change-password/verify TOTP lấy CSRF mới; mọi POST/PATCH có `X-CSRF-TOKEN`. Nếu tạo owner thứ hai, hai phiên tách riêng. Không bỏ auth/CSRF vì thao tác từ server.
+- Không giả định Staff UI hoàn chỉnh; owner B là tùy chọn. Không chạy `bootstrap-owner` lần hai hoặc sửa thẳng dữ liệu Identity/TOTP trong DB để xử lý mất quyền truy cập.
 
 ## 2. Chuỗi DB/HTTPS (closure #1)
 
@@ -15,11 +15,11 @@
 |---|---|---|
 | DB mới | Provision infra/postgres/init-roles.sql qua wrapper init-roles.sh, cấu hình maintenance/app DB đúng owner; migrate bằng tp_owner qua dev-migrate preflight, API tp_app | PASS automation PostgreSQL 17.12: init hook, fresh EF và entry point; toàn stack Compose thủ công NOT RUN |
 | DB hiện hữu | Backup/preflight, chạy cùng SQL ngoài init hook; giữ data/IAM/settings/audit/ledger/password/sequence. Bất thường ownership dừng, không xóa DB/volume | PASS baseline 3 migrations + data giả → migration thứ 4, fingerprint không đổi; backup/restore thực NOT RUN |
-| Re-run/quyền | Chạy lại provisioning/idempotent migration trên DB giả; login thật app/backup, kiểm DML/DDL/append-only theo 03 §4; không dùng grant giả trong test | PASS sau fixes F1–F4: 75 ca Closure #1 trong full Linux 435/435; aggressive logging, clean checkout, schema grant option âm; passwords/sequence giữ nguyên; focused G4 chưa chạy |
+| Re-run/quyền | Chạy lại provisioning/idempotent migration trên DB giả; login thật app/backup, kiểm DML/DDL/append-only theo 03 §4; không dùng grant giả trong test | PASS G3/reviewer: 103/103 focused và full 463/463, 0 skipped; F1–F4 và GRANT OPTION table/sequence CLOSED; không thay vận hành manual |
 | HTTPS | Caddy local được trust + API/Admin đúng origin; Compose HTTP/config --quiet không chứng minh login được | NOT RUN |
 | Owner A | Bootstrap lần đầu khi chưa có owner; login, đổi password, login lại, setup/verify TOTP rồi login bằng mã mới. Kiểm onboarding/ready và lấy CSRF theo phiên | NOT RUN |
 
-Artifact đã có trong G3 Closure #1; chưa có published SHA mới. Các lệnh dưới dành cho operator trên DB giả, không phải chỉ dẫn áp dụng production. `.env` chứa TP_DATABASE và ba password riêng + bootstrap POSTGRES_USER/PASSWORD; không truyền secret qua argv/log. SQL idempotent chỉ tạo role/DB thiếu; role đã có sai thuộc tính/membership/ownership/quyền phải dừng. Volume cũ do superuser sở hữu không được tự chuyển owner; owner phê duyệt remediation từng object riêng.
+Artifact Closure #1 đã publish/merge qua PR #22; chỉ bằng chứng trên DB disposable, không tự coi là đã chạy trên DB operator hoặc production. Các lệnh dưới dành cho operator trên DB giả, không phải chỉ dẫn áp dụng production. `.env` chứa TP_DATABASE và ba password riêng + bootstrap POSTGRES_USER/PASSWORD; không truyền secret qua argv/log. SQL idempotent chỉ tạo role/DB thiếu; role đã có sai thuộc tính/membership/ownership/quyền phải dừng. Volume cũ do superuser sở hữu không được tự chuyển owner; owner phê duyệt remediation từng object riêng.
 
 **Volume mới**, từ repo root, sau khi cấu hình `infra/.env` theo [infra/README.md](../../infra/README.md):
 
@@ -44,39 +44,34 @@ docker compose -f infra/compose.dev.yml up -d --build api
 
 **Role checks**: `dev-migrate -PreflightOnly` phải exit 0 bằng direct login tp_owner; kiểm catalog không in password/hash bằng lệnh ở infra README. SQL preflight chạy trước toàn chuỗi, không chỉ ở migration mới. Gọi EF update trực tiếp bỏ preflight vẫn có thể lỗi ở GRANT P0-09 cũ. Runtime ConnectionStrings__Default dùng tp_app; tp_readonly chỉ credential backup được kiểm soát, không dùng readiness/investigation/API. Không tự migrate ở API Production startup. Rollback app giữ ACL hạn chế; Down migration grants không đổi data/quyền về trạng thái thiếu an toàn. Không xóa keys/history/password/sequence.
 
-**Lệnh đã kiểm chứng local sau fixes F1–F4**: focused `dotnet test backend/tests/TeaPremium.IntegrationTests --no-build --no-restore --filter FullyQualifiedName~DatabaseRolesTests --logger trx --results-directory /evidence/focused` → PASS **75/75**. Full Linux `dotnet test backend/TeaPremium.sln --no-build --no-restore --logger trx --results-directory /evidence/test-results` → PASS **435/435** (45 unit, 34 architecture, 356 integration, gồm 75 ca Closure #1), exit 0/zero skipped. Evidence `artifacts/closure-01-g4fix-verification`; lượt G3 cũ 51/55 focused và 415 full là lịch sử. Test gọi wrapper/init SQL thật trên fresh/existing PostgreSQL 17, entry point từ checkout không bin/obj/assets và khi drift/missing role/lock mismatch. Cấu hình logging mạnh không lộ marker/credential SQL; logging policy của kết nối khác giữ nguyên; schema grant option/membership bị từ chối trước chain, không tự repair ACL. Ba tình huống reviewer cũng được chạy lại bằng script riêng, theo hồ sơ G3. Config Compose `--env-file infra/.env.example ... config --quiet` exit 0. Lệnh toàn stack trên volume của operator ở trên **NOT RUN**; không đổi test artifacts thành nghiệm thu vận hành. Focused independent G4 vẫn chờ session mới; chưa có publish permission.
+**Kiểm chứng local/independent:** reviewer chạy `dotnet test backend/TeaPremium.sln --no-build --no-restore` trên disposable Linux PG17 và xác nhận **463/463 PASS**, gồm **103/103 focused** DatabaseRolesTests; locked restore/build/format/EF model/migration/Compose/Docker và permission regressions PASS theo G4 owner cung cấp. Runbook vẫn chưa chạy toàn stack thủ công; PR CI merge-head đã xác minh completed/success; Chi tiết exact commands và SHA trong hồ sơ G3/G4; không coi tests này là bằng chứng vận hành.
 
 **HTTPS/Caddy dependencies**: API native hoặc host port 5080, Admin 3001, Caddy native cấu hình `infra/caddy/Caddyfile.admin-local`, origin `https://admin.localhost:8443`, hostname resolve loopback và CA được operator kiểm/trust. API đặt Iam__AdminHost=admin.localhost và trusted proxy đúng địa chỉ thực; không wildcard. Production-mode local cần certificate X.509 private key cho Data Protection, cùng file/password giữa CLI/API/restart và runtime tp_app; không ghi secrets vào hồ sơ. Lệnh Caddy/native API ở infra README và hồ sơ P0-12. G3 này không tự cài CA, đổi hosts, bootstrap owner thật hoặc giả định HTTP Compose là nghiệm thu login; các bước HTTPS/owner A/B bên dưới vẫn NOT RUN.
 
-## 3. Tạo và kiểm owner thứ hai qua Admin API bảo vệ
+## 3. Nghiệm thu Admin tối thiểu trước dữ liệu thật / go-live
 
-Tất cả đường dẫn dưới có base `/api/v1/`. A là owner đã hoàn tất password/TOTP, B là tài khoản mới trên thiết bị TOTP thứ hai. Dùng API client có cookie session, CSRF và quản lý secret trong bộ nhớ; không đưa credentials thật vào ví dụ tài liệu.
+Không chặn việc code P1-01 migration trên DB giả. Operator nghiệm thu các bước sau trên môi trường được phép, không dùng dữ liệu khách thật cho negative test:
 
-| Bước | Request / kiểm chứng | Kết quả mong đợi | Kết quả thật |
-|---|---|---|---|
-| A ready | GET admin/auth/me và GET admin/auth/csrf trong session A | A active, roles có owner, permission staff.manage, đủ onboarding; token CSRF của A | NOT RUN |
-| Tạo B | POST admin/staff với cookie/CSRF A, JSON `{email,displayName,initialPassword,roles:["owner"]}`; dữ liệu nhập bí mật | Tạo đúng 1 B; A dùng GET admin/staff/{idB} kiểm B active/owner/MustChangePassword=true; không cần Staff UI | NOT RUN |
-| B login | Session/cookie jar B mới, GET admin/auth/csrf rồi POST admin/auth/login với mật khẩu tạm | Chỉ onboarding, chưa có quyền nghiệp vụ | NOT RUN |
-| B password | POST admin/auth/change-password `{currentPassword,newPassword}` với CSRF B; login lại bằng mật khẩu mới, lấy lại CSRF | Mật khẩu tạm hết hiệu lực/phiên cũ bị thu hồi; onboarding TOTP còn bắt buộc | NOT RUN |
-| B TOTP | POST admin/auth/totp/setup, chuyển QR/secret trực tiếp vào thiết bị riêng; POST admin/auth/totp/verify `{code}`; login lại bằng password + mã TOTP mới | Verify thành công; không ghi secret/mã/QR vào evidence; login thiếu/sai TOTP không được ready | NOT RUN |
-| B ready | GET admin/auth/me trong session B; A GET staff/{idB}; B gọi GET admin/staff/{idB} cần staff.manage | B active/owner, MustChangePassword=false, TotpEnabled=true, quyền nghiệp vụ hoạt động sau onboarding | NOT RUN |
-| Hai owner | Cờ ownerMfaCoverageOk sau closure #2 + checklist operator xác nhận hai thiết bị/secret độc lập | True khi ≥2 owner đủ điều kiện; count DB/API không tự chứng minh thiết bị độc lập | NOT RUN |
-| Kiểm âm | Không cookie; sales/content không staff.manage; POST tạo B thiếu/sai CSRF; B chưa xong onboarding | 401/403 hoặc 400 csrf_invalid đúng contract; không tạo/đổi staff hay cấp quyền; kiểm audit an toàn | NOT RUN |
-
-Đây là **phương án nghiệm thu**, chưa là kết quả API chạy thật. Closure phải ghi exact HTTP status thực tế theo OpenAPI đã review, không coi trạng thái UI là bằng chứng. Test không làm mất owner cuối cùng; dùng identity giả cho lockout/negative cases.
-
-## 4. Audit, recovery và backup/điều tra
-
-| Hạng mục | Mong đợi | Kết quả thật |
+| Hạng mục | Kỳ vọng | Kết quả thực tế |
 |---|---|---|
-| Settings/audit | Owner ready sửa setting qua API/CSRF; đọc admin/audit bằng audit.read, đúng trước/sau đã che secret/PII, cùng transaction | NOT RUN |
-| CSRF/lockout/logout | Thiếu CSRF không tác động; tài khoản thử sai 5 lần khóa 15 phút; logout cookie cũ bị từ chối | NOT RUN |
-| Recovery #2 | Chạy reset-staff-mfa đúng operator cho identity giả; request kế tiếp cookie cũ 401; cả hai mode reset password đều bắt đổi password + TOTP lại; audit đúng 1 dòng không secret. Operator sai/audit lỗi/cancel → không thay đổi DB; concurrency không mất audit | NOT RUN |
-| Backup | tp_readonly chỉ cho job backup được kiểm soát; credential/OS/network/execution hạn chế, full backup mã hóa và restore cô lập (có IAM/Data Protection nhạy cảm) | NOT RUN |
-| Điều tra | Không dùng credential tp_readonly để query audit/staff. Dùng admin/audit hoặc identity read riêng theo vụ việc, cột/view đã che, thời hạn/audit/thu hồi; mặc định không quyền IAM credentials/tokens/stamps/authenticator secret hoặc DP xml | NOT RUN |
+| HTTPS | Caddy/chứng chỉ/domain/Admin cookie cùng origin và API qua reverse proxy đúng; CA/cert và proxy config được kiểm | NOT RUN |
+| Owner đầu | Bootstrap khi DB chưa có owner; đổi mật khẩu đầu, setup/verify TOTP, đăng nhập lại qua HTTPS; owner nhận quyền đúng | NOT RUN |
+| TOTP/CSRF | Thiếu/sai TOTP không sẵn sàng; POST thiếu/sai CSRF bị từ chối không tác động DB | NOT RUN |
+| Lockout/logout/password | Sai mật khẩu 5 lần bị khóa 15 phút; logout/session cũ bị từ chối; đổi mật khẩu revoke phiên cũ | NOT RUN |
+| Settings/audit | Owner sửa setting không nhạy cảm qua API, audit actor/thời điểm/trước-sau hợp lệ và không lộ PII/secret | NOT RUN |
+| Backup/restore | Backup bằng identity riêng được kiểm soát, mã hóa và thử restore vào DB cô lập; không dùng `tp_readonly` để điều tra | NOT RUN |
+| Owner thứ hai | **OPTIONAL** qua POST `admin/staff` với `staff.manage` + CSRF, không yêu cầu Staff UI; không chặn P1-01/go-live | NOT RUN (optional) |
 
-SELECT không phân biệt pg_dump và SQL tay; kiểm credential/access controls riêng. Quyền backup đầy đủ không phải quyền điều tra. Closure/P3-10 phải kiểm cả deny sensitive columns và không thừa kế role backup/owner cho identity điều tra.
+Các thử nghiệm HTTP phải ghi endpoint/status đã che dữ liệu; không log cookie/password/TOTP/token. Không tự đánh dấu PASS khi chỉ có integration test.
 
-## 5. Tiêu chí đóng và bằng chứng
+## 4. Khôi phục quyền truy cập và audit tinh gọn
 
-Chỉ ghi DONE khi closure #1/#2 qua G4 độc lập, owner cho publish, CI đúng published head, owner merge; runbook đã nghiệm thu thật và owner thứ hai kiểm qua API. Ghi SHA, command/HTTP status/log an toàn, PASS/FAIL/NOT RUN từng bước. Bất kỳ bước bắt buộc còn NOT RUN/FAIL → chưa đóng P0/chưa giao P1-01. Source/DDL amendment này không tự chứng minh implementation, không cho phép deploy hoặc publish.
+B01 **hoãn** `reset-staff-mfa` CLI, `ownerMfaCoverageOk`/banner và test coverage hai owner: **DEFERRED, không phải DONE**. Owner chấp nhận rủi ro nếu duy nhất một tài khoản mất TOTP. Lúc sự cố, operator được ủy quyền kiểm danh tính, backup, dùng SSH và quy trình Identity-aware được kiểm chứng để thu hồi session, tái enroll TOTP; tuyệt đối không UPDATE tùy tiện các cột Identity/TOTP bằng SQL tay hoặc cho API quyền superuser. Cơ chế chưa được code/diễn tập thì phải ghi NOT RUN, không mô tả là recovery sẵn sàng.
+
+Audit ở P0/P1 chỉ cần các thao tác quan trọng (settings, giá, kho, trạng thái đơn, quyền nhân viên, dữ liệu khách nhạy cảm); giữ redaction PII/secret và transaction. Không bật log mọi lần xem màn Admin. `tp_readonly` chỉ backup, identity điều tra phải tách và mặc định không đọc IAM credentials/Data Protection keys.
+
+## 5. Điều kiện tiếp tục
+
+- **P1-01 dùng DB giả:** Closure #1 đã merge và CI head/merge PASS, B01 amendment được independent G4 + CI/merge, scoped readiness và owner giao G3 riêng. Không yêu cầu hoàn thành bảng §3 manual, owner thứ hai hoặc recovery CLI.
+- **Dữ liệu thật/go-live:** Các dòng bắt buộc §3 phải có bằng chứng PASS, kể cả HTTPS/TOTP và backup/restore; PR/CI thành công không thay operator acceptance.
+- **P0 DONE:** chỉ ghi khi đủ DoD và nghiệm thu bắt buộc tương ứng; không đổi NOT RUN thành PASS chỉ vì sửa spec.
