@@ -1,6 +1,6 @@
 # Mức sẵn sàng task P0–P6
 
-**Cập nhật B01 (18/11/2026):** PR #20/#21 đã merge A01; Closure #1 qua [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22), merge SHA `606fd2e279eb766976db18473cd45e7cbd142108`. B01 cập nhật gate IAM/audit tinh gọn, vẫn cần G4 và CI ở PR amendment; xem mục cuối. Các ghi chú GO/HOLD cũ là lịch sử, không thay thế gate B01.
+**Cập nhật B01 (18/11/2026):** PR #20/#21 đã merge A01; Closure #1 qua [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22), merge SHA `606fd2e279eb766976db18473cd45e7cbd142108`. B01 [PR #23](https://github.com/jimthanhnobi/tra-hien/pull/23) đã merge SHA `9eb5e566dafc3dade3365f3b6a785a53ac116002`; PR/merge CI 3/3 PASS. G4 B01 **CONDITIONAL hậu merge** vì một P2 về hồ sơ P1-01, phải focused re-review sau correction; không tự nhận G4 PASS trước merge. Các ghi chú GO/HOLD cũ là lịch sử.
 
 **Trạng thái:** PROPOSED. Bám `docs/spec/07-roadmap.md`; giữ nguyên mọi ID task và AC, không sửa dependency trong spec. Đối chiếu `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md` và [rà soát kiến trúc](../architecture/conformance-review.md). “GO” ở đây là đủ rõ để giao task theo gate G2/G3 của `AGENTS.md`, không phải xác nhận code đã chạy.
 
@@ -97,7 +97,7 @@ git diff --check
 
 P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi tại thời điểm lập kế hoạch. Ngày 16/11/2026, owner duyệt G26 Option B/G01 Option B và chấp nhận bản sửa `docs/spec/` sau G4 GO. Hai ADR trong `docs/decisions/` giữ lịch sử đề xuất. **G26/G01 SPEC AMENDMENT — OWNER ACCEPTED (G4 GO); F-01 DDL AMENDMENT — OWNER APPROVED (G4 GO); P0-04 IMPLEMENTATION — NOT AUTHORIZED.** `docs/plans/p0-04-readiness.md` ghi ma trận F-01 đã duyệt và DDL đã qua G4 độc lập. F-02 là điều kiện riêng của P0-09/CRM; AC-P0-04 chỉ kiểm được khi P0-05/P0-09 triển khai cùng schema đã chốt.
 
-## B01 — trạng thái hiện hành sau PR #22 (18/11/2026)
+## B01 — trạng thái hiện hành sau PR #23 (18/11/2026)
 
 | Phạm vi | Trạng thái / gate |
 |---|---|
@@ -105,7 +105,7 @@ P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi
 | Closure #1 P0-02/04 | [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22) MERGED, head `86d8b561dc5a2db22a151eb499fb2a8512769cd0`, merge `606fd2e279eb766976db18473cd45e7cbd142108`. Independent focused G4 PASS theo bằng chứng owner cung cấp, 463/463 backend tests do reviewer báo PASS. PR CI run 44270404911 completed/success; merge-push CI run 44271243633 completed/success; cả hai run 3/3 jobs PASS (Backend/API contract, Frontend, Docker). Manual HTTPS/backup/owner còn NOT RUN, không được đánh dấu production-ready. |
 | Closure #2 P0-08/12 | **DEFERRED theo owner B01**: không xây `reset-staff-mfa`/owner coverage/banner ở P0; không được nói DONE. Tài khoản và TOTP hiện hữu giữ nguyên. |
 | P0 vận hành | Trước dữ liệu thật/go-live phải kiểm HTTPS, một owner đã đổi password + TOTP, CSRF/lockout/logout, settings audit và backup/restore; owner thứ hai là khuyến nghị, không gate. |
-| P1-01 | **HOLD / NOT AUTHORIZED G3** cho đến khi B01 qua G4/CI/merge và P0 Closure #1 CI merge-head đã PASS, scoped readiness kiểm lại role/helper. Khi đủ thì owner có thể giao G3 migration trên DB giả; không đòi Closure #2/manual owner A/B. |
+| P1-01 | **HOLD / NOT AUTHORIZED G3**. Closure #1 PR #22 MERGED, G4 và CI PASS; B01 PR #23 đã MERGED, CI PR/merge 3/3 PASS nhưng G4 hậu merge CONDITIONAL. Chờ focused independent G4 PASS cho tài liệu correction, scoped C1–C3/role/helper/preflight đối chiếu bản `main` và lệnh G3 của owner. Không chờ Closure #2 MFA recovery hay HTTPS/backup manual trước DDL trên DB giả; bảo đảm nghiệm thu trước dữ liệu thật/go-live. |
 | P1-04 | D12: audit entity/path cho các nghiệp vụ quan trọng, che PII mặc định trước khi bật audit entity, không chặn P1-01. |
 | P1-07 | Import variant key/match/upsert vẫn OPEN tại task P1-07; không chặn P1-01. |
 
