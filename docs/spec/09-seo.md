@@ -39,8 +39,9 @@
 
 | Trang | robots meta | Canonical | Sitemap |
 |---|---|---|---|
-| Sản phẩm `active` | index,follow (trừ khi `robots_noindex`) | chính nó | Có (kèm ảnh) |
-| Sản phẩm độc bản đã bán | như trên trong thời gian giữ (BR-SEO-21) | chính nó | Có |
+| Sản phẩm `active` đủ điều kiện index | index,follow nếu không có manual/thin/điều kiện noindex khác | chính nó | Có (kèm ảnh) |
+| Sản phẩm active mô tả < 150 từ | noindex,follow (SITE_INDEXABLE=false vẫn ưu tiên) | chính nó | Không; không feed |
+| Sản phẩm độc bản đã bán | cùng điều kiện manual/thin/site như trên trong thời gian giữ (BR-SEO-21) | chính nó | Chỉ khi indexable |
 | Danh mục / bộ sưu tập visible | index,follow | chính nó, **kể cả `?trang=2+`** | Chỉ trang 1 |
 | Danh mục có bộ lọc/sắp xếp (`?chat-lieu=`, `?gia=`, `?sap-xep=`...) | **noindex,follow** | không đặt canonical sang trang khác | Không |
 | Chủ đề (landing) đủ điều kiện | index,follow | chính nó | Có |
@@ -69,8 +70,8 @@
 
 ## 3. Vòng đời trang sản phẩm
 
-- **BR-SEO-20** Variant hết hàng (có thể nhập lại): trang giữ nguyên 200, index, `availability=OutOfStock`, nút "Báo khi có hàng" (mở Zalo/form liên hệ).
-- **BR-SEO-21** **Hàng độc bản đã bán** (mọi variant active đều độc bản và đã bán): ghi `products.sold_out_at`. Trong `seo.sold_unique_keep_days` ngày (mặc định 180): trang 200, index, nhãn "Đã bán", `availability=SoldOut`, khối "Tác phẩm tương tự" (cùng nghệ nhân → cùng chất liệu → cùng loại, còn hàng, 8 mục) đặt **ngay dưới ảnh**. Hết thời hạn: job tự `archive` + 301 theo BR-SEO-22, **trừ** sản phẩm có `seo_keep_after_sold = true` (tác phẩm tiêu biểu, có nhiều backlink).
+- **BR-SEO-20** Variant hết hàng (có thể nhập lại): trang giữ nguyên 200, index khi không có manual/thin/site noindex theo §2/BR-SEO-34, `availability=OutOfStock`, nút "Báo khi có hàng" (mở Zalo/form liên hệ).
+- **BR-SEO-21** **Hàng độc bản đã bán** (mọi variant active đều độc bản và đã bán): ghi `products.sold_out_at`. Trong `seo.sold_unique_keep_days` ngày (mặc định 180): trang 200, chỉ index nếu không manual/thin/site noindex (§2/BR-SEO-34), nhãn "Đã bán", `availability=SoldOut`, khối "Tác phẩm tương tự" (cùng nghệ nhân → cùng chất liệu → cùng loại, còn hàng, 8 mục) đặt **ngay dưới ảnh**. Hết thời hạn: job tự `archive` + 301 theo BR-SEO-22, **trừ** sản phẩm có `seo_keep_after_sold = true` (tác phẩm tiêu biểu, có nhiều backlink).
 - **BR-SEO-22** Lưu trữ sản phẩm **đã từng publish** bắt buộc có đích 301. Mặc định theo thứ tự: trang nghệ nhân (nếu published) → trang chất liệu (nếu published) → danh mục chính. Admin cho chọn lại. Sản phẩm chưa từng publish lưu trữ → 404. (Thay thế BR-CAT-05 phần `archived`.)
 - **BR-SEO-23** Sản phẩm/danh mục/bài viết bị `robots_noindex=true` phải có lý do trong audit; SEO Audit liệt kê tất cả trang noindex thủ công.
 
@@ -81,17 +82,20 @@
 
 | Trang | Mẫu |
 |---|---|
-| Sản phẩm | `{tên} – {chất liệu} {dung tích}ml | {Thương hiệu}` (bỏ phần nào không có) |
-| Danh mục | `{tên danh mục} | {Thương hiệu}` |
-| Chất liệu | `{tên chất liệu}: đặc điểm, cách chọn và tác phẩm | {Thương hiệu}` |
-| Nghệ nhân | `Nghệ nhân {tên} – tác phẩm {chất liệu chính} | {Thương hiệu}` |
-| Chủ đề | `{tiêu đề chủ đề} | {Thương hiệu}` |
+| Sản phẩm | `{tên} – {chất liệu} {dung tích}ml \| {Thương hiệu}` (bỏ phần nào không có) |
+| Danh mục | `{tên danh mục} \| {Thương hiệu}` |
+| Chất liệu | `{tên chất liệu}: đặc điểm, cách chọn và tác phẩm \| {Thương hiệu}` |
+| Nghệ nhân | `Nghệ nhân {tên} – tác phẩm {chất liệu chính} \| {Thương hiệu}` |
+| Chủ đề | `{tiêu đề chủ đề} \| {Thương hiệu}` |
 | Bài viết | `{tiêu đề bài}` (≤ 60 ký tự) |
 
 - **BR-SEO-32** Meta description mặc định: `short_description`/`excerpt`/`intro` cắt 150–160 ký tự. Nhân viên được sửa; Admin hiện preview kết quả Google và đếm ký tự.
 - **BR-SEO-33** Open Graph + Twitter Card trên mọi trang public: `og:title`, `og:description`, `og:image` (1200×630, sinh từ ảnh bìa bằng route ảnh của Next), `og:url` = canonical, `og:type` (`product`/`article`/`website`), `og:locale=vi_VN`. (Zalo và Facebook dùng OG để hiện preview khi chia sẻ link.)
-- **BR-SEO-34** **Nội dung sản phẩm** (để publish, bổ sung vào BR-CAT-04):
-  - Bắt buộc: mô tả riêng ≥ **150 từ**, không sao chép nguyên văn từ nhà cung cấp; bảng thông số render từ thuộc tính (HTML `<table>`, crawl được).
+- **BR-SEO-34** **Nội dung sản phẩm và điều kiện index** (bổ sung BR-CAT-04):
+  - Mô tả riêng ≥ **150 từ** là điều kiện index, không chặn publish chỉ vì thiếu số từ. Không sao chép nguyên văn; giữ bảng thông số HTML crawl được và nội dung thật. Điều kiện không rỗng/metadata của BR-CAT-04 không đổi.
+  - Đếm plain text description_html đã sanitize: bỏ script/style, giải mã entities, ngăn cách block, gộp whitespace Unicode/NBSP, đếm token không rỗng; không tính boilerplate/bảng thông số tự chèn. Dùng cùng phép đếm phía server khi lưu/import/audit; cập nhật description_word_count cùng transaction, backfill trước khi dùng cho dữ liệu cũ.
+  - thin_description = description_word_count < 150; effective noindex là OR của thin, robots_noindex thủ công và mọi điều kiện noindex khác. Không ghi/clear robots_noindex tự động. Đủ 150 từ chỉ gỡ lý do thin; SITE_INDEXABLE=false vẫn noindex,nofollow, draft 404, archived theo vòng đời. Thin dùng noindex,follow, không Disallow để crawler đọc meta.
+  - Qua ngưỡng theo cả hai chiều hoặc đổi cờ thủ công phát StorefrontInvalidate cùng transaction, làm mới product/catalog/sitemap/feed. SSR/sitemap/feed dùng cùng eligibility, feed vẫn kiểm BR-SEO-80/81 và không đưa variant inactive/giá NULL. P1-05/14 kiểm dữ liệu/warning/outbox; P3-09/15/17 kiểm HTML/robots/canonical/sitemap/feed/audit.
   - Khuyến nghị (cảnh báo, không chặn): ≥ 3 ảnh; có mục "Cách dùng & bảo quản"; có liên kết nghệ nhân/chất liệu; `focus_keyword` đã điền.
   - Trang sản phẩm tự chèn các khối: "Về chất liệu {X}" (tóm tắt + link `/chat-lieu/x`), "Về nghệ nhân {Y}" (tóm tắt + link), "Bài viết liên quan" (từ `article_links`).
   - SEO Audit báo **trùng mô tả** khi độ giống (trigram `similarity`) giữa hai mô tả > 0,8.
@@ -135,7 +139,7 @@ Sinh ở server bằng các hàm thuần trong `apps/store/lib/seo/jsonld/*` có
 
 - **BR-SEO-77** `/sitemap.xml` là sitemap index trỏ tới: `sitemap-products.xml` (có `<image:image>` cho ảnh), `sitemap-categories.xml`, `sitemap-collections.xml`, `sitemap-landing.xml`, `sitemap-materials.xml`, `sitemap-artisans.xml`, `sitemap-articles.xml`, `sitemap-authors.xml`, `sitemap-pages.xml`. Mỗi file ≤ 50.000 URL. `lastmod` = thời điểm thay đổi nội dung đáng kể (nội dung, giá, tình trạng hàng). Cache theo tag, làm mới khi có `StorefrontInvalidate`.
 - **BR-SEO-80** **Feed Google Merchant Center** (hiển thị sản phẩm miễn phí trên Google Shopping/Search/Images): `GET /feeds/google-merchant.xml` (RSS 2.0, namespace `g:`), làm mới mỗi giờ, cache.
-  Mỗi variant active của sản phẩm indexable là 1 item: `g:id` = SKU, `g:item_group_id` = product id (khi > 1 variant), `title` (tên + tên variant), `description`, `link`, `g:image_link`, `g:additional_image_link`, `g:availability` (`in_stock`/`out_of_stock`), `g:price` (`3500000 VND`), `g:sale_price` + `g:sale_price_effective_date` khi KM, `g:condition=new`, `g:brand` = tên thương hiệu shop (setting `seo.brand_name`), `g:identifier_exists=no`, `g:google_product_category` (map theo `product_types.google_product_category`, Admin sửa được), `g:product_type` (đường dẫn danh mục), `g:shipping` (VN, phí đồng giá), `g:shipping_weight`, `g:material`, `g:size` (dung tích).
+  Mỗi variant active có giá hợp lệ (BR-CAT-15) của sản phẩm indexable (không manual/thin/site noindex) là 1 item: `g:id` = SKU, `g:item_group_id` = product id (khi > 1 variant), `title` (tên + tên variant), `description`, `link`, `g:image_link`, `g:additional_image_link`, `g:availability` (`in_stock`/`out_of_stock`), `g:price` (`3500000 VND`), `g:sale_price` + `g:sale_price_effective_date` khi KM, `g:condition=new`, `g:brand` = tên thương hiệu shop (setting `seo.brand_name`), `g:identifier_exists=no`, `g:google_product_category` (map theo `product_types.google_product_category`, Admin sửa được), `g:product_type` (đường dẫn danh mục), `g:shipping` (VN, phí đồng giá), `g:shipping_weight`, `g:material`, `g:size` (dung tích).
   Hàng độc bản đã bán: `out_of_stock` trong 30 ngày rồi bỏ khỏi feed. Ảnh chính trong feed: không chữ/logo/watermark chèn lên (chính sách Merchant).
 - **BR-SEO-81** Feed và trang phải khớp giá/tình trạng; test integration so sánh feed với `store/products/{slug}` cho cùng dữ liệu.
 
@@ -167,7 +171,7 @@ Sinh ở server bằng các hàm thuần trong `apps/store/lib/seo/jsonld/*` có
 ## 13. Giám sát và SEO Audit trong Admin
 
 - **BR-SEO-96** Ghi log 404: storefront gửi `POST store/not-found` (path chuẩn hóa, referrer host, có phải bot) → `content.not_found_logs` cộng dồn theo path. Admin "Lỗi 404" sắp xếp theo lượt, nút "Tạo redirect".
-- **BR-SEO-60** **SEO Audit** (Admin, chạy theo yêu cầu + hằng đêm, gửi Telegram tóm tắt hằng tuần). Mức **Lỗi**: trang indexable thiếu title/description, trùng title, thiếu H1, ảnh bìa thiếu ALT, redirect chuỗi/vòng, trang indexable trong sitemap trả ≠ 200, `SITE_INDEXABLE=true` nhưng trang chính có noindex. Mức **Cảnh báo**: mô tả < 150 từ, trùng mô tả (> 0,8), trùng `focus_keyword`, title/description ngoài độ dài khuyến nghị, < 3 ảnh, ảnh bìa < 1200 px, trang mồ côi, chủ đề < 4 sản phẩm, sản phẩm độc bản đã bán sắp hết hạn giữ, noindex thủ công.
+- **BR-SEO-60** **SEO Audit** (Admin, chạy theo yêu cầu + hằng đêm, gửi Telegram tóm tắt hằng tuần). Mức **Lỗi**: trang indexable thiếu title/description, trùng title, thiếu H1, ảnh bìa thiếu ALT, redirect chuỗi/vòng, trang indexable trong sitemap trả ≠ 200, `SITE_INDEXABLE=true` nhưng trang chính có noindex. Noindex do mô tả mỏng đúng BR-SEO-34 là trạng thái dự kiến, không tự báo thêm lỗi noindex ngoài ý muốn; các lỗi khác giữ nguyên. Mức **Cảnh báo**: mô tả < 150 từ (đang noindex, không sitemap/feed), trùng mô tả (> 0,8), trùng `focus_keyword`, title/description ngoài độ dài khuyến nghị, < 3 ảnh, ảnh bìa < 1200 px, trang mồ côi, chủ đề < 4 sản phẩm, sản phẩm độc bản đã bán sắp hết hạn giữ, noindex thủ công.
 - **BR-SEO-61** Admin form sản phẩm/bài viết có bảng "Điểm SEO" chạy cùng bộ kiểm tra cho riêng trang đó + preview kết quả Google + preview chia sẻ (OG).
 
 ## 14. SEO địa phương và thương hiệu

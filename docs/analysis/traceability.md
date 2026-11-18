@@ -1,5 +1,7 @@
 # Truy vết yêu cầu → task → nghiệm thu/kiểm thử
 
+**Cập nhật hiện hành A01 (18/11/2026):** owner-approved amendment local READY_FOR_LOCAL_G4; xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; implementation/CI/G4 chưa được xác nhận từ amendment này.
+
 **Nguồn:** commit `cadce575597738bf40ad7c45689482de5a5fbc3d`. Gồm 99 FR, 176 BR, 13 NFR; giữ mã gốc, không tạo `REQ-###`.
 
 Ánh xạ task dưới đây là kết quả audit từ phạm vi và tham chiếu trong `07-roadmap.md`; đây là **đề xuất truy vết/kiểm thử**, không phải quyết định sửa roadmap. Mỗi BR cần test mang mã luật theo `00-README.md:31–36` và NFR-09. Chưa chạy bất kỳ test nào.
@@ -402,3 +404,24 @@ Các kịch bản dưới đây là **đề xuất kiểm thử**, không tạo 
 - `P0-01` không có AC riêng trong roadmap; bằng chứng phù hợp là solution 4 project backend + 3 test project, hai Next app, `packages/api-client`, pnpm workspace, `global.json`, `Directory.Packages.props`, `.editorconfig`, analyzer warning-as-error theo `07-roadmap.md:17` và `02-architecture.md:27–62`. Việc chạy build/test thuộc implementation-slice.
 - Ma trận trên chỉ ra nơi cần chứng minh, không tuyên bố đã implement hay đã chạy test. Các luật có nhiều task cần test ở đúng phần hành vi của từng task; không ép task P0-01 làm hành vi của pha sau.
 - Các gap G01–G33 và mốc chốt liên quan nằm ở [spec-gaps.md](spec-gaps.md); Q1–Q8 không mặc định chặn P0-01.
+
+## A01 — scoped delta owner-approved 18/11/2026
+
+Input 288ca8b55cab2017c9ee42bd35036e2d2e5bd87c, amendment local UNCOMMITTED/READY_FOR_LOCAL_G4. Dòng baseline ở trên giữ lịch sử. Các nguồn mới dùng heading/ID (line cũ đã dịch chuyển), không tạo task ID hay REQ mới. DDL constraints PASS riêng, các hành vi sau NOT RUN.
+
+| ID/contract | Nguồn hiện hành | Task / acceptance / evidence cần có |
+|---|---|---|
+| BR-CAT-02/14, DEC-26 | 04 §CAT, schema catalog | P1-01 DDL UNIQUE/regex/sequence PASS; P1-05/07 concurrent generator/bounded retry/stability/manual collision NOT RUN |
+| BR-CAT-04/15, BR-PRC-01/02, DEC-25 | 04 §CAT/PRC, schema variants | P1-05/06/07/14, P2-05/06; AC-P1-09 active/inactive/activation/publish/no NULL sale; DDL nullable/range PASS, app NOT RUN |
+| BR-CAT-13, FR-CAT-09 | 04 §CAT | P1-07: dry-run no writes, stable key OPEN, không auto-upsert thiếu khóa |
+| BR-SEO-34/60/77/80, DEC-27, AC-P1-10 | 09 §2/§3/§4/§8/§13, 04 BR-CAT-04 | P1-05/14 count/warning/outbox; P3-09/15/17 SSR/canonical/robots/sitemap/feed, manual/site priority, 149/150/151, metadata validation unchanged; NOT RUN |
+| BR-IAM-07, DEC-29, AC-P0-06 | 04 §IAM, 05 §4.1 | P0-08/12 closure #2 operator/authz/atomic audit/revoke/password+TOTP/rollback/concurrency/coverage; NOT RUN |
+| BR-IAM-08, FR-IAM-02/03 | 04 §IAM, 05 §4.1, runbook | Closure owner A staff.manage/CSRF tạo B qua API; B session riêng password/TOTP/login/me + negative 401/403/CSRF; không Staff UI; NOT RUN |
+| DEC-30, NFR-04/07/08/09 | 03 §4, 06 §5/§6/§11 | P0-02/04 remediation #1: empty/existing provisioning/grants; backup controlled/read investigation riêng/no IAM creds/DP keys; fingerprints/deny tests NOT RUN |
+| BR-RET-01, DEC-28 | schema media, 02 §5.10/05 §4.2 | P1-01 DDL limits PASS; P1-02 whitelist/complete/private/R2 token/slugHint; P2-10 return policy G27 OPEN |
+| BR-INV-11/13 | 04 §INV, 03 §3.3, 07 | P1-10/13 internal idempotent/bounded retry; P2-05 reservation reconciliation; P2-13 current alerts/no stale replay; NOT RUN |
+| G13, AC-P1-06 | 05 §4.3/02 §7 | P1-08/14 response permission, restricted chỉ còn/hết/no low/count/cost; NOT RUN |
+| D1/D9, G02/G21/G32/G38 | 07 P1-01/P1-05/P2-01/P2-05/P5-07 | Closure #1/#2/acceptance trước P1-01; 25 bảng + sequence, deferred FK; redirects nền P1/editor P3; EF chain NOT RUN |
+| D10 | AGENTS.md G4, WORKFLOW §5 | A/B vẫn fresh independent reviewer/same worktree/full change set, owner publish, CI published head; G4/CI NOT RUN |
+
+New IDs định nghĩa chính thức: BR-CAT-14/15, BR-IAM-07/08 ở 04; AC-P0-06/AC-P1-09/10 ở 07; DEC-25…30 ở 00. Trạng thái evidence/commands/SQL hash tại docs/reviews/a01-amendment-evidence.md.

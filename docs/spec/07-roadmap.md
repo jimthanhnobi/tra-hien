@@ -15,19 +15,21 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | ID | Task | Size | Phụ thuộc |
 |---|---|---|---|
 | P0-01 | Tạo repo theo 02 §2: solution .NET 10 (4 project + 3 test project), `apps/store`, `apps/admin`, `packages/api-client`, pnpm workspace, `global.json`, `Directory.Packages.props` (central package management), `.editorconfig`, analyzers bật cảnh báo = lỗi | M | — |
-| P0-02 | `infra/compose.dev.yml` (postgres 17, api, store, admin), `.env.example`, README chạy local | S | P0-01 |
+| P0-02 | `infra/compose.dev.yml` (postgres 17, api, store, admin), `.env.example`, README chạy local; closure #1 role SQL/wrapper mới+existing DB 06 §5, runtime tp_app và runbook HTTPS | S | P0-01 |
 | P0-03 | Cross-cutting backend: `IClock`, `BusinessCalendar`, `Money`, `Result<T>`/`Error`, `ICommandHandler/IQueryHandler` + decorator validation/transaction, ProblemDetails mapping, correlation id middleware, log JSON che PII | M | P0-01 |
-| P0-04 | `AppDbContext` nhiều schema, quy ước snake_case + tên constraint tường minh, mapping `xmin` (cột hệ thống); migration đầu chỉ tạo schema `platform` với 9 bảng: `settings`, `provinces`, `wards`, `audit_logs` (UUID/TEXT identity theo G26), `outbox_messages`, `idempotency_keys`, `inbound_webhooks`, `notification_logs`, `data_protection_keys`. `provinces`/`wards` chỉ có cấu trúc, không seed danh mục. Tạo extension `unaccent`, `pg_trgm`, `btree_gist` và `public.f_unaccent`; kiểm migration từ DB rỗng, constraint/index parity và transaction `IUnitOfWork` thật. | M | P0-03 |
-| P0-05 | Audit interceptor (02 §5.4) + attribute `[Audited]`, mapping UUID/TEXT identity, danh sách field/path PII/secret (cả JSON lồng nhau), ghi audit cùng transaction và test rollback | M | P0-04 |
+| P0-04 | `AppDbContext` nhiều schema, quy ước snake_case + tên constraint tường minh, mapping `xmin` (cột hệ thống); migration đầu chỉ tạo schema `platform` với 9 bảng: `settings`, `provinces`, `wards`, `audit_logs` (UUID/TEXT identity theo G26), `outbox_messages`, `idempotency_keys`, `inbound_webhooks`, `notification_logs`, `data_protection_keys`. `provinces`/`wards` chỉ có cấu trúc, không seed danh mục. Tạo extension `unaccent`, `pg_trgm`, `btree_gist` và `public.f_unaccent`; kiểm migration từ DB rỗng, constraint/index parity và transaction `IUnitOfWork` thật.; closure #1 thêm migration grants nền qua helper chung, không sửa migration cũ | M | P0-03 |
+| P0-05 | Audit interceptor (02 §5.4) + attribute `[Audited]`, mapping UUID/TEXT identity, danh sách field/path PII/secret (cả JSON lồng nhau), ghi audit cùng transaction và test rollback; D12 entity/path deny-by-default/nested/rollback, phần catalog trước P1-04 | M | P0-04 |
 | P0-06 | Outbox + dispatcher + khung `PeriodicJob` có advisory lock | M | P0-04 |
 | P0-07 | Idempotency middleware/filter (02 §5.3) | S | P0-04 |
-| P0-08 | IAM nhân viên: Identity schema `iam`, cookie `AdminCookie`, CSRF, login/logout/me, đổi mật khẩu, TOTP, khóa tài khoản, rate limit, role+permission seed (02 §7), quản lý nhân viên, lệnh CLI `bootstrap-owner` | L | P0-04 |
+| P0-08 | IAM nhân viên: Identity schema `iam`, cookie `AdminCookie`, CSRF, login/logout/me, đổi mật khẩu, TOTP, khóa tài khoản, rate limit, role+permission seed (02 §7), quản lý nhân viên, lệnh CLI `bootstrap-owner`; closure #2 reset-staff-mfa BR-IAM-07/08, audit nguyên tử/revoke/password+TOTP lại; tạo owner thứ hai qua Admin API bảo vệ | L | P0-04 |
 | P0-09 | Settings module (`platform.settings` + API `admin/settings/{group}`), seed setting mặc định; CLI `import-provinces <csv>` kiểm provenance/CSV, phân biệt full snapshot/delta, dry-run, import transaction/idempotent và kiểm dữ liệu sẵn cho luồng dùng địa chỉ | S | P0-04 |
 | P0-10 | ArchitectureTests (02 §3) + Testcontainers fixture + test migration từ rỗng | S | P0-04 |
 | P0-11 | CI `ci.yml` (06 §7 bước 1–4) | S | P0-10 |
-| P0-12 | Admin app khung: layout, đăng nhập (+TOTP), menu theo permission, trang 403/404, TanStack Query + client sinh từ OpenAPI, form chuẩn (RHF + Zod), bảng chuẩn (TanStack Table, phân trang server) | M | P0-08 |
+| P0-12 | Admin app khung: layout, đăng nhập (+TOTP), menu theo permission, trang 403/404, TanStack Query + client sinh từ OpenAPI, form chuẩn (RHF + Zod), bảng chuẩn (TanStack Table, phân trang server); closure #2 ownerMfaCoverageOk chỉ owner; không giả định Staff UI để nghiệm thu owner thứ hai | M | P0-08 |
 
 **DoD P0:** `docker compose -f infra/compose.dev.yml up` chạy được; owner đăng nhập admin bằng TOTP; CI xanh.
+
+**A01 — đóng P0 trước P1-01:** closure #1 remediation P0-02/P0-04 (roles/grants/runtime/runbook, dùng tests P0-09/10); #2 P0-08/P0-12 (recovery/coverage); nghiệm thu HTTPS và hai owner qua Admin API bảo vệ, settings/audit/CSRF/lockout/logout, cập nhật DONE bằng evidence/SHA thật. Không tạo task ID mới/gộp closure và P1-01. Runbook docs/plans/p0-closure-acceptance.md; tp_readonly chỉ backup kiểm soát, điều tra dùng quyền riêng. Approval amendment không cho G3/publish.
 
 **Nghiệm thu**
 - AC-P0-01: Sai mật khẩu 5 lần → tài khoản bị khóa 15 phút (BR-IAM-01).
@@ -37,25 +39,28 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
   Đây là nghiệm thu tích hợp P0-04 (bảng), P0-05 (interceptor/che dữ liệu) và P0-09 (settings); riêng P0-04 tạo bảng chưa đạt AC này. Giá trị trước/sau phải tuân thủ quy tắc che PII/secret tại 02 §5.4.
 - AC-P0-05: Test kiến trúc fail nếu Application tham chiếu EF Core hoặc gọi `DateTime.Now`.
 
+- AC-P0-06: operator được ủy quyền reset owner A → request kế tiếp với cookie cũ 401; lần login mới chỉ onboarding cho tới **đổi password và verify TOTP** trong cả hai mode có/không `--reset-password`; đúng một audit system/state_change không chứa secret/PII. Test staff không phải owner cũng không bỏ qua reenrollment.
+  Test operator không quyền/không HTTP, target sai, cancel/audit rollback, concurrent reset, pending secret/mã cũ, hai mode reset password, staff khác giữ phiên, coverage 0/1/2. Tạo và kiểm owner thứ hai qua API staff.manage/CSRF, không Staff UI hoặc tp_readonly điều tra.
+
 ---
 
 ## P1 — Catalog, Media, Kho
 
 | ID | Task | Size | Phụ thuộc |
 |---|---|---|---|
-| P1-01 | Migration schema `media`, `catalog`, `inventory`, `pricing.sale_prices` theo `schema.sql` | M | P0 |
-| P1-02 | Media: R2 presigned upload, complete, thư viện ảnh; bucket private cho evidence | M | P1-01 |
+| P1-01 | Migration 25 bảng: media.assets/upload_sessions; 15 bảng catalog trừ product_reviews/review_media; 6 bảng inventory trừ reservations; pricing.sale_prices; content.redirects + catalog.sku_number_seq theo schema.sql. Hoãn reservations + fk_reservations_line → P2-05, reviews/media → P5-07; grants 03 §4, bigint/numeric theo cột, xmin/rowVersion. Không use case/seed/API/UI | M | P0 (closure #1, #2 và nghiệm thu xong) |
+| P1-02 | Media: R2 presigned upload, complete, thư viện ảnh; bucket private cho evidence; ảnh ≤15 MiB, evidence mp4/mov ≤50 MiB private, R2 token theo bucket/dev-prod riêng, slugHint/complete 02 §5.10 | M | P1-01 |
 | P1-03 | Product types, thuộc tính, options (CRUD + validate kiểu) + lệnh `seed-catalog-reference` (03 §6) | M | P1-01 |
 | P1-04 | Categories (cây ≤ 3 cấp), collections, materials, artisans (CRUD, publish, slug + redirect BR-CAT-08) | M | P1-01 |
-| P1-05 | Products + variants: CRUD, giá trị thuộc tính, ảnh, SEO, quan hệ; publish BR-CAT-04; archive; `search_text` BR-CAT-10 | L | P1-03, P1-04 |
+| P1-05 | Products + variants: CRUD, giá trị thuộc tính, ảnh, SEO, quan hệ; publish BR-CAT-04; archive; `search_text` BR-CAT-10; SKU BR-CAT-14, giá active/inactive BR-CAT-15, count/thin noindex riêng manual, không nới metadata | L | P1-02, P1-03, P1-04 |
 | P1-06 | Giá KM (sale_prices) + `PricingCalculator` BR-PRC-01/02 | S | P1-05 |
-| P1-07 | Import sản phẩm Excel/CSV dry-run (BR-CAT-13) | M | P1-05 |
+| P1-07 | Import sản phẩm Excel/CSV dry-run (BR-CAT-13); ưu tiên ngay sau P1-05 trước P1-06; key/import lại OPEN, không upsert thiếu khóa ổn định | M | P1-05 |
 | P1-08 | Kho: `stock_levels`, movements, giá vốn bình quân, tồn đầu kỳ import (BR-INV-01/05/06/09) | L | P1-05 |
 | P1-09 | Phiếu nhập kho, điều chỉnh, kiểm kê (BR-INV-07/08/10) | M | P1-08 |
-| P1-10 | Cảnh báo tồn thấp + job đối soát kho đêm (BR-INV-11/13) | S | P1-08 |
+| P1-10 | Cảnh báo tồn thấp + job đối soát kho đêm (BR-INV-11/13); InventoryAlert nội bộ idempotent/retry có giới hạn; đối soát reservations từ P2-05; Telegram P2-13 không replay cảnh báo cũ | S | P1-08 |
 | P1-11 | Admin UI: product types, danh mục, materials, artisans, collections | M | P1-03, P1-04 |
 | P1-12 | Admin UI: danh sách + form sản phẩm (tab Thông tin / Thuộc tính / Biến thể & giá / Ảnh / SEO), checklist publish hiển thị lỗi BR-CAT-04 | L | P1-05 |
-| P1-13 | Admin UI kho: tồn kho, sổ kho, phiếu nhập, điều chỉnh, kiểm kê (dùng tốt trên điện thoại) | M | P1-09 |
+| P1-13 | Admin UI kho: tồn kho, sổ kho, phiếu nhập, điều chỉnh, kiểm kê (dùng tốt trên điện thoại); hiển thị cảnh báo kho P1; dashboard tổng hợp P2-16 | M | P1-09, P1-10 |
 | P1-14 | Store API catalog (`store/products`, facets, chi tiết, navigation, materials, artisans) + test không lộ giá vốn/tồn chính xác | M | P1-05, P1-08 |
 
 **DoD P1:** Nhập được toàn bộ catalog thật (ảnh thật, thông số, nghệ nhân, chất đất), tồn đầu kỳ và giá vốn từ bảng giá nhập; tồn khớp kiểm kê.
@@ -70,17 +75,20 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 - AC-P1-07: Tìm "am tu sa chu ban" ra ấm tử sa của nghệ nhân Chu Bân.
 - AC-P1-08: Kiểm kê: đếm 5 khi hệ thống 6; trong lúc chờ duyệt bán 1 (on_hand 5) → duyệt xong on_hand = 4.
 
+- AC-P1-09: import 3 dòng khác product: (1) đủ, (2) tên + type có prefix, (3) type không tồn tại → 1–2 draft, dòng 2 giá NULL + SKU đúng mẫu và không bán được, dòng 3 lỗi. Dry-run không ghi/cấp sequence; import lại thiếu khóa variant ổn định không tự cập nhật variant có sẵn. Fixture publish đủ mọi điều kiện khác, có 1 active giá hợp lệ + 1 inactive giá NULL → thành công; kích hoạt inactive giá NULL → 422 `variant_price_missing`, không đổi trạng thái. Fixture draft có active giá NULL → publish 422 `publish_requirements_not_met`, toàn bộ lỗi có `variant_price_missing`; điền giá hợp lệ mới kích hoạt/publish được. Test giá và kích hoạt thuộc P1-05, import/key thuộc P1-07; giữ bộ test cạnh tranh/bất biến SKU BR-CAT-14, không giả định trạng thái import khi hợp đồng P1-07 chưa chốt.
+- AC-P1-10: P1-05/14 kiểm count/warning/dữ liệu index/outbox; P3-09/15/17 kiểm SSR/robots/canonical/sitemap/feed/audit. Product đủ điều kiện khác, cờ thủ công false, site indexable: publish mô tả 149 từ thành công + noindex/không sitemap/feed, 150/151 → chỉ bỏ lý do thin và đủ điều kiện index. 151→149 loại lại. Với manual noindex=true hoặc SITE_INDEXABLE=false, 149→150 **vẫn không index** và cờ thủ công không đổi; draft/archived giữ vòng đời. Metadata sai validation hiện hành vẫn chặn publish dù mô tả có 149 hay 150 từ; không tự fallback. Kiểm whitespace/HTML/entities, tag invalidation cả hai chiều và audit manual/thin.
+
 ---
 
 ## P2 — CRM + Đơn hàng nội bộ (dùng ngay cho đơn Zalo/điện thoại)
 
 | ID | Task | Size | Phụ thuộc |
 |---|---|---|---|
-| P2-01 | Migration `crm` (trừ accounts/logins chưa dùng vẫn tạo), `sales`, `pricing.vouchers/redemptions`, `finance.expenses` | M | P1 |
+| P2-01 | Migration `crm` (trừ accounts/logins chưa dùng vẫn tạo), `sales`, `pricing.vouchers/redemptions`, `finance.expenses`; chưa tạo fk_reservations_line vì bảng tới P2-05; G03 marketing FK chốt riêng | M | P1 |
 | P2-02 | Customers: CRUD, chuẩn hóa SĐT, tìm không dấu, tags, địa chỉ, correct-identity, 360° (BR-CRM-01..04, 14) | L | P2-01 |
 | P2-03 | Import khách cũ dry-run (BR-CRM-03) | M | P2-02 |
 | P2-04 | Interactions + hẹn chăm sóc + "Cần liên hệ hôm nay" (BR-CRM-06/07) | M | P2-02 |
-| P2-05 | Order aggregate + state machine + `CheckoutCalculator` dùng chung (BR-ORD, BR-CRT-05) + giữ/nhả/tiêu thụ hàng (BR-INV-03/04) + test đồng thời NFR-02 | L | P2-01, P1-08 |
+| P2-05 | Order aggregate + state machine + `CheckoutCalculator` dùng chung (BR-ORD, BR-CRT-05) + giữ/nhả/tiêu thụ hàng (BR-INV-03/04) + test đồng thời NFR-02; migration inventory.reservations + indexes + fk_reservations_line sau sales.order_lines; bật đối soát reservation BR-INV-13 | L | P2-01, P1-08 |
 | P2-06 | Tạo/sửa/hủy đơn Admin (BR-ORD-04/08, BR-PRC-06/07), đơn backfill (BR-ORD-09) | M | P2-05 |
 | P2-07 | Payments: ghi nhận chuyển khoản/tiền mặt, `OrderPaymentStatusCalculator`, void, refund (BR-PAY-01..03, 06, 07) | M | P2-05 |
 | P2-08 | Shipments thủ công + sự kiện + delivered/failed + restock (BR-SHP-02..05, BR-ORD-07) | M | P2-05 |
@@ -88,7 +96,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P2-10 | Đổi trả (BR-RET-01..04) | M | P2-07, P2-08 |
 | P2-11 | Sở thích khách từ đơn (BR-CRM-08), chỉ số khách + job đối soát | S | P2-08 |
 | P2-12 | Consent (admin), merge, erase, export (BR-CRM-05, 09, 11, 13) | M | P2-02 |
-| P2-13 | Notifications: Telegram + email shop, template, digest 08:00 (BR-PLT-03) | S | P0-06 |
+| P2-13 | Notifications: Telegram + email shop, template, digest 08:00 (BR-PLT-03); cảnh báo hiện tại/digest, không phát lại backlog P1 lỗi thời | S | P0-06, P1-10 |
 | P2-14 | Admin UI khách hàng: danh sách lọc, 360°, import, hẹn chăm sóc | L | P2-02..04 |
 | P2-15 | Admin UI đơn hàng: danh sách lọc nhanh theo trạng thái, **tạo đơn nhanh trên điện thoại** (tìm khách theo SĐT/tên, tạo nhanh, thêm sản phẩm bằng tìm kiếm), chi tiết, thanh toán, vận đơn, in phiếu, đổi trả, đối soát COD | L | P2-05..10 |
 | P2-16 | Dashboard (FR-FIN-08) | S | P2-15 |
@@ -119,7 +127,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P3-04 | Tra cứu đơn + khách hủy đơn pending (BR-IAM-05) | S | P3-02 |
 | P3-05 | Tài khoản khách: đăng ký/đăng nhập SĐT, Google, quên mật khẩu qua email, sổ địa chỉ, lịch sử đơn, mở khóa lịch sử (BR-IAM-03..06) | L | P3-02 |
 | P3-06 | Email khách (đặt đơn, đã nhận tiền, đang giao, hủy) | S | P2-13 |
-| P3-07 | Content: articles, pages, redirects, sanitizer (BR-CNT-01..03, 06) + Admin UI editor Tiptap | L | P1 |
+| P3-07 | Content: articles, pages, redirects, sanitizer (BR-CNT-01..03, 06) + Admin UI editor Tiptap; redirects table đã có ở P1-01, pha này thêm editor/UI, không tạo lại bảng | L | P1 |
 | P3-08 | Store app base: layout, trang chủ (bộ sưu tập, hàng mới), danh mục + bộ lọc, chi tiết sản phẩm (gallery, chọn biến thể, thông số, nghệ nhân/chất liệu, liên quan), tìm kiếm, giỏ, checkout, trang xác nhận + QR, tra đơn, tài khoản, bài viết, trang nghệ nhân/chất liệu, chính sách | L | P3-01..07 |
 | P3-09 | SEO kỹ thuật: URL + 308 chuẩn hóa, ma trận index, phân trang, robots, metadata + OG, JSON-LD (Product/ProductGroup, Breadcrumb, Organization, BlogPosting, ProfilePage), sitemap index + ảnh, cache theo tag (09 §1–4, §6–8; BR-SEO-01..14, 30..33, 50..56, 70..77) | L | P3-08 |
 | P3-13 | Vòng đời trang sản phẩm: hàng độc bản đã bán, lưu trữ bắt buộc 301 (BR-SEO-20..23) | S | P3-09 |
@@ -183,7 +191,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P5-04 | Chỉ số chiến dịch (BR-MKT-10) | S |
 | P5-05 | Giới thiệu bạn bè: cấp mã, áp mã ở checkout, xét thưởng, voucher (BR-MKT-05..08, BR-PRC-04/05) | L |
 | P5-06 | Consent ở checkout + trang tài khoản (BR-CRM-09) | S |
-| P5-07 | Đánh giá người mua thật: link token, form, duyệt, hiển thị, `aggregateRating` (BR-SEO-90..92) | M |
+| P5-07 | Đánh giá người mua thật: link token, form, duyệt, hiển thị, `aggregateRating` (BR-SEO-90..92); migration catalog.product_reviews/review_media sau sales/CRM | M |
 
 **Nghiệm thu**
 - AC-P5-01: Chiến dịch `new_arrival` loại hết khách chưa có consent; chiến dịch `care` chọn được nhưng không chọn lại khách đã nhận `care` trong 180 ngày.

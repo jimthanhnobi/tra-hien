@@ -1,5 +1,7 @@
 # Gap register — audit đặc tả TeaPremium V2
 
+**Cập nhật hiện hành A01 (18/11/2026):** owner-approved amendment local READY_FOR_LOCAL_G4; xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; implementation/CI/G4 chưa được xác nhận từ amendment này.
+
 **Nguồn:** commit `cadce575597738bf40ad7c45689482de5a5fbc3d`; đã đọc 10 Markdown và `schema.sql`. Phân loại: `CONFIRMED_CONFLICT` = hai chỉ dẫn không thể đồng thời thực hiện đúng như viết; `MISSING_CONTRACT` = cần định nghĩa thêm trước task tương ứng; `DESIGN_RISK` = đường lỗi có thể xảy ra, chưa chứng minh spec sai; `EXTERNAL_VERIFICATION` = cần kiểm tra ngoài repo; `SUGGESTION` = cải thiện tùy chọn. Không mục nào dưới đây là quyết định sửa spec.
 
 ## Gate trước P0-01
@@ -65,3 +67,23 @@ DEC-21 (`00-README.md:105`) giải quyết ưu tiên SEO: `09-seo.md` thắng qu
 ## Khuyến nghị gate
 
 **GO cho vòng review phù hợp kiến trúc của P0-01; không HOLD P0-01 vì các gap P0-04/P1–P6.** Bằng chứng scope và dependency: `07-roadmap.md:17`, `02-architecture.md:27–62`, `00-README.md:85,99–100`. Chưa tự duyệt G1/G2 hay bắt đầu code. Các blocker task cụ thể cần được giải quyết trước đúng task ghi ở từng dòng, ưu tiên G26/G01 trước P0-04, G02 trước P1-04 và G03 trước P2-01. Các mục `DESIGN_RISK`, `EXTERNAL_VERIFICATION`, `SUGGESTION` không được diễn đạt như mâu thuẫn đã xác nhận.
+
+## A01 — cập nhật contract 18/11/2026, G4 pending
+
+Nguồn owner-approved ADR A01 và hai bổ sung backup/điều tra + owner thứ hai API; base 288ca8b55cab2017c9ee42bd35036e2d2e5bd87c, local UNCOMMITTED. Đây là TARGETED audit lại diff/bounded contracts, không full audit mới. Các dòng baseline ở trên giữ bằng chứng lịch sử. CONTRACT_ALIGNED chỉ nghĩa amendment đã áp local, không implementation/test resolved; xem docs/reviews/a01-amendment-evidence.md.
+
+| Gap hiện có | Phân loại / amendment theo heading | Trạng thái và việc còn lại |
+|---|---|---|
+| G02 | MISSING_CONTRACT: 07 P1-01/P3-07, 04 BR-CAT-08; redirects nền ở P1-01 | CONTRACT_ALIGNED; migrate/use case P1-01/04/05, editor P3-07 NOT RUN |
+| G05 | CONFIRMED_CONFLICT: 02 §5.10, schema media, 04 BR-RET-01; evidence video/private/limits | CONTRACT_ALIGNED; DDL limits PASS, R2 complete/private/permission P1-02 NOT RUN |
+| G13 | MISSING_CONTRACT: 05 §4.3, 02 §7; đọc hạn chế chỉ còn/hết, không lượng/cost | CONTRACT_ALIGNED; permission/JSON tests P1-08/14 NOT RUN |
+| G14 | MISSING_CONTRACT: 05 §4.2/02 §5.10; slugHint? + validation/fallback no PII | CONTRACT_ALIGNED; P1-02/SEO storage behavior NOT RUN |
+| G21 | DESIGN_RISK: 07 P1-01/P2-01/P2-05/P5-07; hoãn cả reservations FK/reviews | CONTRACT_ALIGNED; chuỗi EF migration và deferred-FK parity NOT RUN |
+| G32 | MISSING_CONTRACT: 07 P1-05 thêm P1-02 | CONTRACT_ALIGNED; media-dependent publish tests NOT RUN |
+| G34 | CONFIRMED_CONFLICT từ review §8: 05 §1 uint vs staff string; 02 §4/§5.2 và 03 §1 | CONTRACT_ALIGNED opaque string; catalog xmin, IAM ConcurrencyStamp; client/HTTP tests NOT RUN |
+| G35 | MISSING_CONTRACT từ review §8: 04 BR-INV-11/13, 03 §3.3, 07 P1-10/P2-13 | CONTRACT_ALIGNED nội bộ P1/retry bounded/no stale replay; behavior tests NOT RUN |
+| G36 | CONFIRMED_CONFLICT từ review §8, map G05: schema upload_sessions cũ ≤15 MiB vs video | CONTRACT_ALIGNED; both media tables limits PASS, object validation NOT RUN |
+| G37 | DESIGN_RISK từ review §8: 02 §5.4 audit entity/path thay global name policy | CONTRACT_ALIGNED deny-by-default; recovery audit tối thiểu closure #2, catalog trước P1-04; runtime NOT RUN |
+| G38 | DESIGN_RISK từ review §8, map G21: 07 P1-01 whole schema vs deferred FK | CONTRACT_ALIGNED 25 bảng/5 schema + SKU sequence; EF migrations NOT RUN |
+
+OPEN được hoãn: hợp đồng variant key/import lại/ô trống/nhóm mâu thuẫn/atomicity P1-07, không tự upsert thiếu khóa. G03 trước P2-01; G04/G27/G29/G30 trước P2-10, G24/Q1–Q8 theo mốc cũ. Không dùng chúng chặn amendment/P1-01. D11 controlled backup và per-case investigation, BR-IAM-08 owner API cần kiểm operational/evidence ở closure/P3-10, không nhận PASS từ DDL chạy bằng postgres.
