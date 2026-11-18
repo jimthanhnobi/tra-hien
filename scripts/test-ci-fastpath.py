@@ -82,17 +82,12 @@ class CiScopeTests(unittest.TestCase):
                 module.validate_docs(paths, self.repo)
 
     def test_docs_unclosed_fence_rejected(self):
-        for _, paths in self.changed(lambda: self.write('docs/guide.md', '# Intro\n``python
-x = 1
-')):
+        for _, paths in self.changed(lambda: self.write('docs/guide.md', '# Intro\n```python\nx = 1\n')):
             with self.assertRaisesRegex(ValueError, 'unterminated'):
                 module.validate_docs(paths, self.repo)
 
     def test_links_inside_fence_ignored(self):
-        for _, paths in self.changed(lambda: self.write('docs/guide.md', '```md
-[not a link](missing.md)
-```
-')):
+        for _, paths in self.changed(lambda: self.write('docs/guide.md', '```md\n[not a link](missing.md)\n```\n')):
             module.validate_docs(paths, self.repo)
 
     def test_bad_sha_fail_closed(self):
