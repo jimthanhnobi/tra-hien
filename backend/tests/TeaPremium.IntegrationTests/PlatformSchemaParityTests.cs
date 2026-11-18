@@ -78,6 +78,34 @@ public sealed class PlatformSchemaParityTests(PlatformDatabaseFixture fixture) :
         Assert.NotEqual(migrated, changed);
     }
 
+    [Fact]
+    public async Task LedgerPrivilegesMatchApprovedDdlForRuntimeAndReadonly()
+    {
+        await using var connection = new NpgsqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await CreateReferenceAsync(connection, transaction);
+        async Task<string[]> Privileges(string schema)
+        {
+            await using var command = new NpgsqlCommand("""
+                SELECT rolname || ':' || privilege || ':' || has_table_privilege(rolname, @schema || '.administrative_data_imports', privilege)::text
+                FROM (VALUES ('tp_app'), ('tp_readonly')) r(rolname)
+                CROSS JOIN unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) p(privilege)
+                ORDER BY 1
+                """, connection, transaction);
+            command.Parameters.AddWithValue("schema", schema);
+            await using var reader = await command.ExecuteReaderAsync();
+            var rows = new List<string>();
+            while (await reader.ReadAsync()) rows.Add(reader.GetString(0));
+            return rows.ToArray();
+        }
+        var migrated = await Privileges("platform");
+        Assert.Equal(await Privileges(ReferenceSchema), migrated);
+        Assert.Equal("tp_app:INSERT:true,tp_app:SELECT:true,tp_readonly:SELECT:true", string.Join(',', migrated.Where(x => x.EndsWith(":true", StringComparison.Ordinal))));
+        await using var advisory = new NpgsqlCommand("SELECT has_function_privilege('tp_app','pg_catalog.pg_try_advisory_xact_lock(integer,integer)','EXECUTE')", connection, transaction);
+        Assert.Equal(true, await advisory.ExecuteScalarAsync());
+    }
+
     private static async Task CreateReferenceAsync(NpgsqlConnection connection, NpgsqlTransaction transaction)
     {
         var ddl = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Specifications", "schema.sql"));
@@ -89,6 +117,9 @@ public sealed class PlatformSchemaParityTests(PlatformDatabaseFixture fixture) :
             "The approved platform DDL boundary changed; review the P0-10 reference scope.");
         // Execute only the approved P0 platform tables, never the full future-phase DDL.
         var platform = ddl[start..end].Replace("platform.", ReferenceSchema + ".", StringComparison.Ordinal);
+        var ledgerStart = ddl.IndexOf("CREATE TABLE platform.administrative_data_imports", StringComparison.Ordinal);
+        Assert.True(ledgerStart > end, "The approved F-02 DDL must be available as a separate P0-09 block.");
+        platform += ddl[ledgerStart..].Replace("platform.", ReferenceSchema + ".", StringComparison.Ordinal);
         var function = ddl[functionStart..functionEnd].Replace("FUNCTION public.f_unaccent", "FUNCTION " + ReferenceSchema + ".f_unaccent", StringComparison.Ordinal);
         await using var command = new NpgsqlCommand($"CREATE SCHEMA {ReferenceSchema};\n{platform}\n{function}", connection, transaction);
         await command.ExecuteNonQueryAsync();

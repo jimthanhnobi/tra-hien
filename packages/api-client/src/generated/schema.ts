@@ -1,4 +1,7 @@
 // Generated from the actual API by corepack pnpm generate:api. Do not edit.
+export type SettingsJsonValue = null | boolean | number | string | SettingsJsonValue[] | {
+    [key: string]: SettingsJsonValue;
+};
 export interface paths {
     "/api/v1/admin/auth/change-password": {
         parameters: {
@@ -359,6 +362,131 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/settings/{group}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    group: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SettingsGroup"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    group: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SettingsGroup"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/staff": {
         parameters: {
             query?: never;
@@ -500,6 +628,7 @@ export interface components {
         CsrfResponse: {
             token: string;
         };
+        JsonElement: unknown;
         LoginRequest: {
             email: string;
             password: string;
@@ -524,6 +653,14 @@ export interface components {
             title?: null | string;
             type?: null | string;
         };
+        SettingsGroup: {
+            group: string;
+            values: {
+                [key: string]: components["schemas"]["SettingsJsonValue"];
+            };
+            version: string;
+        };
+        SettingsJsonValue: SettingsJsonValue;
         StaffPage: {
             items: components["schemas"]["StaffView"][];
             /** Format: int32 */
@@ -551,6 +688,12 @@ export interface components {
         TotpSetup: {
             provisioningUri: string;
             sharedKey: string;
+        };
+        UpdateSettingsRequest: {
+            values: {
+                [key: string]: components["schemas"]["SettingsJsonValue"];
+            };
+            version: string;
         };
     };
     responses: never;
