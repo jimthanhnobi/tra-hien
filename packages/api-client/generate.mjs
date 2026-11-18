@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import openapiTS, { astToString } from "openapi-typescript";
+import ts from "typescript";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const output = path.join(root, "artifacts/openapi");
@@ -35,8 +36,38 @@ function canonical(value) {
   return value;
 }
 const json = JSON.stringify(canonical(document), null, 2) + "\n";
+// TypeScript cannot recursively index a component's own property (TS2502).
+// Hoist this JSON union into a named recursive alias, deriving its complete body
+// from the API schema rather than maintaining a second handwritten JSON model.
+const jsonName = "SettingsJsonValue";
+const aliases = [];
+const ast = await openapiTS(JSON.parse(json), {
+  alphabetize: true,
+  postTransform(type, { path }) {
+    if (path !== `#/components/schemas/${jsonName}`) return;
+    const rewritten = ts.transform(type, [(context) => (root) => {
+      function visit(node) {
+        if (ts.isIndexedAccessTypeNode(node)
+          && node.indexType.literal?.text === jsonName
+          && ts.isIndexedAccessTypeNode(node.objectType)
+          && node.objectType.indexType.literal?.text === "schemas"
+          && ts.isTypeReferenceNode(node.objectType.objectType)
+          && node.objectType.objectType.typeName.text === "components") {
+          return ts.factory.createTypeReferenceNode(jsonName);
+        }
+        return ts.visitEachChild(node, visit, context);
+      }
+      return ts.visitNode(root, visit);
+    }]);
+    aliases.push(ts.factory.createTypeAliasDeclaration(
+      [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)], jsonName, undefined, rewritten.transformed[0],
+    ));
+    rewritten.dispose();
+    return ts.factory.createTypeReferenceNode(jsonName);
+  },
+});
 const types = "// Generated from the actual API by corepack pnpm generate:api. Do not edit.\n"
-  + astToString(await openapiTS(JSON.parse(json), { alphabetize: true })).replaceAll("\r\n", "\n");
+  + astToString([...aliases, ...ast]).replaceAll("\r\n", "\n");
 const targets = [
   [new URL("./openapi.json", import.meta.url), json],
   [new URL("./src/generated/schema.ts", import.meta.url), types],
