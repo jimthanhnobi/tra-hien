@@ -1,10 +1,10 @@
 # ADR-PROPOSAL-A01 — Quyết định owner cho đóng P0 và P1 (18/11/2026)
 
-- **Trạng thái:** ACCEPTED — OWNER APPROVED ngày 18/11/2026 cho D1–D14/finalize §8 và hai bổ sung dưới đây. **Amendment: READY_FOR_LOCAL_G4**, G4 NOT RUN. Approval chỉ cho sửa specs/workflow/tài liệu liên quan; không cho source code, migration, commit/push/PR/merge.
-- **Baseline:** `main` @ `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`.
+- **Trạng thái:** ACCEPTED — OWNER APPROVED ngày 18/11/2026 cho D1–D14/finalize §8 và hai bổ sung dưới đây. **Amendment: MERGED; independent local G4 tầng A PASS trước publish/merge**, theo bằng chứng reviewer do owner cung cấp ngày 18/11/2026; phiên cập nhật hồ sơ này không chạy lại G4 A01. [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20) đã merge; approval amendment ban đầu chỉ cho sửa specs/workflow/tài liệu, không cấp quyền triển khai closure/P1-01.
+- **Baseline A01 (lịch sử trước amendment/G4):** `main` @ `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`.
 - **Nguồn:** `docs/spec/00-README.md` phiên bản 2.0; G1 `docs/analysis/spec-inventory.md` @ `cadce575597738bf40ad7c45689482de5a5fbc3d`; G2 `docs/architecture/conformance-review.md` và `docs/plans/task-readiness.md`. Đã đối chiếu diff spec từ G1 tới baseline: chỉ 02/03/07/schema đổi (amendment audit, platform, địa giới); rà lại các đoạn này và các hợp đồng P0/P1 bị tác động. Đây là **TARGETED G1/G2**, không phải full audit mới hay G4 độc lập.
 - **Nguồn review/prompt:** đã đọc `docs/reviews/P0-closure-and-P1-readiness-review.md` (R1–R14, G34–G38, §6 C1–C3) và `C:/Users/ADMIN/Downloads/PROMPTS-p0-closure.md` (bước 0–5). Báo cáo là review chỉ đọc tại cùng baseline; kết quả frontend là evidence do báo cáo ghi nhận, backend/Compose NOT RUN, CI OWNER-REPORTED — không chuyển thành PASS của phiên này. Prompt là tài liệu giao việc **chờ duyệt**: câu mẫu "Owner đã DUYỆT" không phải approval thực tế. §7 ghi các sửa đổi cần áp vào prompt trong lần giao việc sau; không sửa file Downloads.
-- **Quy tắc áp dụng hiện hành:** owner đã cho phép amendment authoritative specs và workflow. Base/audited input `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`; revision sau amendment **UNCOMMITTED**, không có SHA commit mới vì chưa được phép commit. G1/G2 scoped/evidence ở docs/reviews/a01-amendment-evidence.md; review độc lập G4 và publish permission còn riêng. P1-01/closure implementation HOLD tới khi owner giao G3. Phần §6 giữ nhận định tại baseline, không phải gap hiện hành đã triển khai.
+- **Quy tắc áp dụng hiện hành:** base/audited input `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`; PR HEAD `47f2c7b491ab124c91e827fda6e010171abeaba7`; merge/spec revision trên main `024ea998c43baf0afde30b069ed6b4876cb96f4a`, merged at `2026-11-18T06:28:13Z` (GitHub đã xác minh). CI tại PR HEAD [run 44250706587](https://github.com/jimthanhnobi/tra-hien/actions/runs/44250706587) và riêng merge SHA [run 44251560930](https://github.com/jimthanhnobi/tra-hien/actions/runs/44251560930) đều completed/success, ba jobs PASS. G1/G2 scoped, nguồn G4 và chi tiết xác minh ở [evidence A01](../reviews/a01-amendment-evidence.md). P1-01/closure implementation HOLD tới khi đủ gate và owner giao G3 riêng; C1 amendment đã hoàn tất, không đồng nghĩa đóng P0. Phần §6 giữ nhận định tại baseline, không phải gap hiện hành đã triển khai.
 - **Hai bổ sung owner-approved:** tp_readonly chỉ backup có kiểm soát, không query tay tùy ý; điều tra dùng identity/quyền read riêng tối thiểu, mặc định không đọc IAM credentials/tokens/stamps và Data Protection xml (03 §4). Runbook phải tạo/kiểm owner thứ hai qua Admin API staff.manage + cookie/CSRF và onboarding riêng; không giả định Staff UI hoàn chỉnh.
 
 ## 1. Các quyết định owner đã phê duyệt
@@ -185,7 +185,7 @@ Thêm vào §6 (DEC):
 
 ### 3.9 Ngoài `docs/spec/` — D10 phân tầng review
 
-Sửa `docs/WORKFLOW.md` §5 và `AGENTS.md` mục G4 **đã được owner cho phép trong amendment này**, G4 độc lập còn NOT RUN:
+Sửa `docs/WORKFLOW.md` §5 và `AGENTS.md` mục G4 **đã được owner cho phép và merge trong PR #20**; G4 tầng A trước publish/merge PASS theo bằng chứng reviewer do owner cung cấp:
 
 | Tầng | Áp dụng khi task chạm | Review |
 |---|---|---|
@@ -206,9 +206,9 @@ Task chạm cả hai tầng → A. Mục tiêu hồ sơ 1–2 trang khi đủ ch
 - Kiểm MIME/purpose/bytes trên **cả** upload_sessions/assets (0, giới hạn, +1; SVG/HTML/MIME giả/video catalog bị từ chối); complete R2 private/permission tại P1-02. Kiểm SKU generation/concurrency ở P1-05/07 và D4 theo AC-P1-10; không lấy test CHECK DDL làm bằng chứng cho hành vi app.
 - D11: provisioning rỗng/existing/re-run, migration missing-role trước DDL, login thực app/readonly, quyền âm, default privileges/owner đúng, fingerprint dữ liệu/ledger/password không đổi. D8: toàn bộ AC-P0-06; D12: entity trùng tên field nhưng phân loại khác nhau, nested JSON/path, unknown field và rollback audit.
 - BR-CAT-14/15, BR-IAM-07/08, AC-P0-06, AC-P1-09/10, DEC-25…30 đã được định nghĩa đúng một lần ở authoritative file theo approval; checker giữ mọi ID cũ và không thêm task ID. Traceability/gaps chỉ cập nhật sau amendment được duyệt; **không** nhận G02/G05/G13/G14/G21/G32 hoặc G34–G38 implementation-resolved chỉ vì ADR đã ACCEPTED. G34–G38 đã có nguồn ở review §8, cần chuyển/mapping sang gap register khi được phép. Phân biệt giải quyết contract bằng spec với hành vi còn chưa implement/test. G14 vẫn cần validation/fallback slugHint ở P1-02; G13 đã áp contract đọc hạn chế vào spec local; code/test chưa triển khai.
-- G3 theo từng task/nhóm closure được giao riêng; G4 độc lập; chỉ publish khi có G4 PASS và owner cho phép. CI phải PASS tại **published head SHA**; hiện chưa publish và chưa chạy CI cho đề xuất này.
+- G3 theo từng task/nhóm closure được giao riêng; G4 độc lập; chỉ publish khi có G4 PASS và owner cho phép. A01 đã publish/merge qua PR #20; CI tại **published head SHA** `47f2c7b491ab124c91e827fda6e010171abeaba7` PASS (run 44250706587), CI merge SHA được xác minh riêng PASS (run 44251560930). Đây không phải evidence triển khai closure/P1-01.
 
-DDL amendment PostgreSQL 17.12 đã chạy trên container tmpfs/network none dùng một lần: 79 bảng/11 schema, 43 ca constraints và sequence 9999→10000 PASS; container đã xóa. Không kiểm EF migrations/app/runtime. Kết quả, lệnh và SHA256 file DDL tại docs/reviews/a01-amendment-evidence.md. Các test runtime/permissions/R2/MFA/SEO ở trên vẫn NOT RUN; phần ghi kế hoạch không là PASS implementation.
+Theo hồ sơ kiểm chứng trước G4 và bằng chứng reviewer do owner cung cấp: DDL amendment PostgreSQL 17.12 chạy trên container dùng một lần đạt 79 bảng/11 schema, 43 ca constraints và sequence 9999→10000 PASS; reviewer bổ sung 12 SQL boundary cases và 8 session cấp 160 sequence values không trùng, PASS. Phiên cập nhật này không chạy lại DDL/G4. Kết quả, lệnh và SHA256 file DDL tại docs/reviews/a01-amendment-evidence.md. EF/runtime của amendment, grants/provisioning thực, MFA recovery, backup/restore và P0 acceptance vẫn NOT RUN; CI regression không thay bằng chứng đó.
 
 ## 6. Đối chiếu D1–D14 và gap register tại baseline
 
@@ -253,7 +253,7 @@ Số dòng dưới đây thuộc `288ca8b`, không phải số dòng sau amendme
 
 Thứ tự đề nghị bám đúng prompt: **owner review → scoped spec/workflow amendment được duyệt → closure #1 (R1/R3: grants + Compose/runtime + runbook) → closure #2 (R4: recovery + coverage warning) → owner nghiệm thu runbook/tạo owner thứ hai → hồ sơ đóng P0 (R14) → P1-01**. Các nhãn #1/#2 là remediation thuộc P0-02/04 và P0-08/12, không cấp task ID mới. Giao một slice được duyệt mỗi lần; việc dùng chung P0-09/10 tests không tạo roadmap khác. D12/R2/I-04 giữ gate trước P1-04; D8 chỉ cần allowlist riêng cho audit recovery, không buộc refactor toàn bộ AuditValuePolicy trước P1-01.
 
-Review §6 chỉ yêu cầu grants trước/cùng P1-01 và MFA trước dữ liệu thật. Owner đã chỉ định trong yêu cầu finalize: **closure #1, #2 và nghiệm thu trước P1-01**. Bản ADR/P1-01 thống nhất mốc đó, không gán cho reviewer gốc và không tự coi toàn ADR đã ACCEPTED. D3/D4/D5/D7 chỉ làm DDL nền ở P1-01; generator/publish/upload/SSR đúng task P1-02/05/07/14/P3. R2 thật chưa cần cho migration dùng dữ liệu giả; trước nhập ảnh/catalog thật phải đạt D6/D8.
+Review §6 chỉ yêu cầu grants trước/cùng P1-01 và MFA trước dữ liệu thật. Owner đã chỉ định trong yêu cầu finalize: **closure #1, #2 và nghiệm thu trước P1-01**. Bản ADR/P1-01 thống nhất mốc đó, không gán cho reviewer gốc; ADR hiện đã ACCEPTED nhưng không tự cấp quyền G3 cho closure/P1-01. D3/D4/D5/D7 chỉ làm DDL nền ở P1-01; generator/publish/upload/SSR đúng task P1-02/05/07/14/P3. R2 thật chưa cần cho migration dùng dữ liệu giả; trước nhập ảnh/catalog thật phải đạt D6/D8.
 
 ## 8. Nội dung finalize và các điểm còn OPEN
 
@@ -273,9 +273,9 @@ Owner đã phê duyệt toàn ADR và chín chỉ dẫn dưới, cộng hai bổ
 
 **OPEN được hoãn đúng task:** P1-07 phải chốt khóa nhận diện variant, import lại/ô trống, xử lý nhóm mâu thuẫn và tính nguyên tử theo nhóm trước khi triển khai importer. Quy tắc không upsert khi thiếu khóa đã rõ; chi tiết còn mở không chặn P1-01. Không còn OPEN đối với chín nguyên tắc trên.
 
-**Việc vận hành/evidence chưa hoàn tất, không phải quyết định sản phẩm mới:** owner chỉ định operator/allowlist và thiết bị dự phòng trong runbook; provisioning hiện hữu có ownership bất thường phải có remediation theo object được owner cho phép; R2 token/bucket và các test/G4/CI vẫn cần bằng chứng ở đúng mốc. Các gap ngoài scope như G03/G27 giữ mốc cũ, không thêm blocker cho P1-01.
+**Việc vận hành/evidence chưa hoàn tất, không phải quyết định sản phẩm mới:** owner chỉ định operator/allowlist và thiết bị dự phòng trong runbook; provisioning hiện hữu có ownership bất thường phải có remediation theo object được owner cho phép; R2 token/bucket và các test/G4/CI của từng slice triển khai vẫn cần bằng chứng ở đúng mốc. G4/CI amendment A01 đã có evidence nêu trên. Các gap ngoài scope như G03/G27 giữ mốc cũ, không thêm blocker cho P1-01.
 
-**Kết luận:** ADR **ACCEPTED / OWNER APPROVED**; amendment **READY_FOR_LOCAL_G4**, không tự nhận G4 PASS. P1-01 và closure implementation HOLD tới khi đủ gate/owner giao G3 riêng. Đã áp specs/workflow và tài liệu hỗ trợ; không source/migration/commit/push/PR/merge. Chỉ chạy DDL trên container PostgreSQL 17 dùng một lần, không DB thật.
+**Trạng thái hiện hành:** ADR **ACCEPTED / OWNER APPROVED**; amendment **MERGED (PR #20)**, G4 tầng A PASS trước publish/merge theo evidence reviewer do owner cung cấp, CI PR HEAD và merge SHA đã xác minh riêng PASS. P1-01 và closure implementation HOLD tới khi đủ gate/owner giao G3 riêng. Runtime/grants thực/MFA recovery/P0 acceptance vẫn NOT RUN; P1-07 import contract vẫn OPEN. Bản cập nhật hồ sơ sau merge chỉ sửa tài liệu trạng thái/evidence; bàn giao G4 tầng B riêng, không chạy lại G4 tầng A hay DB thật.
 
 
 Bổ sung ngày owner duyệt: quy trình backup và điều tra tách biệt được áp ở 03 §4/06 §5–6; phương án owner thứ hai API tại docs/plans/p0-closure-acceptance.md, BR-IAM-08 và 05 §4.1. Hợp đồng importer P1-07 chưa chốt, không suy approval thành upsert tự động.

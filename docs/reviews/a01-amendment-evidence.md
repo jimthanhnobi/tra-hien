@@ -1,15 +1,31 @@
-# A01 amendment — local handoff cho G4 độc lập
+# A01 amendment — hồ sơ G4 và evidence sau merge
 
-**Gate:** READY_FOR_LOCAL_G4; **G4 NOT RUN**, không phải self-review PASS. Owner phê duyệt A01 D1–D14/finalize §8 ngày 18/11/2026 và hai bổ sung: backup kiểm soát/điều tra tách quyền; owner thứ hai qua Admin API bảo vệ. Chỉ cho amendment specs/workflow và tài liệu liên quan, không source code/EF migrations/commit/push/PR/merge.
+**Gate A01 hiện hành (18/11/2026):** OWNER APPROVED / MERGED qua [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20). Independent local G4 **tầng A PASS trước publish/merge**, theo **bằng chứng reviewer do owner cung cấp** ngày 18/11/2026; phiên cập nhật hồ sơ này không tự thực hiện hay chạy lại G4/DDL. CI tại PR HEAD và merge SHA đã xác minh riêng bằng GitHub. Owner phê duyệt D1–D14/finalize §8 và hai bổ sung: backup kiểm soát/điều tra tách quyền; owner thứ hai qua Admin API bảo vệ. Không thay quyết định hay cấp quyền triển khai closure/P1-01.
 
-## 1. Revision và scope
+## 0. Bằng chứng hiện hành và nguồn
+
+| Bằng chứng | Kết quả / revision | Nguồn và giới hạn |
+|---|---|---|
+| Independent local G4 tầng A trước publish/merge | PASS; không finding actionable P0/P1/P2/P3; baseline `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`; reviewer kiểm toàn bộ 21 file, gồm tracked, unstaged và untracked; `READY_FOR_OWNER_PUBLISH_APPROVAL: YES` | Báo cáo reviewer **do owner cung cấp** trong yêu cầu cập nhật ngày 18/11/2026; PR #20 mô tả cùng kết quả. Không phải review do phiên này chạy, không viết lại thành review sau merge |
+| Kiểm chứng của reviewer | PostgreSQL 17.12: 79 bảng/11 schema, 43 constraint cases PASS; 12 SQL MIME/purpose/byte boundary cases PASS; 8 session cấp 160 sequence values không trùng; Markdown/docs và Git whitespace PASS | Cùng bằng chứng reviewer do owner cung cấp; EF/runtime amendment, provisioning/grants thực, backup/restore và P0 acceptance chưa chạy. §2 giữ log/lệnh implementer tại thời điểm trước G4 |
+| PR #20 | `merged=true`, 21 file; base `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`; PR HEAD `47f2c7b491ab124c91e827fda6e010171abeaba7`; merge commit `024ea998c43baf0afde30b069ed6b4876cb96f4a`; merged at `2026-11-18T06:28:13Z` | VERIFIED qua GitHub connector `fetch_pr` và GET `/repos/jimthanhnobi/tra-hien/pulls/20`; metadata không tự chứng minh reviewer đã chạy test |
+| CI tại published PR HEAD | [Run 44250706587](https://github.com/jimthanhnobi/tra-hien/actions/runs/44250706587): `pull_request`, head SHA `47f2c7b491ab124c91e827fda6e010171abeaba7`, completed/success; ba jobs PASS | VERIFIED qua GET `/repos/jimthanhnobi/tra-hien/actions/runs/44250706587`, `fetch_commit_workflow_runs` và `fetch_workflow_run_jobs`; không suy từ G4 |
+| CI riêng tại merge SHA | [Run 44251560930](https://github.com/jimthanhnobi/tra-hien/actions/runs/44251560930): `push`, head SHA `024ea998c43baf0afde30b069ed6b4876cb96f4a`, completed/success; ba jobs PASS | VERIFIED riêng qua GET `/repos/jimthanhnobi/tra-hien/actions/runs?head_sha=024ea998c43baf0afde30b069ed6b4876cb96f4a&per_page=100` và `fetch_workflow_run_jobs`; không suy từ PR HEAD |
+
+Ba jobs ở **mỗi run**: Backend and API contract, Frontend verification, Docker regression builds — đều completed/success. Đây là CI regression của published revision; không chuyển runtime/grants thực/MFA recovery/P0 acceptance của amendment thành PASS.
+
+Phiên cập nhật hồ sơ xác minh `git fetch origin --prune` exit 0, HEAD = origin/main = merge SHA `024ea998c43baf0afde30b069ed6b4876cb96f4a`, nhánh `docs/a01-g4-record`, worktree ban đầu sạch. `git diff --name-status 47f2c7b491ab124c91e827fda6e010171abeaba7 origin/main -- docs/spec` exit 0, không khác biệt. Tái sử dụng full G1/G2 và targeted A01 đã ghi bên dưới; không audit toàn spec lại hoặc sửa authoritative specs.
+
+## 1. Lịch sử revision và scope trước G4
 
 - Branch `planning/a01-p0-closure`; HEAD/origin/main/input `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`. Sau amendment **UNCOMMITTED**, không bịa SHA commit mới. Full G1 baseline `cadce575597738bf40ad7c45689482de5a5fbc3d`, G2 baseline conformance/readiness được tái sử dụng; lần này **TARGETED G1/G2**, có diff/affected-contract checks, không full audit mới.
 - Specs: 00/02/03/04/05/06/07/09 Markdown + schema.sql; 01/08 không sửa. Workflow: AGENTS.md + docs/WORKFLOW.md. Supporting: ADR A01, P1-01 task record, runbook design, scoped inventory/gaps/traceability/conformance/readiness và hồ sơ này.
 - D1 DDL split/deferred FK; D2/D3 import/SKU; D4 SEO count/manual/thin/metadata unchanged; D5 inactive NULL/activation/publish; D6/D7 R2/evidence; D8 MFA/operator/atomic audit/revoke/onboarding/owner API; D9 closure gate; D10 A/B không bỏ gate; D11 provisioning + backup/điều tra; D12 entity/path audit; D13 opaque rowVersion; D14 internal InventoryAlert/retry bounded/no stale replay.
 - Hợp đồng importer P1-07 (stable variant key/import lại/ô trống/group conflict/atomicity) **OPEN** tại đúng task, không thêm auto-upsert. G03/G27 và gap pha sau không bị tự đóng. CONTRACT_ALIGNED trong gap register chỉ contract local đã sửa, không implementation verified.
 
-## 2. Kiểm chứng đã chạy
+## 2. Lịch sử kiểm chứng implementer trước G4
+
+Các lệnh/kết quả dưới giữ nguyên theo hồ sơ trước G4 tại baseline 288ca8b; không phải kết quả chạy mới của phiên cập nhật sau merge. Approval amendment ban đầu chỉ cho sửa specs/workflow/tài liệu, chưa cấp commit/push/PR/merge tại thời điểm đó. Revision/publish/CI hiện hành xem §0.
 
 | Lệnh / bằng chứng | Kết quả | Giới hạn |
 |---|---|---|
@@ -27,12 +43,14 @@ Lần thử đầu qua Unix socket gặp init-server readiness race trước khi
 
 ## 3. NOT RUN / không áp dụng
 
-- **NOT RUN:** G4 độc lập, CI tại published SHA, EF build/tests/migrations, runtime API/UI/MFA/R2/SEO/permissions/provisioning existing DB/backup restore hoặc diễn tập runbook. Không triển khai source/migration để tạo bằng chứng giả cho amendment.
+- **NOT RUN:** EF build/tests/migrations cho amendment, runtime API/UI/MFA recovery/R2/SEO/permissions, provisioning/grants thực trên DB mới/existing, backup/restore, diễn tập runbook và P0 acceptance. CI regression hiện có ở §0 không chứng minh các hành vi amendment này; phiên cập nhật không chạy source/migration/DB thật.
 - Runbook mới là **thiết kế NOT RUN**: DB mới/existing, tạo B bằng session A đã ready có staff.manage + CSRF, B session riêng đổi password/TOTP/login lại, API me/staff kiểm active/owner/TOTP và negative unauthorized/CSRF. Không giả định Staff UI đầy đủ; không dùng tp_readonly để query audit.
 - `tp_readonly` là backup có kiểm soát, full backup có thể đọc credentials/DP keys cần bảo vệ credential/execution. Điều tra dùng identity/quyền read riêng tối thiểu, mặc định loại IAM credentials/tokens/stamps/DP xml; SELECT không tự phân biệt pg_dump/SQL tay. Các kiểm chứng này thuộc closure/P3-10.
-- **NOT APPLICABLE:** commit/push/PR/merge/deploy và app-code coverage trong amendment này. Không có publish permission từ approval ADR.
+- **Giới hạn approval:** approval ADR ban đầu không tự cấp publish permission; amendment sau đó đã publish/merge qua PR #20 theo metadata §0. Closure #1/#2 và P1-01 vẫn cần owner giao riêng. Phiên cập nhật hồ sơ này không commit/push/PR/merge/deploy; app-code coverage không áp dụng cho thay đổi tài liệu.
 
-## 4. Checklist cho reviewer độc lập
+## 4. Lịch sử checklist giao reviewer tầng A trước publish
+
+Checklist bên dưới là handoff trước G4, được giữ để truy vết; G4 tầng A đã PASS theo nguồn §0, không phải yêu cầu chạy lại A01 sau merge.
 
 1. Đọc cùng worktree; `git diff origin/main`, staged/unstaged và **nội dung untracked** (`git ls-files --others --exclude-standard`), kể cả ADR/task/runbook/evidence. Báo cáo P0 gốc untracked là tài liệu owner thêm, giữ nguyên.
 2. So D1–D14/§8 + hai bổ sung owner với spec/workflow diff; kiểm không nới metadata/upsert/inactive-price và không thêm roadmap ID. Đối chiếu G1 gaps/traceability/G2/readiness.
@@ -41,3 +59,10 @@ Lần thử đầu qua Unix socket gặp init-server readiness race trước khi
 
 
 Ghi chú Markdown: chỉ chuẩn hóa LF và escape dấu phân cách literal trong code span của bảng (ví dụ query enum/SEO title); không đổi ngữ nghĩa API/metadata. Checker đã sửa nhận diện backslash bên trong code span, không sửa contract để né kiểm.
+
+## 5. Bàn giao cập nhật hồ sơ sau merge — tầng B
+
+- Scope: chỉ ADR A01, hồ sơ này, task-readiness và p1-01-implementation; base/HEAD `024ea998c43baf0afde30b069ed6b4876cb96f4a`, nhánh `docs/a01-g4-record`. Bản cập nhật chưa có commit mới; không thay specs/source/migration/workflow hay D1–D14.
+- A01 từ trạng thái chờ G4/publish → MERGED, G4 tầng A PASS theo evidence owner cung cấp và CI đúng hai SHA đã xác minh riêng; giữ nguyên phần lịch sử trước G4. C1 P1-01 hoàn tất cho amendment; C2 closure #1/#2/runbook/P0 acceptance và C3 role/helper/evidence triển khai chưa đủ, P1-01 vẫn HOLD / NOT AUTHORIZED G3. Import contract P1-07 vẫn OPEN.
+- Kiểm tra bản cập nhật: `python -` (script inline qua PowerShell here-string) exit 0, PASS UTF-8/Markdown/bảng/code fence/đường dẫn liên kết local của cả bốn file; allowlist đúng bốn tài liệu; bảng D1–D14 và ADR §6 lịch sử giữ nguyên. `git -c core.autocrlf=false diff --check origin/main` và `git -c core.autocrlf=false diff --cached --check`: exit 0, không diagnostic. `git diff origin/main` đã đọc; `git status --short` chỉ bốn file sửa unstaged, `git diff --cached --stat` và `git ls-files --others --exclude-standard` rỗng. Đây là kiểm tra tài liệu, không phải G4 độc lập hay chạy lại DDL.
+- **READY_FOR_LOCAL_G4 — tầng B cho bản cập nhật hồ sơ**; G4 tầng B chưa chạy trong phiên chỉnh sửa này. Reviewer session/context mới đọc cùng worktree, kiểm full committed/staged/unstaged/untracked diff so origin/main và nguồn evidence. Không yêu cầu chạy lại G4 tầng A của A01 hoặc database.

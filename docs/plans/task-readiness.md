@@ -1,6 +1,6 @@
 # Mức sẵn sàng task P0–P6
 
-**Cập nhật hiện hành A01 (18/11/2026):** owner-approved amendment local READY_FOR_LOCAL_G4; xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; implementation/CI/G4 chưa được xác nhận từ amendment này.
+**Cập nhật hiện hành A01 (18/11/2026):** amendment MERGED qua PR #20; G4 tầng A PASS trước publish/merge theo bằng chứng reviewer do owner cung cấp; CI tại PR HEAD và merge SHA đã xác minh riêng PASS. Xem mục A01 cuối file. Các trạng thái/số dòng baseline bên dưới là lịch sử; closure/runtime/P0 acceptance chưa hoàn tất.
 
 **Trạng thái:** PROPOSED. Bám `docs/spec/07-roadmap.md`; giữ nguyên mọi ID task và AC, không sửa dependency trong spec. Đối chiếu `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md` và [rà soát kiến trúc](../architecture/conformance-review.md). “GO” ở đây là đủ rõ để giao task theo gate G2/G3 của `AGENTS.md`, không phải xác nhận code đã chạy.
 
@@ -99,15 +99,15 @@ P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi
 
 ## A01 — trạng thái hiện hành 18/11/2026
 
-Các đoạn PROPOSED/NOT AUTHORIZED lịch sử ở trên giữ mốc của task cũ, không cấp lệnh chạy lại. Owner phê duyệt A01/finalize + hai bổ sung backup/điều tra và owner B API; base 288ca8b55cab2017c9ee42bd35036e2d2e5bd87c, amendment local UNCOMMITTED.
+Các đoạn PROPOSED/NOT AUTHORIZED lịch sử ở trên giữ mốc của task cũ, không cấp lệnh chạy lại. Owner phê duyệt A01/finalize + hai bổ sung backup/điều tra và owner B API. [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20): base `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`, PR HEAD `47f2c7b491ab124c91e827fda6e010171abeaba7`, merge/spec revision `024ea998c43baf0afde30b069ed6b4876cb96f4a`, merged at `2026-11-18T06:28:13Z`; GitHub đã xác minh.
 
 | Phạm vi | Gate hiện hành |
 |---|---|
-| A01 amendment specs/workflow | OWNER APPROVED; READY_FOR_LOCAL_G4, G4 NOT RUN. DDL PG17.12/43 cases PASS; no implementation/EF/CI claim |
-| Closure #1, remediation P0-02/04 | NOT AUTHORIZED G3; cần giao riêng sau G4 amendment, source role/helper/migration chưa tạo; runbook mới chỉ design/NOT RUN |
+| A01 amendment specs/workflow | OWNER APPROVED / MERGED; independent local G4 tầng A PASS trước publish/merge theo evidence reviewer do owner cung cấp, không finding actionable P0–P3. CI PR HEAD run 44250706587 và merge SHA run 44251560930: completed/success, cả ba jobs PASS (xác minh riêng). Không chứng minh implementation/EF/runtime amendment |
+| Closure #1, remediation P0-02/04 | NOT AUTHORIZED G3; G4 amendment đã PASS, cần owner giao riêng; source role/helper/migration chưa tạo; runbook/provisioning/grants thực/backup restore NOT RUN |
 | Closure #2, remediation P0-08/12 | NOT AUTHORIZED G3; recovery/coverage/API owner B cần implement/test sau giao việc |
-| P1-01 | HOLD C1–C3; A01 accepted nhưng G4 amendment/closure #1/#2/runbook acceptance/merge+CI evidence chưa đủ; owner giao riêng |
+| P1-01 | HOLD / NOT AUTHORIZED G3; C1 amendment hoàn tất (approval/G4/merge/spec SHA/CI). C2 closure #1/#2 và runbook/P0 acceptance chưa đủ; C3 contract đã duyệt nhưng role/helper và evidence triển khai chưa có; owner giao riêng |
 | P1-04 | D12 audit entity/path phải hoàn tất trước entity audited; không chặn P1-01 |
 | P1-07 | Variant key/import lại/ô trống/nhóm conflict/atomicity OPEN tại task; không auto-upsert thiếu khóa, không chặn P1-01 |
 
-Không dùng tp_readonly query tay điều tra; read identity riêng tối thiểu/no IAM creds/DP keys mặc định. Owner B qua staff.manage/cookie/CSRF và session onboarding riêng, không Staff UI. Evidence: docs/reviews/a01-amendment-evidence.md; task detail docs/plans/p1-01-implementation.md.
+Không dùng tp_readonly query tay điều tra; read identity riêng tối thiểu/no IAM creds/DP keys mặc định. Owner B qua staff.manage/cookie/CSRF và session onboarding riêng, không Staff UI. Runtime, grants thực, MFA recovery và P0 acceptance vẫn NOT RUN. Evidence: [A01](../reviews/a01-amendment-evidence.md); task detail [P1-01](p1-01-implementation.md). Bản cập nhật hồ sơ này cần G4 tầng B riêng; không mở lại G4 tầng A của A01.
