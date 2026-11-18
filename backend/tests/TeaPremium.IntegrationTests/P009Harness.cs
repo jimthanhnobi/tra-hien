@@ -36,16 +36,8 @@ public sealed class P009Harness : IAsyncDisposable
     public static async Task<P009Harness> CreateAsync(PlatformDatabaseFixture fixture)
     {
         var database = "teapremium_test_" + Guid.NewGuid().ToString("N");
-        await fixture.ExecuteAsync("CREATE DATABASE " + database);
-        var owner = new NpgsqlConnectionStringBuilder(fixture.ConnectionString) { Database = database }.ConnectionString;
+        var owner = await fixture.CreateDatabaseAsync(database);
         var runtime = new NpgsqlConnectionStringBuilder(owner) { Username = "tp_app", Password = "Disposable-Test-Only!" }.ConnectionString;
-        await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(owner).Options)) await db.Database.MigrateAsync();
-        await using (var connection = new NpgsqlConnection(owner))
-        {
-            await connection.OpenAsync();
-            await using var cmd = new NpgsqlCommand("GRANT USAGE ON SCHEMA platform,iam,public TO tp_app; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA platform,iam TO tp_app; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA platform,iam TO tp_app; REVOKE UPDATE,DELETE,TRUNCATE,MAINTAIN ON platform.administrative_data_imports FROM tp_app; REVOKE UPDATE,DELETE,TRUNCATE ON platform.audit_logs FROM tp_app", connection);
-            await cmd.ExecuteNonQueryAsync();
-        }
         var certPath = Path.Combine(Path.GetTempPath(), database + ".pfx");
         using (var rsa = RSA.Create(2048))
         {

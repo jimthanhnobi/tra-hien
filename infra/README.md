@@ -1,10 +1,10 @@
 # Chạy Trà Hiên V2 trên máy phát triển
 
-`compose.dev.yml` chạy PostgreSQL 17, API .NET 10, Store và Admin Next.js. Chỉ dùng dữ liệu thử. Đây là cấu hình **development**. Migration **phải áp dụng riêng**, không tự chạy khi API khởi động. IAM P0-08 và Admin shell P0-12 yêu cầu HTTPS; Compose HTTP hiện tại chưa đủ cho đăng nhập. Hướng dẫn native Caddy cùng origin, trusted proxy, certificate và kiểm thử thật nằm trong [hồ sơ P0-12](../docs/plans/p0-12-implementation.md). Backup/triển khai production thuộc giai đoạn sau.
+Chỉ dùng dữ liệu giả trên PostgreSQL 17. Migration chạy riêng bằng `tp_owner`; API dùng `tp_app`, không tự migrate kể cả Production. `tp_readonly` chỉ dành cho backup được kiểm soát, có thể đọc IAM/Data Protection nhạy cảm; không cấp credential này cho người điều tra. Backup job/mã hóa/restore drill Production thuộc P3-10.
 
-## Chuẩn bị trên Windows PowerShell
+## Cấu hình và volume mới
 
-Cài Docker Desktop với Linux containers và Docker Compose; kiểm tra `docker version` và `docker compose version`. Từ gốc repository:
+Cần Docker Desktop Linux containers, Docker Compose, .NET 10 theo global.json và Windows PowerShell 5.1 hoặc pwsh. Từ repo root:
 
 ```powershell
 if (-not (Test-Path -LiteralPath infra/.env)) {
@@ -12,65 +12,75 @@ if (-not (Test-Path -LiteralPath infra/.env)) {
 }
 notepad infra/.env
 docker compose -f infra/compose.dev.yml config --quiet
+docker compose -f infra/compose.dev.yml up -d postgres
+./scripts/dev-migrate.ps1 -PreflightOnly
+./scripts/dev-migrate.ps1
+docker compose -f infra/compose.dev.yml up -d --build api store admin
 ```
 
-Đổi `POSTGRES_PASSWORD` thành mật khẩu chỉ dùng cho máy này trước khi khởi động. `infra/.env` được `.gitignore` bỏ qua. Dùng `config --quiet` để không in mật khẩu ra terminal. Không đưa dữ liệu khách thật vào DB dev. Nếu đã có `infra/.env`, lệnh trên giữ nguyên file đó; chỉ cập nhật các biến cần thiết.
+Đổi mọi placeholder; dùng password riêng từng role, hạn chế ACL file `.env` cho operator. Không in `config` thiếu `--quiet`, `docker inspect`, environment hoặc connection string ra log. Compose giữ `POSTGRES_DB=postgres` (maintenance); SQL tạo `TP_DATABASE` riêng với owner tp_owner. Init hook gọi wrapper và SQL chung trong `/opt/teapremium`, chỉ tự chạy trên volume rỗng. Không chạy nguyên schema.sql trên DB EF.
 
-| Biến trong `infra/.env` | Mặc định trong ví dụ | Vai trò |
-|---|---|---|
-| `POSTGRES_USER` / `POSTGRES_DB` | `teapremium_dev` | Tài khoản và database local. |
-| `POSTGRES_PASSWORD` | placeholder cần thay | Mật khẩu local; Compose yêu cầu giá trị không rỗng. |
-| `POSTGRES_PORT` | `5432` | Cổng PostgreSQL trên máy host. |
-| `API_PORT` | `8080` | Cổng API trên máy host. |
-| `STORE_PORT` / `ADMIN_PORT` | `3000` / `3001` | Cổng hai app trên máy host. |
+| Biến | Ý nghĩa |
+|---|---|
+| POSTGRES_USER / POSTGRES_PASSWORD | Bootstrap administrator; giữ identity cũ khi dùng volume hiện hữu. Không dùng cho API. |
+| TP_DATABASE | Identifier `[a-z][a-z0-9_]{0,62}`, khác postgres/template0/template1. |
+| TP_OWNER_PASSWORD | Migration; không superuser/CREATEDB/CREATEROLE/BYPASSRLS, không membership. |
+| TP_APP_PASSWORD | Runtime; Compose quote password trong connection string nên **không chứa `"`**, hỗ trợ `;`. Native Npgsql builder hỗ trợ punctuation. |
+| TP_READONLY_PASSWORD | Chỉ job backup được ủy quyền, không cấp API/người điều tra. |
+| POSTGRES_PORT / API_PORT / STORE_PORT / ADMIN_PORT | Host loopback; mặc định 5432/8080/3000/3001. |
 
-**Kết nối API tới PostgreSQL:** Compose nội suy `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` từ `infra/.env` vào biến môi trường `ConnectionStrings__Default` của container API, dùng `Host=postgres;Port=5432`. ASP.NET Core đọc thành `ConnectionStrings:Default`, theo `PersistenceRegistration.cs`. Mật khẩu được đặt trong dấu nháy kép của connection string để chứa được dấu `;`; **quy ước development: `POSTGRES_PASSWORD` không được chứa dấu nháy kép `"`**. Giá trị có dấu `;` được hỗ trợ; không dùng cách thêm `\` hay nhân đôi `"` để né giới hạn này vì có thể làm mật khẩu API khác mật khẩu PostgreSQL đã khởi tạo. Nếu `.env` hiện chứa `"`, hãy chọn mật khẩu dev khác và đồng bộ mật khẩu của role trong DB hiện hữu (đổi `.env` không tự thay mật khẩu đã lưu trong volume PostgreSQL). Không in đầu ra `docker compose config` (không có `--quiet`) hoặc `docker inspect` để chia sẻ vì chúng có thể lộ mật khẩu. Compose chỉ cung cấp cấu hình, **không tự tạo schema/migrate**; áp migration P0-04 lên DB dev dùng EF CLI riêng theo hướng dẫn `docs/plans/p0-04-implementation.md`, không chạy `Migrate`/`EnsureCreated` từ API.
+Trong `.env`, dùng literal single-quoted phù hợp Compose khi secret có `$`. Không truyền secret qua argv. Thay `.env` không đổi password role đã tồn tại; rotation là thao tác riêng được owner duyệt. Khi đổi environment DB container, recreate service bằng `up -d postgres` trước migrate; giữ volume.
 
-Các cổng chỉ bind vào `127.0.0.1`. Nếu cổng đã bị chiếm, đổi cổng host tương ứng trong `infra/.env`; cổng **trong container** vẫn là PostgreSQL `5432`, API `8080`, Store `3000`, Admin `3001`. Docker DNS dùng tên `postgres` và `api`, không dùng `localhost` để kết nối giữa container.
+## Database/volume hiện hữu
 
-## Build, chạy và kiểm tra
+Operator xác nhận đúng DB dev giả, bảo toàn backup theo quy trình đã duyệt và kiểm ownership. Giữ POSTGRES_USER/PASSWORD của cluster, chuyển tên DB cũ từ POSTGRES_DB sang TP_DATABASE trong `.env`. Init hook không tự chạy lại:
 
 ```powershell
-docker compose -f infra/compose.dev.yml build
-docker compose -f infra/compose.dev.yml up -d
+docker compose -f infra/compose.dev.yml stop api
+docker compose -f infra/compose.dev.yml up -d postgres
+docker compose -f infra/compose.dev.yml exec -T postgres sh /opt/teapremium/init-roles.sh
+./scripts/dev-migrate.ps1 -PreflightOnly
+./scripts/dev-migrate.ps1
+docker compose -f infra/compose.dev.yml up -d --build api
+```
+
+Không DROP/RECREATE role/DB, REASSIGN OWNED hoặc reset volume. Wrapper dùng admin qua socket, đọc secret từ env bằng psql `\getenv`, không qua argv và không reset password. Preflight chung kiểm attributes/membership, DB/schema/relation/function owner, CREATE, object/column/default ACL bất thường. **DB/object cũ thuộc superuser hoặc role khác → dừng**, ghi object cho owner duyệt remediation riêng; không tự chuyển owner. Đường existing chỉ tiếp tục khi ownership hợp lệ. Public schema có thể thuộc pg_database_owner hoặc tp_owner; member objects của trusted extensions giữ owner bootstrap theo cơ chế PostgreSQL.
+
+SQL tạo role/DB thiếu; CREATE DATABASE ngoài transaction. Khối quyền DB/extension trong transaction. Khi provisioning dừng giữa chừng, giữ object đã tạo và chạy lại sau khi xử lý nguyên nhân, không reset dữ liệu. Administrator bootstrap trusted extensions và delegate grant-option đúng các hàm unaccent/advisory; migration owner cấp EXECUTE cho runtime. Không membership đặc quyền, không cấp quyền ứng dụng qua PUBLIC.
+
+`protect-credentials.sql` bảo vệ riêng từng session provisioning trước nội suy credential và sau mỗi reconnect: tắt/kiểm effective statement, duration, sampling, error/parameter và debug logging; lỗi thiết lập/kiểm tra thì dừng trước secret SQL. Wrapper tắt shell xtrace trước đọc environment. Không thay logging policy global/DB/role; kết nối khác giữ cấu hình logging cũ. Server log của session này không giữ SQL nhạy cảm; dùng exit code và client error terse để chẩn đoán. Preflight từ chối schema grant option của app/backup qua ACL thực, không tự revoke/repair drift.
+
+`dev-migrate.ps1` đăng nhập TCP bằng tp_owner trong container, preflight trước locked project restore/build/sinh SQL và kiểm lại trong cùng session ngay trước **toàn chuỗi** idempotent migrations. Checkout sạch không cần assets/build sẵn; `-PreflightOnly` chỉ kiểm DB, không restore/build/migrate. EF sinh SQL offline, không nhận password/connection qua argv. `-Container <id>` dành cho PostgreSQL 17 dùng một lần; mặc định dùng Compose postgres. Gọi EF update trực tiếp bỏ preflight có thể lỗi ở GRANT P0-09 cũ; migration mới không bảo vệ DDL đã chạy trước nó khi bỏ entry point.
+
+## Kiểm quyền, migration và rollback
+
+Catalog check không in password/hash:
+
+```powershell
+"SELECT rolname,rolsuper,rolcreatedb,rolcreaterole,rolbypassrls,rolinherit FROM pg_roles WHERE rolname ~ '^tp_';" |
+  docker compose -f infra/compose.dev.yml exec -T postgres sh -c 'export PGUSER="$POSTGRES_USER" PGDATABASE="$TP_DATABASE"; exec psql -X'
+./scripts/dev-migrate.ps1 -PreflightOnly
 docker compose -f infra/compose.dev.yml ps
-docker compose -f infra/compose.dev.yml logs -f postgres api store admin
 ```
 
-Mở `http://localhost:3000/` cho Store và `http://localhost:3001/` cho Admin. API ở `http://localhost:8080/`; P0-01 chưa đăng ký endpoint nên HTTP `404` tại `/` là bình thường, nhưng container phải lắng nghe và log không có lỗi khởi động. Kiểm tra PostgreSQL bằng:
+`DatabaseRolesTests` kiểm login TCP app/backup, DML/sequence/function/history, deny DDL/role switch/append-only/ledger/MAINTAIN, default ACL đúng creator, data P0/password/sequence giữ nguyên và missing role/owner lạ dừng trước EF history. IAM/Settings/Data Protection chạy bằng tp_app; migration dùng owner. Điều tra dùng identity theo vụ việc, cột/view đã che, thời hạn/audit/thu hồi; fixture kiểm không đọc IAM secrets/DP xml hoặc kế thừa backup/owner. Credential/OS/network/job controls và backup mã hóa/restore thực còn cần nghiệm thu vận hành.
+
+Migration mới `ReconcileRuntimeGrants` chứa SQL cố định tạo từ `GrantsSql`, không gọi helper lúc replay và không sửa migration cũ. Default privileges gắn tp_owner: backup SELECT, app sequence USAGE; không blanket default DML. Mỗi migration cấp explicit/revoke ngoại lệ. Down giữ ACL an toàn, không trả lại quyền nguy hiểm hoặc xóa data/role/key/sequence. Ưu tiên forward fix; rollback app rồi kiểm schema/history, restore cô lập nếu cần.
+
+## Local HTTPS và app
+
+HTTP Compose không chứng minh Admin Secure cookie/TOTP. Caddy native `infra/caddy/Caddyfile.admin-local` dùng API loopback **5080**, Next Admin **3001**, origin **https://admin.localhost:8443**. Nếu dùng Compose API đặt API_PORT=5080; cấu hình Iam__AdminHost=admin.localhost và trusted proxy đúng địa chỉ thực qua Docker Desktop, không wildcard. Native API dùng Iam__TrustedProxies__0=127.0.0.1.
+
+Operator nạp ConnectionStrings__Default bằng tp_app qua secret store/connection-string builder và cấu hình certificate/environment, rồi:
 
 ```powershell
-docker compose -f infra/compose.dev.yml exec postgres pg_isready -U teapremium_dev -d teapremium_dev
-docker compose -f infra/compose.dev.yml exec -T postgres psql -U teapremium_dev -d teapremium_dev -tAc "SELECT 1;"
+dotnet run --project backend/src/TeaPremium.Api --no-launch-profile --urls http://127.0.0.1:5080
+# Terminal proxy riêng, từ repo root:
+caddy run --config infra/caddy/Caddyfile.admin-local --adapter caddyfile
 ```
 
-`SELECT 1` xác nhận PostgreSQL có thể truy vấn, **không** chứng minh API đã truy cập DB. P0-06 phải kiểm thử thực tế đường kết nối của dispatcher khi background worker được đăng ký. Nếu đổi thông tin đăng nhập trên `infra/.env` mà vẫn giữ volume cũ, PostgreSQL **không tự đổi** user/password/database đã khởi tạo.
+Production-mode IAM local cần X.509 private key qua Iam__KeyCertificatePath/Iam__KeyCertificatePassword, giữ cùng certificate khi restart để giải mã keys. Caddy lưu CA trong ignored artifacts/p0-12-local/caddy-data, skip_install_trust: operator xác minh/trust root CA trong user store trước browser; closure #1 không tự sửa trust/hosts. Hostname phải resolve loopback. Hướng dẫn/evidence HTTPS cũ ở `docs/plans/p0-12-implementation.md` không thay nghiệm thu mới.
 
-Store giữ rewrite development tới `API_INTERNAL_URL=http://api:8080`. Admin gọi `/api/v1/*` qua Caddy trực tiếp tới API (DEC-16), đã bỏ Next rewrite để giữ HTTPS và trusted proxy rõ ràng. Biến `API_INTERNAL_URL` cũ trong service Admin không còn được app sử dụng. Truy cập Admin bằng HTTP chỉ xem được loading/lỗi kết nối; không thể đăng nhập bằng Secure cookie. Compose chỉ chờ process API khởi động; `ps` và log xác nhận API. Store/Admin có health check HTTP cho `/`.
+Bootstrap-owner qua CLI nhập ẩn dùng tp_app sau migration, cùng certificate/environment; không password argv/pipe. Runbook owner A/B, settings/audit/CSRF/lockout/logout tại `docs/plans/p0-closure-acceptance.md` còn cần nghiệm thu. Closure #2 MFA recovery ngoài slice này.
 
-`up -d` chạy source đã đóng gói trong image. Để bật hot reload cho API, Store và Admin, mở PowerShell khác từ gốc repo và chạy:
-
-```powershell
-docker compose -f infra/compose.dev.yml watch
-```
-
-Compose Watch đồng bộ `backend/` (bỏ qua `bin/obj` của host), `apps/*/src` và `packages/api-client/src` vào container; `dotnet watch` và Next.js dev server áp dụng thay đổi. API đặt `DOTNET_WATCH_SUPPRESS_STATIC_FILE_HANDLING=1` vì scaffold không dùng static assets, tránh lỗi đường dẫn `staticwebassets.development.json` của .NET watch trên POSIX. `DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1` tự restart API khi thay đổi C# không thể hot reload, tránh prompt trong container detached. Giữ terminal watch mở khi sửa source. Khi sửa manifest, Dockerfile, `next.config.ts` hoặc dependency, chạy lại `build` rồi `up -d`. Docker Desktop trên Windows cần quyền chia sẻ ổ đĩa chứa repository.
-
-## Dừng, khởi động lại, reset
-
-```powershell
-docker compose -f infra/compose.dev.yml stop
-docker compose -f infra/compose.dev.yml start
-docker compose -f infra/compose.dev.yml down
-```
-
-`down` dừng và bỏ container/network nhưng **giữ** volume `teapremium-dev_pgdata`; `up -d` sau đó dùng lại DB. Muốn reset ứng dụng mà giữ DB, dùng `down`, `build`, `up -d`. **Xóa DB dev là thao tác mất dữ liệu**: chỉ sau khi xác nhận không còn dữ liệu cần giữ, chạy `docker compose -f infra/compose.dev.yml down -v`, rồi `up -d` để tạo volume mới. Không chạy lệnh này trên dữ liệu thật.
-
-## Khi có lỗi
-
-- `config` báo thiếu biến: kiểm tra `infra/.env` ở cạnh compose file, nhất là `POSTGRES_PASSWORD`.
-- Cổng host bị chiếm: đổi `*_PORT` trong `infra/.env` và chạy `up -d` lại.
-- PostgreSQL chưa healthy: xem `docker compose -f infra/compose.dev.yml logs postgres`; với volume cũ, đổi `POSTGRES_USER/DB/PASSWORD` trong `.env` không đổi thông tin đã tạo trong DB.
-- API chưa lên: xem `logs api`; phải có SDK .NET 10.0.404 trong Docker image build và các NuGet package restore theo lockfile. Lỗi `staticwebassets.development.json` trong `dotnet watch` có thể do đường dẫn POSIX của SDK, không chứng minh build API thất bại; Compose tắt riêng static-file handling vì P0-01 chưa có static assets.
-- Store/Admin lỗi module hoặc proxy: `build` lại sau khi đổi package/config; kiểm `API_INTERNAL_URL=http://api:8080` trong container. Không dùng `localhost:8080` trong cấu hình container.
-- Hot reload không nhận file: xác nhận Docker Desktop đã chia sẻ thư mục dự án và lệnh `docker compose -f infra/compose.dev.yml watch` đang chạy trong terminal riêng. Dùng `up -d --build` nếu sửa ngoài các source path được đồng bộ.
+`docker compose -f infra/compose.dev.yml watch` bật hot reload theo develop. Đổi Dockerfile/manifest/config cần build lại. `stop` hoặc `down` giữ volume; không xóa volume để sửa quyền. Không xuất environment/credentials khi chẩn đoán lỗi.
