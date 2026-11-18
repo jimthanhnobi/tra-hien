@@ -17,8 +17,28 @@ namespace TeaPremium.IntegrationTests;
 
 public sealed class PlatformDatabaseFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17").Build();
-    public string ConnectionString => _container.GetConnectionString();
+    private readonly PostgreSqlContainer _container = DatabaseProvisioning.Builder().Build();
+    public string ConnectionString => DatabaseProvisioning.Login(_container.GetConnectionString(), "tp_owner", "teapremium_test");
+    public string RuntimeConnection => DatabaseProvisioning.Login(ConnectionString, "tp_app");
+
+    // Test instrumentation only: observing another role's pg_stat_activity must
+    // not grant pg_read_all_stats or administrator privileges to production roles.
+    public async Task<bool> ObserveSleepingAsync(string database)
+    {
+        var admin = new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = database };
+        await using var connection = new NpgsqlConnection(admin.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("SELECT EXISTS(SELECT FROM pg_stat_activity WHERE datname=current_database() AND wait_event='PgSleep')", connection);
+        return (bool)(await command.ExecuteScalarAsync())!;
+    }
+
+    public async Task<string> CreateDatabaseAsync(string database)
+    {
+        await DatabaseProvisioning.ProvisionAsync(_container, database);
+        var owner = DatabaseProvisioning.Login(ConnectionString, "tp_owner", database);
+        await DatabaseProvisioning.MigrateAsync(owner);
+        return owner;
+    }
 
     public AppDbContext CreateContext(IInterceptor? interceptor = null)
     {
@@ -30,7 +50,7 @@ public sealed class PlatformDatabaseFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
-        await ExecuteAsync("CREATE ROLE tp_app LOGIN PASSWORD 'Disposable-Test-Only!'; CREATE ROLE tp_readonly NOLOGIN; CREATE ROLE tp_owner NOLOGIN");
+        await DatabaseProvisioning.ProvisionAsync(_container, "teapremium_test");
         await using var db = CreateContext();
         await db.Database.MigrateAsync();
     }
@@ -435,17 +455,17 @@ public sealed class PlatformDatabaseTests(PlatformDatabaseFixture fixture) : ICl
     [Fact]
     public async Task IdempotentScriptCanRunTwiceOnEmptyDisposableDatabase()
     {
-        await using var disposable = new PostgreSqlBuilder("postgres:17").Build();
+        await using var disposable = DatabaseProvisioning.Builder().Build();
         await disposable.StartAsync();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(disposable.GetConnectionString()).Options;
+        await DatabaseProvisioning.ProvisionAsync(disposable, "teapremium_test");
+        var owner = DatabaseProvisioning.Login(disposable.GetConnectionString(), "tp_owner", "teapremium_test");
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(owner).Options;
         await using var db = new AppDbContext(options);
         var script = db.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
         Assert.Contains("__EFMigrationsHistory", script, StringComparison.Ordinal);
-        await using (var connection = new NpgsqlConnection(disposable.GetConnectionString()))
+        await using (var connection = new NpgsqlConnection(owner))
         {
             await connection.OpenAsync();
-            await using (var roles = new NpgsqlCommand("CREATE ROLE tp_app NOLOGIN; CREATE ROLE tp_readonly NOLOGIN", connection))
-                await roles.ExecuteNonQueryAsync();
             await using var command = new NpgsqlCommand(script, connection);
             await command.ExecuteNonQueryAsync();
             await command.ExecuteNonQueryAsync();

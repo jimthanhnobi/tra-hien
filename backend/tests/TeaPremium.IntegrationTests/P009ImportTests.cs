@@ -86,7 +86,7 @@ public sealed class P009ImportTests(PlatformDatabaseFixture fixture) : IClassFix
         {
             for (var attempt = 0; attempt < 100 && !sleeping && !pending.IsCompleted; attempt++)
             {
-                sleeping = await db.Database.SqlQueryRaw<bool>("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event='PgSleep') AS \"Value\"").SingleAsync();
+                sleeping = await fixture.ObserveSleepingAsync(h.Database);
                 if (!sleeping) await Task.Delay(25);
             }
         }

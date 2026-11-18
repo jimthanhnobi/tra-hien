@@ -3,6 +3,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0.404
 WORKDIR /workspace
 COPY global.json ./
 COPY backend/ ./backend/
+COPY infra/postgres/preflight.sql ./infra/postgres/preflight.sql
 RUN dotnet restore backend/TeaPremium.sln --locked-mode \
     && dotnet build backend/TeaPremium.sln --no-restore -warnaserror
 

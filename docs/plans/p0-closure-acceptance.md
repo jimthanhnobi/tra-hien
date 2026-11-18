@@ -1,6 +1,6 @@
 # P0 closure — runbook nghiệm thu theo A01
 
-**Trạng thái:** yêu cầu/runbook được bổ sung trong amendment owner-approved 18/11/2026; **NOT RUN**. Chưa có quyền triển khai closure, chạy lệnh vận hành hoặc dùng dữ liệu thật. Base amendment `288ca8b55cab2017c9ee42bd35036e2d2e5bd87c`; chỉ giao G3 riêng sau G4 amendment. Remediation P0-02/P0-04 (#1), P0-08/P0-12 (#2), không tạo ID roadmap mới. FR-IAM-02/03, BR-IAM-01/02/06/07/08, AC-P0-01…06, DEC-29/30; 03 §4, 05 §4.1, 06 §11.
+**Trạng thái 18/11/2026:** Closure #1 được owner giao **G3 local**, remediation P0-02/P0-04/P0-09/P0-10, base/head `3a06ffb7b4f4f53a519c5032802be77ff5f04690` (PR #20/#21 đã merge). Independent G4 Tier A đã trả **BLOCK F1–F4**; owner chỉ cho sửa local và focused G4 tiếp theo chưa chạy. Test DB dùng một lần theo §2; nghiệm thu vận hành HTTPS/owner A/B, CI published HEAD và merge closure **chưa thực hiện**. Closure #2/P0 chưa DONE. Không tạo ID roadmap mới. FR-PLT-01, FR-IAM-02/03, BR-IAM-01/02/06/07/08, AC-P0-01…06, DEC-29/30; 03 §4, 05 §4.1, 06 §5/§11. Hồ sơ G3 và evidence fixes: [p0-closure-01-implementation.md](p0-closure-01-implementation.md).
 
 ## 1. Điều kiện và an toàn
 
@@ -13,13 +13,40 @@
 
 | Bước | Phương án / kết quả mong đợi | Kết quả thật |
 |---|---|---|
-| DB mới | Provision infra/postgres/init-roles.sql qua wrapper init-roles.sh, cấu hình maintenance/app DB đúng owner; migrate bằng tp_owner qua dev-migrate preflight, API tp_app | NOT RUN |
-| DB hiện hữu | Backup/preflight, chạy cùng SQL ngoài init hook; giữ data/IAM/settings/audit/ledger/password/sequence. Bất thường ownership dừng, không xóa DB/volume | NOT RUN |
-| Re-run/quyền | Chạy lại provisioning/idempotent migration trên DB giả; login thật app/backup, kiểm DML/DDL/append-only theo 03 §4; không dùng grant giả trong test | NOT RUN |
+| DB mới | Provision infra/postgres/init-roles.sql qua wrapper init-roles.sh, cấu hình maintenance/app DB đúng owner; migrate bằng tp_owner qua dev-migrate preflight, API tp_app | PASS automation PostgreSQL 17.12: init hook, fresh EF và entry point; toàn stack Compose thủ công NOT RUN |
+| DB hiện hữu | Backup/preflight, chạy cùng SQL ngoài init hook; giữ data/IAM/settings/audit/ledger/password/sequence. Bất thường ownership dừng, không xóa DB/volume | PASS baseline 3 migrations + data giả → migration thứ 4, fingerprint không đổi; backup/restore thực NOT RUN |
+| Re-run/quyền | Chạy lại provisioning/idempotent migration trên DB giả; login thật app/backup, kiểm DML/DDL/append-only theo 03 §4; không dùng grant giả trong test | PASS sau fixes F1–F4: 75 ca Closure #1 trong full Linux 435/435; aggressive logging, clean checkout, schema grant option âm; passwords/sequence giữ nguyên; focused G4 chưa chạy |
 | HTTPS | Caddy local được trust + API/Admin đúng origin; Compose HTTP/config --quiet không chứng minh login được | NOT RUN |
 | Owner A | Bootstrap lần đầu khi chưa có owner; login, đổi password, login lại, setup/verify TOTP rồi login bằng mã mới. Kiểm onboarding/ready và lấy CSRF theo phiên | NOT RUN |
 
-Các script provisioning/dev-migrate/helper/migration thuộc G3 closure #1, chưa tạo trong amendment. Closure implementation phải điền exact commands, exit/status, environment, published SHA và log đã che dữ liệu cho cả nhánh mới/existing.
+Artifact đã có trong G3 Closure #1; chưa có published SHA mới. Các lệnh dưới dành cho operator trên DB giả, không phải chỉ dẫn áp dụng production. `.env` chứa TP_DATABASE và ba password riêng + bootstrap POSTGRES_USER/PASSWORD; không truyền secret qua argv/log. SQL idempotent chỉ tạo role/DB thiếu; role đã có sai thuộc tính/membership/ownership/quyền phải dừng. Volume cũ do superuser sở hữu không được tự chuyển owner; owner phê duyệt remediation từng object riêng.
+
+**Volume mới**, từ repo root, sau khi cấu hình `infra/.env` theo [infra/README.md](../../infra/README.md):
+
+```powershell
+docker compose -f infra/compose.dev.yml config --quiet
+docker compose -f infra/compose.dev.yml up -d postgres
+./scripts/dev-migrate.ps1 -PreflightOnly
+./scripts/dev-migrate.ps1
+docker compose -f infra/compose.dev.yml up -d --build api store admin
+```
+
+**DB hiện hữu**, xác nhận backup an toàn/đúng DB giả, giữ bootstrap credentials và tên DB cũ trong TP_DATABASE; không reset volume:
+
+```powershell
+docker compose -f infra/compose.dev.yml stop api
+docker compose -f infra/compose.dev.yml up -d postgres
+docker compose -f infra/compose.dev.yml exec -T postgres sh /opt/teapremium/init-roles.sh
+./scripts/dev-migrate.ps1 -PreflightOnly
+./scripts/dev-migrate.ps1
+docker compose -f infra/compose.dev.yml up -d --build api
+```
+
+**Role checks**: `dev-migrate -PreflightOnly` phải exit 0 bằng direct login tp_owner; kiểm catalog không in password/hash bằng lệnh ở infra README. SQL preflight chạy trước toàn chuỗi, không chỉ ở migration mới. Gọi EF update trực tiếp bỏ preflight vẫn có thể lỗi ở GRANT P0-09 cũ. Runtime ConnectionStrings__Default dùng tp_app; tp_readonly chỉ credential backup được kiểm soát, không dùng readiness/investigation/API. Không tự migrate ở API Production startup. Rollback app giữ ACL hạn chế; Down migration grants không đổi data/quyền về trạng thái thiếu an toàn. Không xóa keys/history/password/sequence.
+
+**Lệnh đã kiểm chứng local sau fixes F1–F4**: focused `dotnet test backend/tests/TeaPremium.IntegrationTests --no-build --no-restore --filter FullyQualifiedName~DatabaseRolesTests --logger trx --results-directory /evidence/focused` → PASS **75/75**. Full Linux `dotnet test backend/TeaPremium.sln --no-build --no-restore --logger trx --results-directory /evidence/test-results` → PASS **435/435** (45 unit, 34 architecture, 356 integration, gồm 75 ca Closure #1), exit 0/zero skipped. Evidence `artifacts/closure-01-g4fix-verification`; lượt G3 cũ 51/55 focused và 415 full là lịch sử. Test gọi wrapper/init SQL thật trên fresh/existing PostgreSQL 17, entry point từ checkout không bin/obj/assets và khi drift/missing role/lock mismatch. Cấu hình logging mạnh không lộ marker/credential SQL; logging policy của kết nối khác giữ nguyên; schema grant option/membership bị từ chối trước chain, không tự repair ACL. Ba tình huống reviewer cũng được chạy lại bằng script riêng, theo hồ sơ G3. Config Compose `--env-file infra/.env.example ... config --quiet` exit 0. Lệnh toàn stack trên volume của operator ở trên **NOT RUN**; không đổi test artifacts thành nghiệm thu vận hành. Focused independent G4 vẫn chờ session mới; chưa có publish permission.
+
+**HTTPS/Caddy dependencies**: API native hoặc host port 5080, Admin 3001, Caddy native cấu hình `infra/caddy/Caddyfile.admin-local`, origin `https://admin.localhost:8443`, hostname resolve loopback và CA được operator kiểm/trust. API đặt Iam__AdminHost=admin.localhost và trusted proxy đúng địa chỉ thực; không wildcard. Production-mode local cần certificate X.509 private key cho Data Protection, cùng file/password giữa CLI/API/restart và runtime tp_app; không ghi secrets vào hồ sơ. Lệnh Caddy/native API ở infra README và hồ sơ P0-12. G3 này không tự cài CA, đổi hosts, bootstrap owner thật hoặc giả định HTTP Compose là nghiệm thu login; các bước HTTPS/owner A/B bên dưới vẫn NOT RUN.
 
 ## 3. Tạo và kiểm owner thứ hai qua Admin API bảo vệ
 

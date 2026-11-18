@@ -23,4 +23,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="../../../infra/postgres/preflight.sql" LogicalName="TeaPremium.DatabasePreflight.sql" />
+  </ItemGroup>
 </Project>

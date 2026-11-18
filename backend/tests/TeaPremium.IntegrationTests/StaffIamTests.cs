@@ -58,7 +58,7 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
         foreach (var role in await db.Roles.ToArrayAsync())
             Assert.Equal(expected[role.Name!], await db.RoleClaims.Where(x => x.RoleId == role.Id).OrderBy(x => x.ClaimValue).Select(x => x.ClaimValue).ToArrayAsync());
         var script = db.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
-        await using (var connection = new NpgsqlConnection(db.Database.GetConnectionString()))
+        await using (var connection = new NpgsqlConnection(h.OwnerConnection))
         {
             await connection.OpenAsync();
             await using var command = new NpgsqlCommand(script, connection);
@@ -66,10 +66,11 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
             await command.ExecuteNonQueryAsync();
         }
         Assert.Equal(45, await db.RoleClaims.CountAsync());
-        await db.GetService<IMigrator>().MigrateAsync("202611161624_InitialPlatform");
+        await using var migration = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(h.OwnerConnection).Options);
+        await migration.GetService<IMigrator>().MigrateAsync("202611161624_InitialPlatform");
         Assert.Equal(9, await db.Database.SqlQueryRaw<int>("SELECT count(*)::int AS \"Value\" FROM information_schema.tables WHERE table_schema='platform'").SingleAsync());
         Assert.Equal(0, await db.Database.SqlQueryRaw<int>("SELECT count(*)::int AS \"Value\" FROM information_schema.tables WHERE table_schema='iam'").SingleAsync());
-        await db.Database.MigrateAsync();
+        await migration.Database.MigrateAsync();
         Assert.Equal(45, await db.RoleClaims.CountAsync());
     }
 
@@ -631,14 +632,14 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
         public required ManualTime Time { get; init; }
         public required SafeLogs Logs { get; init; }
         public required string CertificatePath { get; init; }
+        public required string OwnerConnection { get; init; }
         public HttpClient NewClient() => Factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
 
         public static async Task<Harness> CreateAsync(PlatformDatabaseFixture fixture, bool production = false, bool trustedProxy = false)
         {
             var database = "iam_" + Guid.NewGuid().ToString("N");
-            await fixture.ExecuteAsync("CREATE DATABASE " + database);
-            var connection = new NpgsqlConnectionStringBuilder(fixture.ConnectionString) { Database = database }.ConnectionString;
-            await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connection).Options)) await db.Database.MigrateAsync();
+            var owner = await fixture.CreateDatabaseAsync(database);
+            var connection = DatabaseProvisioning.Login(owner, "tp_app");
             var time = new ManualTime();
             var logs = new SafeLogs();
             var certificatePath = Path.Combine(Path.GetTempPath(), database + ".pfx");
@@ -669,7 +670,7 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
                     services.AddSingleton<IStartupFilter, PermissionProbes>();
                 });
             });
-            return new Harness { Factory = factory, Client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false }), Time = time, Logs = logs, CertificatePath = certificatePath };
+            return new Harness { Factory = factory, Client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false }), Time = time, Logs = logs, CertificatePath = certificatePath, OwnerConnection = owner };
         }
 
         public async Task<bool> BootstrapAsync(string email = OwnerEmail, string password = Password)
