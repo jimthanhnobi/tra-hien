@@ -90,6 +90,68 @@ class CiScopeTests(unittest.TestCase):
         for _, paths in self.changed(lambda: self.write('docs/guide.md', '```md\n[not a link](missing.md)\n```\n')):
             module.validate_docs(paths, self.repo)
 
+    def test_missing_changed_file_rejected(self):
+        with self.assertRaisesRegex(ValueError, "missing"):
+            module.validate_docs(["docs/absent.md"], self.repo)
+        with self.assertRaisesRegex(ValueError, "missing"):
+            module.validate_changed_docs([("M", "docs/absent.md")], self.repo)
+
+    def test_deleted_link_target_rejected_both_events(self):
+        self.write("README.md", "[Target](docs/target.md)\n")
+        self.write("docs/target.md", "# Target\n")
+        cmd("add", "-A", cwd=self.repo)
+        cmd("commit", "-qm", "add target", cwd=self.repo)
+        self.base = cmd("rev-parse", "HEAD", cwd=self.repo)
+        for event, paths in self.changed(lambda: (self.repo / "docs/target.md").unlink()):
+            self.assertEqual(paths, ["docs/target.md"])
+            changes = module.changed_files(event, self.base, cmd("rev-parse", "HEAD", cwd=self.repo),
+                                           before=self.base)
+            self.assertEqual(changes, [("D", "docs/target.md")])
+            with self.assertRaisesRegex(ValueError, "missing"):
+                module.validate_changed_docs(changes, self.repo)
+
+    def test_deleted_unlinked_markdown_allowed_both_events(self):
+        self.write("docs/obsolete.md", "# Old\n")
+        cmd("add", "-A", cwd=self.repo)
+        cmd("commit", "-qm", "add obsolete", cwd=self.repo)
+        self.base = cmd("rev-parse", "HEAD", cwd=self.repo)
+        for event, _ in self.changed(lambda: (self.repo / "docs/obsolete.md").unlink()):
+            changes = module.changed_files(event, self.base, cmd("rev-parse", "HEAD", cwd=self.repo),
+                                           before=self.base)
+            module.validate_changed_docs(changes, self.repo)
+
+    def test_renamed_target_rechecks_unmodified_readme_both_events(self):
+        self.write("README.md", "[Target](docs/old.md)\n")
+        self.write("docs/old.md", "# Old\n")
+        cmd("add", "-A", cwd=self.repo)
+        cmd("commit", "-qm", "add rename target", cwd=self.repo)
+        self.base = cmd("rev-parse", "HEAD", cwd=self.repo)
+        def rename():
+            (self.repo / "docs/old.md").rename(self.repo / "docs/new.md")
+        for event, _ in self.changed(rename):
+            changes = module.changed_files(event, self.base, cmd("rev-parse", "HEAD", cwd=self.repo),
+                                           before=self.base)
+            self.assertEqual(set(changes), {("D", "docs/old.md"), ("A", "docs/new.md")})
+            with self.assertRaisesRegex(ValueError, "missing"):
+                module.validate_changed_docs(changes, self.repo)
+
+    def test_reference_link_definition_rejected_both_events(self):
+        content = "[Missing][ref]\n\n[ref]: missing.md\n"
+        for event, paths in self.changed(lambda: self.write("docs/guide.md", content)):
+            changes = module.changed_files(event, self.base, cmd("rev-parse", "HEAD", cwd=self.repo),
+                                           before=self.base)
+            with self.assertRaisesRegex(ValueError, "missing"):
+                module.validate_changed_docs(changes, self.repo)
+
+    def test_reference_definition_inside_fence_ignored(self):
+        fence = chr(96) * 3
+        self.write("docs/guide.md", f"{fence}md\n[ref]: missing.md\n{fence}\n")
+        module.validate_docs(["docs/guide.md"], self.repo)
+
+    def test_valid_reference_definition_accepted(self):
+        self.write("docs/guide.md", "[Target][ref]\n\n[ref]: <../README.md> \"title\"\n")
+        module.validate_docs(["docs/guide.md"], self.repo)
+
     def test_bad_sha_fail_closed(self):
         with self.assertRaises(ValueError):
             module.changed_paths('push', '', 'invalid', before='0'*40)

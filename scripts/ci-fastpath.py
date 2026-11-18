@@ -16,10 +16,12 @@ from urllib.parse import unquote, urlsplit
 
 _SHA = re.compile(r"[0-9a-fA-F]{40}\Z")
 _LINK = re.compile(r"!?(?:\[[^\]]*\])\((<[^>]+>|[^)]+)\)")
+_REF_DEF = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)")
 _FENCE = re.compile(r"^\s{0,3}([\x60]{3,}|~{3,})")
 
 
-def changed_paths(event: str, base: str, head: str, before: str = "") -> list[str]:
+def changed_files(event: str, base: str, head: str, before: str = "") -> list[tuple[str, str]]:
+    """Return (A/M/D status, path). Moves expose old D + new A names."""
     if event == "pull_request":
         if not (_SHA.fullmatch(base) and _SHA.fullmatch(head)):
             raise ValueError("Missing or invalid pull request base/head SHA")
@@ -31,15 +33,23 @@ def changed_paths(event: str, base: str, head: str, before: str = "") -> list[st
     else:
         raise ValueError(f"Unsupported CI event: {event}")
 
-    # --no-renames exposes BOTH old and new names for moves. A code->docs rename
-    # must not be mistaken for documentation-only.
     result = subprocess.run(
-        ["git", "diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z", revision, "--"],
+        ["git", "diff", "--no-ext-diff", "--no-textconv", "--no-renames",
+         "--name-status", "-z", revision, "--"],
         check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
-    if not result.stdout.endswith(b"\0") and result.stdout:
+    if result.stdout and not result.stdout.endswith(b"\0"):
         raise ValueError("Incomplete NUL-delimited git diff")
-    return [os.fsdecode(raw) for raw in result.stdout.split(b"\0") if raw]
+    tokens = result.stdout.split(b"\0")[:-1] if result.stdout else []
+    if len(tokens) % 2:
+        raise ValueError("Malformed git diff status/path pairs")
+    return [(os.fsdecode(tokens[i]), os.fsdecode(tokens[i + 1]))
+            for i in range(0, len(tokens), 2)]
+
+
+def changed_paths(event: str, base: str, head: str, before: str = "") -> list[str]:
+    """Backwards-compatible names helper for scope/probe tests."""
+    return [path for _, path in changed_files(event, base, head, before)]
 
 
 def is_docs_only(paths: list[str]) -> bool:
@@ -57,7 +67,8 @@ def validate_docs(paths: list[str], root: Path) -> None:
     errors: list[str] = []
     for name in paths:
         file = root / name
-        if not file.exists() and not file.is_symlink():  # deleted source; skip
+        if not file.exists() or file.is_symlink():
+            errors.append(f"{name}: missing or non-regular changed Markdown file")
             continue
         if not file.is_file() or file.is_symlink() or not file.resolve().is_relative_to(root):
             errors.append(f"{name}: not an ordinary in-repository Markdown file")
@@ -85,8 +96,12 @@ def validate_docs(paths: list[str], root: Path) -> None:
             # Check local file targets, skip HTTP/mailto, site-root paths and
             # fragment-only links. Anchors are intentionally left to G4 review
             # because GitHub heading slug rules differ from simple regexes.
-            for match in _LINK.finditer(line):
-                raw = match.group(1).strip()
+            targets = [match.group(1) for match in _LINK.finditer(line)]
+            definition = _REF_DEF.match(line)
+            if definition:
+                targets.append(definition.group(1))
+            for raw in targets:
+                raw = raw.strip()
                 href = raw[1:-1] if raw.startswith("<") and raw.endswith(">") else raw.split(' "', 1)[0]
                 if href.startswith(("#", "/", "//")):
                     continue
@@ -102,6 +117,32 @@ def validate_docs(paths: list[str], root: Path) -> None:
         raise ValueError("Markdown checks failed:\n" + "\n".join(errors))
 
 
+
+def validate_changed_docs(changes: list[tuple[str, str]], root: Path) -> None:
+    """Validate additions/edits; deletions also recheck surviving links."""
+    statuses = {"A", "M", "D"}
+    if not changes or any(status not in statuses for status, _ in changes):
+        raise ValueError("Unsupported change status for docs validation")
+
+    added_modified = [path for status, path in changes if status in {"A", "M"}]
+    deleted = [path for status, path in changes if status == "D"]
+    for path in deleted:
+        target = root / path
+        if target.exists() or target.is_symlink():
+            raise ValueError(f"{path}: deletion not reflected in checkout")
+
+    if deleted:
+        # Old links can reside in untouched Markdown. Revalidate every surviving
+        # document, not only the files listed by git diff. Root README is included.
+        all_docs = sorted(p.relative_to(root).as_posix()
+                          for p in (root / "docs").rglob("*.md"))
+        if (root / "README.md").exists():
+            all_docs.insert(0, "README.md")
+        validate_docs(all_docs, root)
+        validate_docs(added_modified, root)
+    else:
+        validate_docs(added_modified, root)
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--event", required=True, choices=["push", "pull_request"])
@@ -111,10 +152,11 @@ def main() -> int:
     parser.add_argument("--github-output", required=True)
     args = parser.parse_args()
     try:
-        paths = changed_paths(args.event, args.base, args.head, args.before)
-        docs_only = is_docs_only(paths)
+        changes = changed_files(args.event, args.base, args.head, args.before)
+        paths = [path for _, path in changes]
+        docs_only = is_docs_only(paths) and all(status in {"A", "M", "D"} for status, _ in changes)
         if docs_only:
-            validate_docs(paths, Path.cwd())
+            validate_changed_docs(changes, Path.cwd())
         # Only emit docs_only after *all* validation passes; if any error,
         # the classifier job fails and all required jobs fail closed.
         with open(args.github_output, "a", encoding="utf-8") as output:
