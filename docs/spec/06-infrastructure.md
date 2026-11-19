@@ -213,7 +213,13 @@ Mục tiêu: RPO ≤ 24h, RTO ≤ 4h (NFR-05). Khi đơn > 30/ngày: bật WAL a
 
 ## 7. CI/CD
 
-**`ci.yml`** (mỗi push/PR):
+**`ci.yml`** (PR vào main và push main, phân phạm vi an toàn):
+
+- Thay đổi **chỉ** `docs/**/*.md` hoặc `README.md`: chạy unit tests của bộ phân loại và kiểm tra Markdown (UTF-8, fenced code, trailing whitespace, local link target), **không** restore/build backend, test Testcontainers, Playwright hay Docker. Ba status `Backend and API contract`, `Frontend verification`, `Docker regression builds` vẫn được tạo và PASS chỉ sau khi classifier/docs checks thành công.
+- Mọi thay đổi khác (kể cả `docs/spec/schema.sql`, workflow/scripts, backend, frontend, infra, rename/delete từ code sang docs và file lạ): **full CI hiện hữu**. Diff lỗi/không xác minh được, classifier failure hoặc Markdown invalid phải **FAIL CLOSED** ở ba required jobs, không dùng workflow-level `paths-ignore` gây Pending.
+- PR và push-main đều được đánh giá theo git diff thực tế, không tái sử dụng CI trên tree khác. Không bỏ CI merge-main. Giữ tên và contract ba required status của ruleset `protect-main`.
+
+**Full CI code path:**
 1. Backend: restore (locked) → build → unit + architecture test → integration test (Testcontainers PostgreSQL 17).
 2. `dotnet ef migrations script --idempotent` → artifact `migrations.sql`.
 3. Sinh OpenAPI → sinh `packages/api-client` → kiểm `git diff --exit-code` (client phải được commit cùng thay đổi API).
