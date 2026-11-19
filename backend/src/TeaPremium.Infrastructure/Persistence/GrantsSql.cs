@@ -17,6 +17,23 @@ public static class GrantsSql
 
     public static string PlatformAndIam() => Preflight + "\n" + PlatformAndIamGrants;
 
+    public static string CatalogAndInventory() => PlatformAndIam() + "\n" + CatalogAndInventoryGrants;
+
+    private const string CatalogAndInventoryGrants = """
+REVOKE ALL ON SCHEMA media,catalog,inventory,pricing,content FROM PUBLIC,tp_app,tp_readonly;
+GRANT USAGE ON SCHEMA media,catalog,inventory,pricing,content TO tp_app,tp_readonly;
+REVOKE ALL ON media.assets,media.upload_sessions,catalog.product_types,catalog.attribute_definitions,catalog.attribute_options,catalog.materials,catalog.artisans,catalog.categories,catalog.products,catalog.product_categories,catalog.product_relations,catalog.variants,catalog.product_attribute_values,catalog.variant_attribute_values,catalog.product_media,catalog.collections,catalog.collection_products,inventory.stock_levels,inventory.stock_movements,inventory.receipts,inventory.receipt_lines,inventory.stocktakes,inventory.stocktake_lines,pricing.sale_prices,content.redirects FROM PUBLIC,tp_app,tp_readonly;
+GRANT SELECT,INSERT,UPDATE,DELETE ON media.assets,media.upload_sessions,catalog.product_types,catalog.attribute_definitions,catalog.attribute_options,catalog.materials,catalog.artisans,catalog.categories,catalog.products,catalog.product_categories,catalog.product_relations,catalog.variants,catalog.product_attribute_values,catalog.variant_attribute_values,catalog.product_media,catalog.collections,catalog.collection_products,inventory.stock_levels,inventory.stock_movements,inventory.receipts,inventory.receipt_lines,inventory.stocktakes,inventory.stocktake_lines,pricing.sale_prices,content.redirects TO tp_app;
+GRANT SELECT ON media.assets,media.upload_sessions,catalog.product_types,catalog.attribute_definitions,catalog.attribute_options,catalog.materials,catalog.artisans,catalog.categories,catalog.products,catalog.product_categories,catalog.product_relations,catalog.variants,catalog.product_attribute_values,catalog.variant_attribute_values,catalog.product_media,catalog.collections,catalog.collection_products,inventory.stock_levels,inventory.stock_movements,inventory.receipts,inventory.receipt_lines,inventory.stocktakes,inventory.stocktake_lines,pricing.sale_prices,content.redirects TO tp_readonly;
+REVOKE UPDATE,DELETE,TRUNCATE,MAINTAIN ON inventory.stock_movements FROM tp_app;
+REVOKE ALL ON SEQUENCE catalog.sku_number_seq FROM PUBLIC,tp_app,tp_readonly;
+GRANT USAGE ON SEQUENCE catalog.sku_number_seq TO tp_app;
+GRANT SELECT ON SEQUENCE catalog.sku_number_seq TO tp_readonly;
+ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner IN SCHEMA media,catalog,inventory,pricing,content GRANT SELECT ON TABLES TO tp_readonly;
+ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner IN SCHEMA media,catalog,inventory,pricing,content GRANT USAGE ON SEQUENCES TO tp_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner IN SCHEMA media,catalog,inventory,pricing,content GRANT SELECT ON SEQUENCES TO tp_readonly;
+""";
+
     private const string PlatformAndIamGrants = """
 REVOKE ALL ON SCHEMA public,platform,iam FROM PUBLIC;
 GRANT USAGE ON SCHEMA public,platform,iam TO tp_app,tp_readonly;
