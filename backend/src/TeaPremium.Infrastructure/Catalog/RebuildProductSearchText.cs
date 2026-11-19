@@ -1,14 +1,10 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using TeaPremium.Application.Catalog;
 using TeaPremium.Application.Outbox;
 using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.Infrastructure.Catalog;
-
-public sealed record RebuildProductSearchText(Guid[] Ids)
-{
-    public const string Message = "RebuildProductSearchText";
-}
 
 // BR-CAT-10: idempotent redelivery recalculates from current persisted names, never stale payload names.
 public sealed class RebuildProductSearchTextHandler(AppDbContext db) : IOutboxHandler

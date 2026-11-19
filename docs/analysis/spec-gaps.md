@@ -87,3 +87,21 @@ Nguồn owner-approved ADR A01 và hai bổ sung backup/điều tra + owner th�
 | G38 | DESIGN_RISK từ review §8, map G21: 07 P1-01 whole schema vs deferred FK | CONTRACT_ALIGNED 25 bảng/5 schema + SKU sequence; EF migrations NOT RUN |
 
 OPEN được hoãn: hợp đồng variant key/import lại/ô trống/nhóm mâu thuẫn/atomicity P1-07, không tự upsert thiếu khóa. G03 trước P2-01; G04/G27/G29/G30 trước P2-10, G24/Q1–Q8 theo mốc cũ. Không dùng chúng chặn amendment/P1-01. D11 controlled backup và per-case investigation, BR-IAM-08 owner API cần kiểm operational/evidence ở closure/P3-10, không nhận PASS từ DDL chạy bằng postgres.
+
+## P1-04 — targeted audit 19/11/2026
+
+Audited HEAD `f2227a07aeb75e9e8e5af655378a3d85c6b4e6e7`;
+TARGETED, reuse full G1/A01/B01. Diff spec từ baseline P1-02
+`8791e8ac61f5de42815a84edbc0a0602ff177c26` rỗng. G02 về bảng redirects đã
+CONTRACT_ALIGNED; bảng/mapping/grants có tại P1-01. Không mở lại G02.
+
+| Phân loại / nguồn chính xác | Reproduction / tác động P1-04 | Phương án tối thiểu (PROPOSED, chờ owner) |
+|---|---|---|
+| **MISSING_CONTRACT baseline — lịch sử public.** `04-business-rules.md:53–58`, §CAT BR-CAT-08 yêu cầu đã từng public; baseline `schema.sql:226–242,244–257,259–279,392–408` không có dấu first publication cho bốn bảng. Các dòng này là citation tại audited HEAD trước amendment. | Public→hidden/archived→rename mất redirect nếu chỉ kiểm status; redirect table không ghi lịch sử khi chưa từng đổi slug. | Owner **approved in principle** thêm first_published_at; amendment local bổ sung bốn cột/lifecycle/assessment. Không backfill từ current status, không bịa timestamp. Populated target có lịch sử chưa rõ HOLD đến khi có evidence/phương án owner-approved. EF/runtime NOT IMPLEMENTED, amendment pending G4. |
+| **MISSING_CONTRACT baseline — publish gates/transitions.** `05-api.md:108`, §4.2 có /publish; baseline schema draft/published/archived. `09-seo.md:102` BR-SEO-35 ghi ≥400 từ; BR-CAT-04 chỉ định nghĩa publish product, BR-SEO-31/32 có defaults. | Chưa rõ publish gate hay index requirement, PATCH bypass và transitions. | Owner chốt /publish + catalog.publish, PATCH không bypass; server sanitize/schema/media validation, SEO defaults; **dưới 400 từ chỉ warning**, không blocker/noindex. Category/collection hidden/visible qua catalog.write. Amendment local đã căn chỉnh; runtime NOT IMPLEMENTED, amendment pending G4. |
+
+Hai câu trả lời owner đã được ghi trong [decision record](../decisions/ADR-P1-04-publication-history-and-publish.md).
+G2 **GO cho chuẩn bị amendment, HOLD migration/application tại gate review amendment**;
+không cần hỏi lại lựa chọn owner đã chốt, không HOLD vì Q1–Q8 hay P1-03.
+Readiness, file scope, dependency/outbox strategy, matrix và kết quả baseline tại
+[p1-04-implementation.md](../plans/p1-04-implementation.md).

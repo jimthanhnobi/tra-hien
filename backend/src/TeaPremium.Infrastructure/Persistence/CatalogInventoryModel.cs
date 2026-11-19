@@ -125,6 +125,8 @@ internal static class CatalogInventoryModel
                 t.HasCheckConstraint("ck_materials_kind", "kind IN ('clay','metal','glass','ceramic','porcelain','wood','stone','other')");
                 t.HasCheckConstraint("ck_materials_status", "status IN ('draft','published','archived')");
             });
+            b.Property(x => x.FirstPublishedAt).HasColumnName("first_published_at").HasColumnType("timestamp with time zone");
+            b.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").IsRowVersion();
             b.HasKey(x => x.Id).HasName("pk_materials");
             b.Property(x => x.Id).HasColumnName("id").HasColumnType("uuid").IsRequired().ValueGeneratedNever();
             b.Property(x => x.SkuCode).HasColumnName("sku_code").HasColumnType("text").IsRequired(false);
@@ -158,6 +160,8 @@ internal static class CatalogInventoryModel
                 t.HasCheckConstraint("ck_artisans_slug", "slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'");
                 t.HasCheckConstraint("ck_artisans_status", "status IN ('draft','published','archived')");
             });
+            b.Property(x => x.FirstPublishedAt).HasColumnName("first_published_at").HasColumnType("timestamp with time zone");
+            b.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").IsRowVersion();
             b.HasKey(x => x.Id).HasName("pk_artisans");
             b.Property(x => x.Id).HasColumnName("id").HasColumnType("uuid").IsRequired().ValueGeneratedNever();
             b.Property(x => x.Slug).HasColumnName("slug").HasColumnType("text").IsRequired();
@@ -184,6 +188,8 @@ internal static class CatalogInventoryModel
                 t.HasCheckConstraint("ck_categories_status", "status IN ('visible','hidden')");
                 t.HasCheckConstraint("ck_categories_row", "parent_id IS NULL OR parent_id <> id");
             });
+            b.Property(x => x.FirstPublishedAt).HasColumnName("first_published_at").HasColumnType("timestamp with time zone");
+            b.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").IsRowVersion();
             b.HasKey(x => x.Id).HasName("pk_categories");
             b.Property(x => x.Id).HasColumnName("id").HasColumnType("uuid").IsRequired().ValueGeneratedNever();
             b.Property(x => x.ParentId).HasColumnName("parent_id").HasColumnType("uuid").IsRequired(false);
@@ -388,6 +394,8 @@ internal static class CatalogInventoryModel
                 t.HasCheckConstraint("ck_collections_slug", "slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'");
                 t.HasCheckConstraint("ck_collections_status", "status IN ('visible','hidden')");
             });
+            b.Property(x => x.FirstPublishedAt).HasColumnName("first_published_at").HasColumnType("timestamp with time zone");
+            b.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").IsRowVersion();
             b.HasKey(x => x.Id).HasName("pk_collections");
             b.Property(x => x.Id).HasColumnName("id").HasColumnType("uuid").IsRequired().ValueGeneratedNever();
             b.Property(x => x.Slug).HasColumnName("slug").HasColumnType("text").IsRequired();

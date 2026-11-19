@@ -1,3 +1,6 @@
+using TeaPremium.Domain;
+using TeaPremium.Domain.Catalog;
+
 // P1-01 persistence only; business behavior belongs to later roadmap tasks.
 namespace TeaPremium.Infrastructure.Persistence;
 
@@ -76,8 +79,11 @@ public sealed class AttributeOption
     public bool IsActive { get; set; } = true;
 }
 
-public sealed class Material
+[Audited]
+public sealed class Material : ITaxonomyRecord
 {
+    public DateTime? FirstPublishedAt { get; set; }
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public string? SkuCode { get; set; }
     public string Slug { get; set; } = null!;
@@ -97,8 +103,11 @@ public sealed class Material
     public DateTime UpdatedAt { get; set; }
 }
 
-public sealed class Artisan
+[Audited]
+public sealed class Artisan : ITaxonomyRecord
 {
+    public DateTime? FirstPublishedAt { get; set; }
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public string Slug { get; set; } = null!;
     public string Name { get; set; } = null!;
@@ -115,8 +124,11 @@ public sealed class Artisan
     public DateTime UpdatedAt { get; set; }
 }
 
-public sealed class Category
+[Audited]
+public sealed class Category : ITaxonomyRecord
 {
+    public DateTime? FirstPublishedAt { get; set; }
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public Guid? ParentId { get; set; }
     public string Slug { get; set; } = null!;
@@ -238,8 +250,11 @@ public sealed class ProductMedia
     public bool IsCover { get; set; }
 }
 
-public sealed class CollectionRecord
+[Audited]
+public sealed class CollectionRecord : ITaxonomyRecord
 {
+    public DateTime? FirstPublishedAt { get; set; }
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public string Slug { get; set; } = null!;
     public string Name { get; set; } = null!;

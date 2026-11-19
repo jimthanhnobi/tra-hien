@@ -637,7 +637,7 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
 
         public static async Task<Harness> CreateAsync(PlatformDatabaseFixture fixture, bool production = false, bool trustedProxy = false)
         {
-            var database = "iam_" + Guid.NewGuid().ToString("N");
+            var database = "teapremium_test_iam_" + Guid.NewGuid().ToString("N");
             var owner = await fixture.CreateDatabaseAsync(database);
             var connection = DatabaseProvisioning.Login(owner, "tp_app");
             var time = new ManualTime();

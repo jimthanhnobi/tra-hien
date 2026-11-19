@@ -56,6 +56,7 @@
   3. Nếu đường mới đang là `source_path` của một redirect → xóa redirect đó (đường được dùng lại).
   4. Tất cả trong cùng transaction với việc đổi slug.
   Prefix: `/san-pham`, `/danh-muc`, `/bo-suu-tap`, `/chat-lieu`, `/nghe-nhan`, `/kien-thuc`, `/trang`.
+  P1-04: categories/collections/materials/artisans lưu `first_published_at` nullable để nhớ vĩnh viễn đã từng public. Set đúng một lần, từ thời gian server, trong transaction đầu tiên chuyển thành `visible` (category/collection) hoặc `published` (material/artisan), gồm tạo mới trực tiếp visible nếu API cho phép. Không reset/ghi đè khi hide/archive/republish/đổi tên/đổi slug. Đổi slug sau hide/archive vẫn áp luật trên. Với dữ liệu trước migration, không coi NULL là bằng chứng chưa từng public nếu lịch sử chưa xác minh; không suy ra quá khứ hoặc tự đặt timestamp từ current status. Xem `03-database.md` §3.10 về assessment/backfill.
 - **BR-CAT-09** Danh mục: tối đa 3 cấp, không vòng; danh mục `hidden` → trang 404 và không hiện menu (sản phẩm vẫn truy cập được qua URL riêng).
 - **BR-CAT-10** `products.search_text = f_unaccent(name ‖ subtitle ‖ mọi SKU ‖ tên variant ‖ tên artisan ‖ tên material ‖ tên product_type)`. Cập nhật khi lưu product/variant; khi đổi tên artisan/material/type → outbox `RebuildProductSearchText(ids)`.
 - **BR-CAT-11** Chỉ xét variant bán được (BR-CAT-15), không dùng NULL thành 0. Giá hiển thị trên thẻ sản phẩm: thấp nhất trong các giá hiệu lực (BR-PRC-01) của variant active còn hàng; nếu tất cả hết hàng thì lấy thấp nhất của mọi variant active. Có KM thì hiện giá gốc gạch ngang.

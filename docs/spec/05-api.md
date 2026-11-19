@@ -105,7 +105,7 @@ Tạo thêm owner (không bắt buộc) dùng POST `admin/staff` với `roles=["
 |---|---|---|
 | GET/POST/PATCH | `admin/product-types[/{id}]`, `.../{id}/attributes[/{attrId}]`, `.../attributes/{attrId}/options[/{optId}]` | read: `catalog.read`; ghi: `catalog.write` |
 | GET/POST/PATCH | `admin/categories[/{id}]`, `admin/collections[/{id}]`, `.../{id}/products` (PUT danh sách + thứ tự) | như trên |
-| GET/POST/PATCH | `admin/materials[/{id}]`, `admin/artisans[/{id}]`; POST `.../{id}/publish` | `catalog.write`, publish: `catalog.publish` |
+| GET/POST/PATCH | `admin/materials[/{id}]`, `admin/artisans[/{id}]`; POST `.../{id}/publish` | read: `catalog.read`; ghi: `catalog.write`; publish: `catalog.publish` |
 | GET | `admin/products?q=&status=&type=&category=&material=&artisan=&stock=low\|out\|in` | `catalog.read` |
 | POST | `admin/products` `{productTypeId, name, ...}` → tạo draft + 1 variant mặc định | `catalog.write` |
 | GET/PATCH | `admin/products/{id}` (thông tin, thuộc tính, danh mục, SEO, quan hệ) | `catalog.read`/`write` |
@@ -118,6 +118,33 @@ Tạo thêm owner (không bắt buộc) dùng POST `admin/staff` với `roles=["
 | POST | `admin/media/upload-intents` `{fileName, mimeType, byteSize, purpose, slugHint?}` → `{uploadId, putUrl, headers, expiresAt}` | `catalog.write` hoặc `content.write` hoặc `returns.write` (purpose=evidence) |
 | POST | `admin/media/upload-intents/{id}/complete` → asset | như trên |
 | GET | `admin/media?q=&purpose=` | `catalog.read` |
+
+P1-04 (FR-CAT-02/03/08): GET categories/collections/materials/artisans dùng `catalog.read`; ghi CRUD và PUT danh sách sản phẩm của collection dùng `catalog.write`. Material/artisan từ `draft` hoặc `archived` sang `published` chỉ qua POST `.../{id}/publish` với `catalog.publish`; POST tạo mới/PATCH bằng `catalog.write` không được đưa entity sang published để vượt quyền. Kiểm name/slug, kind của material và schema constraints; rich HTML sanitize ở server, media nếu có phải là ảnh hợp lệ dùng công khai. Điều kiện product BR-CAT-04 không áp sang material/artisan. SEO trống theo fallback BR-SEO-31/32; nội dung dưới 400 từ plain text đã sanitize trả cảnh báo chất lượng nội dung, không chặn publish và không tự set `robots_noindex` (BR-SEO-35). Category/collection dùng hidden/visible qua `catalog.write`, không thêm endpoint /publish. Mọi public transition giữ `first_published_at` theo BR-CAT-08; không tự thêm redirect khi archive ngoài luật đã có.
+
+**P1-04 — response publish material/artisan.** Hai endpoint POST `admin/materials/{id}/publish` và `admin/artisans/{id}/publish` trả HTTP **200** sau public transition thành công. Các field nghiệp vụ bắt buộc là `id`, `status`, `warnings`; quy ước `rowVersion` opaque của aggregate vẫn theo §1. Ví dụ phần nghiệp vụ khi đạt mục tiêu nội dung:
+
+```json
+{
+  "id": "<entity-id>",
+  "status": "published",
+  "warnings": []
+}
+```
+
+Nếu dưới 400 từ, vẫn HTTP 200, `status = published`; `warnings` chứa đúng một object cảnh báo số từ với cấu trúc sau (ví dụ artisan 399 từ):
+
+```json
+{
+  "code": "content_below_recommended_words",
+  "field": "bioHtml",
+  "actualWords": 399,
+  "recommendedWords": 400
+}
+```
+
+Material dùng `field = descriptionHtml`, artisan dùng `field = bioHtml`; `actualWords` là số nguyên không âm từ phép đếm BR-SEO-35 trong `09-seo.md`, `recommendedWords` luôn 400. Nguồn duy nhất là `description_html`/`bio_html`: sanitize server, loại toàn bộ script/style, trích visible text có ranh giới block, decode entities, chuẩn hóa Unicode/NBSP rồi gộp whitespace và đếm token không rỗng. Không tính summary/SEO/product listings/related articles/boilerplate. NULL/rỗng/text rỗng sau sanitize → 0 từ và warning; 399 → warning; 400/401 → `warnings: []`. Không dùng `thin_description_noindex`, không tự bật/tắt `robots_noindex` hoặc thêm publish blocker vì số từ/nguồn SEO optional rỗng.
+
+SEO fallback material/artisan thực hiện đúng BR-SEO-31/32 trong `09-seo.md` (DEC-21): explicit SEO ưu tiên, bỏ qua nguồn trống, dùng tên thực tế và brand cấu hình nếu có; artisan không suy chất liệu chính từ sản phẩm. Không ghi fallback đè các field SEO Admin đã lưu. Cảnh báo chỉ có trên response thành công, không thay auth/CSRF/validation/transaction: thiếu đăng nhập/quyền hoặc CSRF không hợp lệ vẫn bị từ chối theo §1/§4 và không publish.
 
 Upload/complete tuân 02 §5.10/schema: ảnh ≤15 MiB, evidence mp4/quicktime ≤50 MiB, kiểm object thực, private/presigned GET có kiểm quyền. Product/variant write/publish/kích hoạt tuân BR-CAT-14/15; inactive/giá NULL không đưa storefront/cart/order/feed/JSON-LD, không tự đổi SKU khi sửa type/material/thêm variant.
 

@@ -11,6 +11,7 @@ using TeaPremium.Api.Iam;
 using TeaPremium.Api.Settings;
 using TeaPremium.Api.Media;
 using TeaPremium.Infrastructure.Media;
+using TeaPremium.Infrastructure.Catalog;
 using TeaPremium.Api.Catalog;
 
 // Import arguments are file paths, never deployment configuration or host options.
@@ -43,6 +44,7 @@ builder.Services.AddPlatformPersistence(builder.Configuration);
 builder.Services.AddStaffIdentity(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddAdminSecurity(builder.Configuration);
 builder.Services.AddMedia(builder.Configuration, builder.Environment);
+builder.Services.AddCatalog();
 builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSection("OutboxDispatcher"));
 builder.Services.AddHostedService<OutboxDispatcher>();
 // Scaffold/OpenAPI generation can start without a DB. Production supplies this setting.
@@ -88,6 +90,7 @@ app.MapStaffIam();
 app.MapSettings();
 app.MapMedia();
 app.MapCatalogReference();
+app.MapCatalog();
 
 app.Run();
 

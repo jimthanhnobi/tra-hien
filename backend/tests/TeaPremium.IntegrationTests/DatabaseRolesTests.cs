@@ -145,7 +145,7 @@ SELECT NOT has_table_privilege('tp_app','platform.closure_default_probe','INSERT
         await DatabaseProvisioning.MigrateAsync(owner);
         await using var connection = new NpgsqlConnection(DatabaseProvisioning.Login(owner, "tp_app"));
         await connection.OpenAsync();
-        Assert.Equal(5L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+        Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
     }
 
     [Fact]
@@ -372,7 +372,7 @@ VALUES ('00000000-0000-7000-8000-000000000097','fake',1,'2026-01-01','import','{
         var runtime = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_app", "teapremium_test");
         await using var connection = new NpgsqlConnection(runtime);
         await connection.OpenAsync();
-        Assert.Equal(5L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+        Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
     }
 
     [Theory]
@@ -400,7 +400,7 @@ VALUES ('00000000-0000-7000-8000-000000000097','fake',1,'2026-01-01','import','{
         Assert.Equal(before, await FingerprintAsync(owner));
         await using var connection = new NpgsqlConnection(owner);
         await connection.OpenAsync();
-        Assert.Equal(5L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+        Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
         Assert.Equal(true, await ScalarAsync(connection, $"""
 SELECT a.is_grantable FROM pg_namespace n CROSS JOIN LATERAL aclexplode(n.nspacl) a
 JOIN pg_roles gr ON gr.oid=a.grantee WHERE n.nspname='{schema}' AND gr.rolname='{role}' AND a.privilege_type='USAGE'
@@ -495,7 +495,7 @@ WHERE c.oid='platform.data_protection_keys'::regclass AND a.grantee='{role}'::re
         await connection.OpenAsync();
         const string historyState = "SELECT string_agg(\"MigrationId\",',' ORDER BY \"MigrationId\") FROM public.\"__EFMigrationsHistory\"";
         var history = await ScalarAsync(connection, historyState);
-        Assert.Equal(closurePending ? 3L : 5L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+        Assert.Equal(closurePending ? 3L : 6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
         const string aclState = """
 SELECT concat(
  (SELECT jsonb_agg(jsonb_build_array(c.oid,c.relacl::text) ORDER BY c.oid)
@@ -580,7 +580,7 @@ CROSS JOIN LATERAL aclexplode(c.relacl) a WHERE n.nspname IN ('platform','iam','
                 Assert.True(first.Code == 0, first.Output);
                 var second = await RunToolAsync(container, preflightOnly: false, checkout);
                 Assert.True(second.Code == 0, second.Output);
-                Assert.Equal(5L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+                Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
             }
         }
         finally
