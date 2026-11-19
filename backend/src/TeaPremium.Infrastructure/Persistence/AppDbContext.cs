@@ -8,6 +8,12 @@ namespace TeaPremium.Infrastructure.Persistence;
 
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<StaffUser, IdentityRole<Guid>, Guid>(options), IDataProtectionKeyContext
 {
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // All DDL indexes (including IAM/platform) are explicitly configured.
+        configurationBuilder.Conventions.Remove<Microsoft.EntityFrameworkCore.Metadata.Conventions.ForeignKeyIndexConvention>();
+    }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsIdGenerator, RepositoryMigrationIds>();
 
@@ -26,6 +32,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     {
         base.OnModelCreating(builder);
         IamModel.Configure(builder);
+        CatalogInventoryModel.Configure(builder);
         TeaPremium.Infrastructure.AdministrativeData.AdministrativeImportModel.Configure(builder);
         builder.HasPostgresExtension("unaccent");
         builder.HasPostgresExtension("pg_trgm");
@@ -127,7 +134,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         {
             foreach (var property in entity.GetProperties())
             {
-                property.SetColumnName(ToSnakeCase(property.Name));
+                if (property.FindAnnotation("Relational:ColumnName") is null)
+                    property.SetColumnName(ToSnakeCase(property.Name));
                 if (property.GetColumnType() is not null) continue;
                 property.SetColumnType(property.ClrType switch
                 {
@@ -136,7 +144,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
                     var t when t == typeof(DateTime) || t == typeof(DateTime?) => "timestamp with time zone",
                     var t when t == typeof(DateTimeOffset) || t == typeof(DateTimeOffset?) => "timestamp with time zone",
                     var t when t == typeof(int) || t == typeof(int?) => "integer",
-                    var t when t == typeof(bool) => "boolean",
+                    var t when t == typeof(long) || t == typeof(long?) => "bigint",
+                    var t when t == typeof(bool) || t == typeof(bool?) => "boolean",
                     _ => throw new InvalidOperationException($"Unmapped PostgreSQL type: {entity.Name}.{property.Name}")
                 });
             }
