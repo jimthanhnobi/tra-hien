@@ -47,7 +47,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 
 | ID | Task | Size | Phụ thuộc |
 |---|---|---|---|
-| P1-01 | Migration 25 bảng: media.assets/upload_sessions; 15 bảng catalog trừ product_reviews/review_media; 6 bảng inventory trừ reservations; pricing.sale_prices; content.redirects + catalog.sku_number_seq theo schema.sql. Hoãn reservations + fk_reservations_line → P2-05, reviews/media → P5-07; grants 03 §4, bigint/numeric theo cột, xmin/rowVersion. Không use case/seed/API/UI | M | P0 (closure #1, #2 và nghiệm thu xong) |
+| P1-01 | Migration 25 bảng: media.assets/upload_sessions; 15 bảng catalog trừ product_reviews/review_media; 6 bảng inventory trừ reservations; pricing.sale_prices; content.redirects + catalog.sku_number_seq theo schema.sql. Hoãn reservations + fk_reservations_line → P2-05, reviews/media → P5-07; grants 03 §4, bigint/numeric theo cột, xmin/rowVersion. Không use case/seed/API/UI | M | P0 nền + Closure #1 và B01 G4/CI/merge; scoped C1–C3 + owner giao G3 riêng (DB disposable/dữ liệu giả). Closure #2 và manual HTTPS/owner acceptance không là prerequisite; nghiệm thu vận hành trước dữ liệu thật/go-live theo B01 ở trên |
 | P1-02 | Media: R2 presigned upload, complete, thư viện ảnh; bucket private cho evidence; ảnh ≤15 MiB, evidence mp4/mov ≤50 MiB private, R2 token theo bucket/dev-prod riêng, slugHint/complete 02 §5.10 | M | P1-01 |
 | P1-03 | Product types, thuộc tính, options (CRUD + validate kiểu) + lệnh `seed-catalog-reference` (03 §6) | M | P1-01 |
 | P1-04 | Categories (cây ≤ 3 cấp), collections, materials, artisans (CRUD, publish, slug + redirect BR-CAT-08) | M | P1-01 |

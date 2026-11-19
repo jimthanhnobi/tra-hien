@@ -1,8 +1,8 @@
 # Mức sẵn sàng task P0–P6
 
-**Cập nhật B01 (18/11/2026):** PR #20/#21 đã merge A01; Closure #1 qua [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22), merge SHA `606fd2e279eb766976db18473cd45e7cbd142108`. B01 [PR #23](https://github.com/jimthanhnobi/tra-hien/pull/23) đã merge SHA `9eb5e566dafc3dade3365f3b6a785a53ac116002`; PR/merge CI 3/3 PASS. G4 B01 **CONDITIONAL hậu merge** vì một P2 về hồ sơ P1-01, phải focused re-review sau correction; không tự nhận G4 PASS trước merge. Các ghi chú GO/HOLD cũ là lịch sử.
+**Cập nhật B01 (19/11/2026):** PR #22–#25 đã merge; CI tại từng PR HEAD/merge SHA PASS, baseline `origin/main` = `dadc4435e8f115faaeb9e8511e56e09d5d517a8a`. G4 #24/#25 PASS tại đúng HEAD theo **OWNER-PROVIDED REVIEWER EVIDENCE**, các finding CLOSED; không phải GitHub VERIFIED REVIEW. C1/C2/C3 PASS về readiness; owner chưa giao P1-01 G3. Targeted G1/G2 và bằng chứng ở mục hậu kiểm cuối file; các ghi chú GO/HOLD cũ giữ làm lịch sử.
 
-**Trạng thái:** PROPOSED. Bám `docs/spec/07-roadmap.md`; giữ nguyên mọi ID task và AC, không sửa dependency trong spec. Đối chiếu `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md` và [rà soát kiến trúc](../architecture/conformance-review.md). “GO” ở đây là đủ rõ để giao task theo gate G2/G3 của `AGENTS.md`, không phải xác nhận code đã chạy.
+**Trạng thái:** PROPOSED. Bám `docs/spec/07-roadmap.md`; giữ nguyên mọi ID task và AC. Lần hậu kiểm 19/11 chỉ sửa dependency P1-01 còn sót theo B01, được owner cho phép riêng. Đối chiếu `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md` và [rà soát kiến trúc](../architecture/conformance-review.md). “GO” ở đây là đủ rõ để giao task theo gate G2/G3 của `AGENTS.md`, không phải xác nhận code đã chạy.
 
 Riêng **F-02 contract/DDL đã OWNER APPROVED sau independent focused G4 PASS**, tài liệu được gộp tại `cf833bb149771b4380bce82d82769166a73ac145`. Dòng F-02 dưới đây và §9 của readiness doc ghi gate hiện hành; các hồ sơ P0-01/P0-04 bên dưới giữ mốc lịch sử của chúng.
 
@@ -97,7 +97,7 @@ git diff --check
 
 P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi tại thời điểm lập kế hoạch. Ngày 16/11/2026, owner duyệt G26 Option B/G01 Option B và chấp nhận bản sửa `docs/spec/` sau G4 GO. Hai ADR trong `docs/decisions/` giữ lịch sử đề xuất. **G26/G01 SPEC AMENDMENT — OWNER ACCEPTED (G4 GO); F-01 DDL AMENDMENT — OWNER APPROVED (G4 GO); P0-04 IMPLEMENTATION — NOT AUTHORIZED.** `docs/plans/p0-04-readiness.md` ghi ma trận F-01 đã duyệt và DDL đã qua G4 độc lập. F-02 là điều kiện riêng của P0-09/CRM; AC-P0-04 chỉ kiểm được khi P0-05/P0-09 triển khai cùng schema đã chốt.
 
-## B01 — trạng thái hiện hành sau PR #23 (18/11/2026)
+## B01 — lịch sử trạng thái sau PR #23 (18/11/2026)
 
 | Phạm vi | Trạng thái / gate |
 |---|---|
@@ -110,3 +110,45 @@ P0-01…P0-03 đã được gộp; hướng dẫn P0-01 bên trên là bản ghi
 | P1-07 | Import variant key/match/upsert vẫn OPEN tại task P1-07; không chặn P1-01. |
 
 Không dùng `tp_readonly` để điều tra/query tay. B01 không cấp quyền triển khai production hoặc tự động bỏ G4/CI. Trạng thái lịch sử A01 xem [ADR A01](../decisions/ADR-PROPOSAL-A01-p0-closure-p1-owner-decisions.md); cập nhật mới ở [ADR B01](../decisions/ADR-B01-right-sized-operations.md).
+
+## B01 — hậu kiểm merge và targeted G1/G2 P1-01 (19/11/2026)
+
+**Input/base/HEAD:** `dadc4435e8f115faaeb9e8511e56e09d5d517a8a` = `origin/main` sau `git fetch origin --prune`; worktree ban đầu sạch. Branch local `docs/b01-postmerge-p1-readiness`, delta chưa commit. Owner chỉ cho phép sửa tài liệu và dependency P1-01 còn sót; chưa giao P1-01 G3. Scope đúng ba file: `docs/spec/07-roadmap.md`, tài liệu này và `p1-01-implementation.md`; không application/DB/migration/DDL change.
+
+### Merge, G4 và CI là các loại evidence riêng
+
+GitHub connector GET `/repos/jimthanhnobi/tra-hien/pulls/{22..25}`, Actions runs lọc `head_sha`/event và jobs từng run đã xác minh bảng dưới. Mọi run đều completed/success; cả ba required jobs **Backend and API contract**, **Frontend verification**, **Docker regression builds** PASS. #25 còn job classifier PASS; steps xác nhận chạy full suite ở PR/merge vì có thay đổi workflow/scripts, không phải evidence fast path của delta docs hiện tại.
+
+| PR | Published HEAD → merge SHA (MERGED) | PR CI → push-main CI |
+|---|---|---|
+| [#22 Closure #1](https://github.com/jimthanhnobi/tra-hien/pull/22) | `86d8b561dc5a2db22a151eb499fb2a8512769cd0` → `606fd2e279eb766976db18473cd45e7cbd142108` | [44270404911](https://github.com/jimthanhnobi/tra-hien/actions/runs/44270404911) → [44271243633](https://github.com/jimthanhnobi/tra-hien/actions/runs/44271243633) |
+| [#23 B01](https://github.com/jimthanhnobi/tra-hien/pull/23) | `8a8705efacfffec828509a85b3fcc1d49755a31d` → `9eb5e566dafc3dade3365f3b6a785a53ac116002` | [44273381605](https://github.com/jimthanhnobi/tra-hien/actions/runs/44273381605) → [44274534732](https://github.com/jimthanhnobi/tra-hien/actions/runs/44274534732) |
+| [#24 correction G4 B01](https://github.com/jimthanhnobi/tra-hien/pull/24) | `e10f62205d47e87ac5ecd1e28ed1155912d6b54e` → `a98bfecb7a250274054691e2f1fab395c6a7a0cd` | [44276146670](https://github.com/jimthanhnobi/tra-hien/actions/runs/44276146670) → [44277756402](https://github.com/jimthanhnobi/tra-hien/actions/runs/44277756402) |
+| [#25 CI fast path](https://github.com/jimthanhnobi/tra-hien/pull/25) | `d4027538dd95c47a801370a2d7e0a24527035253` → `dadc4435e8f115faaeb9e8511e56e09d5d517a8a` | [44282026876](https://github.com/jimthanhnobi/tra-hien/actions/runs/44282026876) → [44432480073](https://github.com/jimthanhnobi/tra-hien/actions/runs/44432480073) |
+
+- **OWNER-PROVIDED REVIEWER EVIDENCE:** owner xác nhận ngày 19/11, reviewer trong các phiên Codex độc lập: #24 focused G4 Tier A **PASS**, P2 **CLOSED**, không actionable finding, reviewed HEAD `e10f62205d47e87ac5ecd1e28ed1155912d6b54e`; #25 independent focused G4 **PASS**, P1/P2 **CLOSED**, READY_FOR_OWNER_MERGE YES, reviewed HEAD cuối `d4027538dd95c47a801370a2d7e0a24527035253`. Reviewer #25 báo 23/23 regression, actionlint và independent probes PASS. Đây là kết quả reviewer do owner cung cấp, **không phải GitHub VERIFIED REVIEW** hoặc checks do phiên readiness chạy lại.
+- GitHub Review API không có verdict cho #24/#25; comment BLOCK trước đó là lịch sử, đã được verdict cuối do owner cung cấp thay thế. #23 CONDITIONAL được focused correction #24 đóng; không hồi tố PASS trước merge #23, không mở lại finding đã CLOSED khi chưa có lỗi mới. #22 G4 PASS/463 tests theo evidence owner đã lưu trong mục lịch sử phía trên; CI được xác minh riêng.
+- `git show -s --format='%H%n%P%n%s' <merge-SHA>` và `git diff --exit-code <reviewed-HEAD> <merge-SHA>` cho #24/#25: reviewed HEAD đúng parent thứ hai của merge, tree diff rỗng (exit 0). Bản raw reviewer report #24/#25 chưa có artifact riêng trong repo; đoạn này lưu tóm tắt và nguồn owner. Có thể đính kèm report gốc để lưu trữ nếu cần, không thay xác nhận owner bằng approval tự bịa.
+
+### Targeted G1/G2 và nền migration
+
+Tái sử dụng full G1 `cadce575597738bf40ad7c45689482de5a5fbc3d`, G2 [conformance-review](../architecture/conformance-review.md), targeted A01 và [evidence A01](../reviews/a01-amendment-evidence.md). Đã kiểm diff spec từ full baseline và từ A01 merge `024ea998c43baf0afde30b069ed6b4876cb96f4a`: sau A01 chỉ B01 đổi 00/01/02/04/05/06/07 và #25 đổi 06 §7 CI. `03-database.md`/`schema.sql` không đổi từ A01; từ B01 merge #23 tới baseline chỉ 06 §7 đổi. Phạm vi này là **TARGETED**, không phải full audit mới hay đổi kiến trúc.
+
+| Đối chiếu có mục tiêu | Kết quả / deliverable đúng mốc |
+|---|---|
+| Dependency conflict, `07-roadmap.md` §P1 dòng P1-01 so với §P0 đoạn B01; `06-infrastructure.md` §11; ADR-B01 §Phân định gate | **CONFIRMED_CONFLICT:** dòng cũ yêu cầu “closure #1, #2 và nghiệm thu xong”, các nguồn B01 cho DDL giả không chờ #2/manual HTTPS/owner. Owner cho phép sửa đúng ô dependency; scope/ID/AC giữ nguyên, không thay gate dữ liệu thật. |
+| DDL, `schema.sql` MEDIA/CATALOG/INVENTORY/PRICING sale_prices/CONTENT redirects; `03-database.md` §1/§3.1–3.3/§3.7–3.8/§4/§8 | Đúng 25 bảng = 2 media + 15 catalog + 6 inventory + sale_prices + redirects, sequence sku_number_seq; FK trong tập này khép kín. `reserved` có ngay; reservations/FK → P2-05, reviews/media → P5-07, vouchers → P2-01. Giữ UNIQUE/CHECK/EXCLUDE/GIN, money bigint, EAV numeric(12,2), inactive NULL và manual noindex/count theo A01; chưa chạy DDL P1 mới. |
+| DB role/SQL/helper, `infra/postgres/{init-roles.sql,init-roles.sh,protect-credentials.sql,preflight.sql}`, `GrantsSql.cs`, `scripts/dev-migrate.ps1` | Có đủ trong base, không đổi từ #22. SQL bảo vệ credential mỗi connect, không reset password/repair drift; preflight trước toàn migration chain; locked restore trước build. Preflight shared được nhúng nguyên với grants cố định trong migration closure; helper hiện chỉ PlatformAndIam. Mở rộng helper cho 5 schema/sequence SKU/append-only stock_movements là P1-01 G3, không gọi helper động từ migration lịch sử. |
+| Migration/EF baseline, `Persistence/Migrations`, `AppDbContext.cs`, `03-database.md` §1, `05-api.md` §1 | Đúng 4 migration: `202611161624_InitialPlatform`, `202611170919_StaffIam`, `202611180001_SettingsAdministrativeData`, `202611180710_ReconcileRuntimeGrants`. EF Core/design 10.0.15, Npgsql 10.0.3, snapshot hiện platform/IAM, chưa có P1. Loop snake_case/type mapping chưa đáp ứng long/decimal/xmin P1; §2/§3/A7 task record đã yêu cầu bổ sung đúng cột, bảo vệ system xmin. rowVersion opaque, IAM ConcurrencyStamp riêng; không tạo cột xmin/version thường. |
+| Spec/test traceability và feasibility | P1-01; DEC-01/04/05/06/20/21/25–30, FR-CAT/FR-INV đã liệt kê trong task record, BR-CAT-02/04/08/10/14/15, BR-INV-01/02/07/10, BR-PRC-01/02, NFR-04/08/09. A1–A9 của task record là kế hoạch parity/SQLSTATE/permission/concurrency/Down/idempotence, chưa phải AC-P1 nghiệp vụ PASS. G02/G21/G34/G38 đã có contract; import key P1-07 và quyết định pha sau không chặn P1-01. Không cần kiến trúc/roadmap mới. |
+
+**C1 PASS / C2 PASS / C3 PASS về readiness.** Không phát hiện blocker kỹ thuật/contract còn lại cho migration disposable. Chưa triển khai mapping/migration/tests P1 là deliverable G3, không phải precondition. Nghiệm thu HTTPS, owner thật đổi password/TOTP, CSRF/lockout/logout, settings audit, backup mã hóa/restore và runtime-role đúng môi trường vẫn **NOT RUN trước dữ liệu thật/go-live**; không ghi P0 DONE. Closure #2 CLI/coverage DEFERRED, owner thứ hai tùy chọn.
+
+### Kiểm chứng và handoff local
+
+- `dotnet tool run dotnet-ef migrations has-pending-model-changes --no-build --context AppDbContext --project backend/src/TeaPremium.Infrastructure --startup-project backend/src/TeaPremium.Infrastructure`: exit 0, “No changes have been made to the model since the last migration.” Dùng connection design-only loopback port 1, khôi phục env sau lệnh; không truy cập DB. `--no-build` dùng artifact local, không thay full build ở CI baseline đã xác minh.
+- `python -` (script inline qua PowerShell here-string UTF-8): exit 0, kiểm tĩnh PASS target 25 bảng/FK khép kín, 4 migration IDs, frozen closure SQL = shared preflight + helper grants; chỉ ô dependency P1-01 đổi trong spec. Không chạy migration, DB hoặc application test trong delta docs này.
+- `python scripts/test-ci-fastpath.py`: exit 0, **23/23 PASS** (cả PR/push, fail-closed và link/deletion/reference regression). Cùng script `python -` gọi `is_docs_only`/`validate_changed_docs` trên diff local thực: PASS đúng ba Markdown, đủ điều kiện `docs_only=true`, UTF-8/fences/trailing whitespace/local links hợp lệ. `git diff --check origin/main`; `git diff --cached --check`: exit 0, không diagnostic; staged/untracked rỗng. CI cho delta chưa publish là **NOT RUN**; local classification không phải GitHub Actions fast-path PASS. Khi owner cho publish sau G4, PR chỉ ba Markdown này đủ điều kiện fast path theo 06 §7, vẫn phải kiểm ba required jobs tại published HEAD.
+- Migration/rollback của lần sửa này: không có; revert đúng delta ba docs nếu cần. P1-01 sau này thêm migration, không sửa bốn migration cũ; recovery/Down an toàn theo task record §7.
+
+**READY_FOR_FOCUSED_G4** cho delta tài liệu hiện tại; reviewer độc lập đọc cùng worktree, full committed/staged/unstaged/untracked diff so `origin/main`, kiểm dependency và nguồn G4/CI. **READY_FOR_P1_01_G3: YES** là kết luận readiness; **NOT AUTHORIZED G3** cho tới owner giao riêng. Không commit/push/PR/merge và không triển khai P1-01 trong phiên này.
