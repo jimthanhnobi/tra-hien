@@ -11,12 +11,23 @@ using TeaPremium.Api.Iam;
 using TeaPremium.Api.Settings;
 using TeaPremium.Api.Media;
 using TeaPremium.Infrastructure.Media;
+using TeaPremium.Api.Catalog;
 
 // Import arguments are file paths, never deployment configuration or host options.
 // Leave the ordinary API/bootstrap-owner command-line behavior unchanged.
 var importCommand = args.FirstOrDefault() == "import-provinces";
-var builder = WebApplication.CreateBuilder(importCommand ? [] : args);
-builder.Services.AddOpenApi(options => options.AddDocumentTransformer(SettingsOpenApi.TransformAsync));
+var catalogSeedCommand = args.FirstOrDefault() == "seed-catalog-reference";
+var builder = WebApplication.CreateBuilder(importCommand || catalogSeedCommand ? [] : args);
+if (catalogSeedCommand && SeedCatalogReferenceConsole.Preflight(args, builder.Environment.EnvironmentName,
+    builder.Configuration.GetConnectionString("Default")) is { } seedError)
+{
+    Console.Error.WriteLine(seedError); Environment.ExitCode = 2; return;
+}
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer(SettingsOpenApi.TransformAsync);
+    options.AddDocumentTransformer(CatalogOpenApi.TransformAsync);
+});
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = false);
@@ -40,6 +51,12 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Defaul
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditContext, HttpAuditContext>();
 var app = builder.Build();
+
+if (catalogSeedCommand)
+{
+    Environment.ExitCode = await SeedCatalogReferenceConsole.RunAsync(app.Services);
+    return;
+}
 
 if (args is ["bootstrap-owner"])
 {
@@ -70,6 +87,7 @@ app.UseMiddleware<IdempotencyRequestBufferingMiddleware>();
 app.MapStaffIam();
 app.MapSettings();
 app.MapMedia();
+app.MapCatalogReference();
 
 app.Run();
 
