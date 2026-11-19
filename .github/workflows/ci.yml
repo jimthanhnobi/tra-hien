@@ -93,6 +93,7 @@ jobs:
       - name: PostgreSQL 17 Testcontainers and all backend tests
         if: ${{ needs.scope.outputs.docs_only == 'false' }}
         run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
           docker info
           dotnet test backend/TeaPremium.sln --no-build --no-restore --logger trx --results-directory "$GITHUB_WORKSPACE/artifacts/test-results"
       - name: Reject skipped or empty test runs

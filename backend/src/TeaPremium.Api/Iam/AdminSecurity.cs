@@ -71,6 +71,7 @@ public static class AdminSecurity
         });
         services.AddRateLimiter(options =>
         {
+            options.AddConcurrencyLimiter("media", policy => { policy.PermitLimit = 2; policy.QueueLimit = 0; });
             options.AddPolicy("staff-login", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
                 { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));

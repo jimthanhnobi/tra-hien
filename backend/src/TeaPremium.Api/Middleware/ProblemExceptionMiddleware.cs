@@ -22,6 +22,10 @@ public sealed class ProblemExceptionMiddleware(RequestDelegate next, ILogger<Pro
         {
             await next(context);
         }
+        catch (TeaPremium.Application.Media.MediaStorageException)
+        {
+            await TeaPremium.Api.Iam.AdminSecurity.Problem(context, 503, "media_storage_unavailable").ExecuteAsync(context);
+        }
         catch (DomainException exception)
         {
             DomainRejected(logger, context.TraceIdentifier, null);
