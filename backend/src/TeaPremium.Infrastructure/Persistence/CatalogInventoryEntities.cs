@@ -32,6 +32,7 @@ public sealed class UploadSession
     public Guid? AssetId { get; set; }
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class ProductType
 {
     public Guid Id { get; set; }
@@ -46,6 +47,7 @@ public sealed class ProductType
     public DateTime UpdatedAt { get; set; }
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class AttributeDefinition
 {
     public Guid Id { get; set; }
@@ -63,6 +65,7 @@ public sealed class AttributeDefinition
     public bool IsActive { get; set; } = true;
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class AttributeOption
 {
     public Guid Id { get; set; }
