@@ -33,7 +33,7 @@ public sealed class P009Harness : IAsyncDisposable
     public Guid OwnerId { get; private set; }
     public string OwnerStamp { get; private set; } = "";
 
-    public static async Task<P009Harness> CreateAsync(PlatformDatabaseFixture fixture)
+    public static async Task<P009Harness> CreateAsync(PlatformDatabaseFixture fixture, Action<IServiceCollection>? configureServices = null)
     {
         var database = "teapremium_test_" + Guid.NewGuid().ToString("N");
         var owner = await fixture.CreateDatabaseAsync(database);
@@ -65,6 +65,7 @@ public sealed class P009Harness : IAsyncDisposable
                 // Explicitly share the production key repository/certificate with real CLI processes.
                 services.AddDataProtection().SetApplicationName("teapremium").PersistKeysToDbContext<AppDbContext>()
                     .ProtectKeysWithCertificate(certificate);
+                configureServices?.Invoke(services);
             });
         });
         var result = new P009Harness

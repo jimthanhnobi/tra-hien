@@ -1,5 +1,11 @@
 /.gitattributes text eol=lf
 /backend/** text eol=lf
+/backend/tests/TeaPremium.IntegrationTests/Fixtures/media/*.png binary -eol
+/backend/tests/TeaPremium.IntegrationTests/Fixtures/media/*.jpg binary -eol
+/backend/tests/TeaPremium.IntegrationTests/Fixtures/media/*.webp binary -eol
+/backend/tests/TeaPremium.IntegrationTests/Fixtures/media/*.avif binary -eol
+/backend/tests/TeaPremium.IntegrationTests/Fixtures/media/*.mp4 binary -eol
+/backend/tests/TeaPremium.IntegrationTests/Fixtures/media/*.mov binary -eol
 /apps/** text eol=lf
 /packages/** text eol=lf
 /global.json text eol=lf

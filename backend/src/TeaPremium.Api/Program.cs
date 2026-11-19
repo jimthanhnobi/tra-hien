@@ -9,6 +9,8 @@ using TeaPremium.Infrastructure.Persistence;
 using TeaPremium.Infrastructure.Iam;
 using TeaPremium.Api.Iam;
 using TeaPremium.Api.Settings;
+using TeaPremium.Api.Media;
+using TeaPremium.Infrastructure.Media;
 
 // Import arguments are file paths, never deployment configuration or host options.
 // Leave the ordinary API/bootstrap-owner command-line behavior unchanged.
@@ -20,10 +22,16 @@ builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = false);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogLevel.Warning);
+// Provider exception text/SQL can contain PII or credentials even with parameter logging disabled.
+// Application middleware logs a safe event/trace ID for failures instead.
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.None);
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Update", LogLevel.None);
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Query", LogLevel.None);
 builder.Services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
 builder.Services.AddPlatformPersistence(builder.Configuration);
 builder.Services.AddStaffIdentity(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddAdminSecurity(builder.Configuration);
+builder.Services.AddMedia(builder.Configuration, builder.Environment);
 builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSection("OutboxDispatcher"));
 builder.Services.AddHostedService<OutboxDispatcher>();
 // Scaffold/OpenAPI generation can start without a DB. Production supplies this setting.
@@ -61,6 +69,7 @@ app.UseRateLimiter();
 app.UseMiddleware<IdempotencyRequestBufferingMiddleware>();
 app.MapStaffIam();
 app.MapSettings();
+app.MapMedia();
 
 app.Run();
 
