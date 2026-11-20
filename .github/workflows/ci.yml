@@ -5,6 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -28,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
-      docs_only: ${{ steps.classify.outputs.docs_only }}
+      mode: ${{ steps.classify.outputs.mode }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -56,68 +57,68 @@ jobs:
       - name: Require valid CI scope
         env:
           SCOPE_RESULT: ${{ needs.scope.result }}
-          DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          CI_MODE: ${{ needs.scope.outputs.mode }}
         run: |
           test "$SCOPE_RESULT" = "success"
-          case "$DOCS_ONLY" in true|false) ;; *) echo "CI scope unavailable"; exit 1 ;; esac
-      - name: Documentation-only status
-        if: ${{ needs.scope.outputs.docs_only == 'true' }}
-        run: echo "Documentation validated by the CI scope job; heavy steps skipped."
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+          case "$CI_MODE" in docs|frontend|backend|full) ;; *) echo "CI scope unavailable"; exit 1 ;; esac
+      - name: Backend not applicable
+        if: ${{ needs.scope.outputs.mode == 'docs' || needs.scope.outputs.mode == 'frontend' }}
+        run: echo "Validated scope excludes backend and API contract changes; heavy steps not applicable."
+      - if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: global.json
           cache: true
           cache-dependency-path: backend/**/packages.lock.json
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22.22.2'
       - name: Enable pinned pnpm and cache its store
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         run: corepack enable
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22.22.2'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - name: Locked restore and build
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         run: |
           dotnet restore backend/TeaPremium.sln --locked-mode
           dotnet build backend/TeaPremium.sln --no-restore -warnaserror
           dotnet format backend/TeaPremium.sln --verify-no-changes --no-restore
       - name: PostgreSQL 17 Testcontainers and all backend tests
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
           docker info
           dotnet test backend/TeaPremium.sln --no-build --no-restore --logger trx --results-directory "$GITHUB_WORKSPACE/artifacts/test-results"
       - name: Reject skipped or empty test runs
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         shell: pwsh
         run: ./scripts/check-test-results.ps1
       - name: Generate idempotent migration SQL without a database
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         shell: pwsh
         run: ./scripts/migrations.ps1
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: migrations.sql
           path: artifacts/migrations.sql
           if-no-files-found: error
       - name: Verify actual API contract and committed TypeScript output
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         run: |
           corepack pnpm install --frozen-lockfile
           corepack pnpm check:api
           git diff --exit-code -- packages/api-client
       - name: Upload backend test evidence
-        if: ${{ always() && needs.scope.result == 'success' && needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ always() && needs.scope.result == 'success' && (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: backend-test-results
@@ -134,29 +135,29 @@ jobs:
       - name: Require valid CI scope
         env:
           SCOPE_RESULT: ${{ needs.scope.result }}
-          DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          CI_MODE: ${{ needs.scope.outputs.mode }}
         run: |
           test "$SCOPE_RESULT" = "success"
-          case "$DOCS_ONLY" in true|false) ;; *) echo "CI scope unavailable"; exit 1 ;; esac
-      - name: Documentation-only status
-        if: ${{ needs.scope.outputs.docs_only == 'true' }}
-        run: echo "Documentation validated by the CI scope job; heavy steps skipped."
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+          case "$CI_MODE" in docs|frontend|backend|full) ;; *) echo "CI scope unavailable"; exit 1 ;; esac
+      - name: Frontend not applicable
+        if: ${{ needs.scope.outputs.mode == 'docs' || needs.scope.outputs.mode == 'backend' }}
+        run: echo "Validated scope excludes frontend inputs; backend-only contract consistency is checked by the required backend job."
+      - if: ${{ (needs.scope.outputs.mode == 'frontend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ (needs.scope.outputs.mode == 'frontend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22.22.2'
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ (needs.scope.outputs.mode == 'frontend' || needs.scope.outputs.mode == 'full') }}
         run: corepack enable
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ (needs.scope.outputs.mode == 'frontend' || needs.scope.outputs.mode == 'full') }}
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22.22.2'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - name: Frozen install, lint, types, frontend tests and builds
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ (needs.scope.outputs.mode == 'frontend' || needs.scope.outputs.mode == 'full') }}
         run: |
           corepack pnpm install --frozen-lockfile
           corepack pnpm lint
@@ -175,21 +176,21 @@ jobs:
       - name: Require valid CI scope
         env:
           SCOPE_RESULT: ${{ needs.scope.result }}
-          DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          CI_MODE: ${{ needs.scope.outputs.mode }}
         run: |
           test "$SCOPE_RESULT" = "success"
-          case "$DOCS_ONLY" in true|false) ;; *) echo "CI scope unavailable"; exit 1 ;; esac
+          case "$CI_MODE" in docs|frontend|backend|full) ;; *) echo "CI scope unavailable"; exit 1 ;; esac
       - name: Documentation-only status
-        if: ${{ needs.scope.outputs.docs_only == 'true' }}
+        if: ${{ needs.scope.outputs.mode == 'docs' }}
         run: echo "Documentation validated by the CI scope job; heavy steps skipped."
-      - if: ${{ needs.scope.outputs.docs_only == 'false' }}
+      - if: ${{ needs.scope.outputs.mode != 'docs' }}
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Build API with the real dockerignore context
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full' }}
         run: docker build -f infra/Dockerfile.api -t tra-hien-api:ci .
       - name: Build store
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ needs.scope.outputs.mode == 'frontend' || needs.scope.outputs.mode == 'full' }}
         run: docker build -f infra/Dockerfile.web --build-arg APP=store -t tra-hien-store:ci .
       - name: Build admin
-        if: ${{ needs.scope.outputs.docs_only == 'false' }}
+        if: ${{ needs.scope.outputs.mode == 'frontend' || needs.scope.outputs.mode == 'full' }}
         run: docker build -f infra/Dockerfile.web --build-arg APP=admin -t tra-hien-admin:ci .
