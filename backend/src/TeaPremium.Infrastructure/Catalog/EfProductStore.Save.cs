@@ -11,7 +11,7 @@ namespace TeaPremium.Infrastructure.Catalog;
 
 public sealed partial class EfProductStore
 {
-    public async Task SaveAsync(ProductData p, bool create, ProductActor actor, string? noindexReason, CancellationToken ct)
+    public async Task SaveAsync(ProductData p, bool create, ProductActor actor, string? noindexReason, CancellationToken ct, IReadOnlySet<string>? reservedSkus = null)
     {
         var row = create ? new Product { Id = p.Id, CreatedAt = p.CreatedAt, CreatedBy = actor.Id } : await db.Set<Product>().SingleAsync(x => x.Id == p.Id, ct);
         var before = create ? null : ToData(row);
@@ -46,15 +46,30 @@ public sealed partial class EfProductStore
         Copy(p, row); row.UpdatedBy = actor.Id;
         if (create) db.Add(row); else db.Entry(row).Property(x => x.UpdatedAt).IsModified = true;
         await Flush(ct); // parent must exist before a default variant can be allocated
-        foreach (var v in p.Variants.OrderBy(x => x.Id))
+        var variants = create ? p.Variants.AsEnumerable() : p.Variants.OrderBy(x => x.Id);
+        foreach (var v in variants)
         {
             var existing = await db.Set<Variant>().SingleOrDefaultAsync(x => x.Id == v.Id && x.ProductId == p.Id, ct);
             if (existing is null)
             {
                 existing = new Variant { Id = v.Id, ProductId = p.Id, CreatedAt = p.UpdatedAt };
                 Copy(v, existing); existing.UpdatedAt = p.UpdatedAt;
-                if (string.IsNullOrEmpty(v.Sku)) await InsertGenerated(existing, p.SkuBase, p.Variants.IndexOf(v) == 0, AxisLabel(v, axisIds), p.Variants.IndexOf(v) + 1, ct);
-                else { db.Add(existing); await Flush(ct); }
+                if (string.IsNullOrEmpty(v.Sku)) await InsertGenerated(existing, p.SkuBase, p.Variants.IndexOf(v) == 0, AxisLabel(v, axisIds), p.Variants.IndexOf(v) + 1, reservedSkus, ct);
+                else
+                {
+                    db.Add(existing);
+                    try { await Flush(ct); }
+                    catch (CatalogPersistenceException failure) when (reservedSkus is not null && failure.Error.Code == "sku_exists")
+                    {
+                        throw new CatalogPersistenceException(failure.Error with
+                        {
+                            ValidationErrors = new Dictionary<string, string[]>
+                            {
+                                ["variantPosition"] = [v.Position.ToString(System.Globalization.CultureInfo.InvariantCulture)]
+                            }
+                        });
+                    }
+                }
                 v.Sku = existing.Sku;
             }
             else
@@ -93,12 +108,13 @@ public sealed partial class EfProductStore
         // Reuse exactly the canonical consumer's SQL, synchronously in the write UoW. Rename producers remain outbox based.
         await RebuildProductSearchTextHandler.RebuildAsync(db, [p.Id], ct);
     }
-    private async Task InsertGenerated(Variant entity, string basis, bool first, string? label, int ordinal, CancellationToken ct)
+    private async Task InsertGenerated(Variant entity, string basis, bool first, string? label, int ordinal, IReadOnlySet<string>? reservedSkus, CancellationToken ct)
     {
         var tx = db.Database.CurrentTransaction ?? throw new InvalidOperationException("SKU allocation requires the command transaction.");
         for (var attempt = 0; attempt < ProductRules.SkuAttempts; attempt++)
         {
             entity.Sku = ProductRules.SkuCandidate(basis, first, label, ordinal, attempt);
+            if (reservedSkus?.Contains(entity.Sku) == true) continue;
             if (!ProductRules.ValidSku(entity.Sku)) throw Rejected("sku_allocation_exhausted");
             var prior = db.ChangeTracker.Entries().Select(x => x.Entity).ToHashSet(ReferenceEqualityComparer.Instance);
             await tx.CreateSavepointAsync("sku_candidate", ct);
@@ -111,6 +127,8 @@ public sealed partial class EfProductStore
                 foreach (var entry in db.ChangeTracker.Entries().Where(x => !prior.Contains(x.Entity)).ToArray()) entry.State = EntityState.Detached;
                 await tx.ReleaseSavepointAsync("sku_candidate", ct);
             }
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: "23505" or "23503" or "23514" } postgres)
+            { throw KnownWriteFailure(postgres); }
         }
         throw Rejected("sku_allocation_exhausted");
     }
@@ -143,8 +161,13 @@ public sealed partial class EfProductStore
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { throw Rejected("concurrency_conflict"); }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: "23505" or "23503" or "23514" } pg)
-        { throw new CatalogPersistenceException(new(pg.ConstraintName == "ux_variants_sku" ? "sku_exists" : pg.SqlState == "23505" ? "catalog_unique_conflict" : "validation_failed", "Dữ liệu không hợp lệ hoặc đã tồn tại.", pg.SqlState == "23505" ? ErrorType.Conflict : ErrorType.Validation)); }
+        { throw KnownWriteFailure(pg); }
     }
+
+    private static CatalogPersistenceException KnownWriteFailure(PostgresException pg) => new(new(
+        pg.ConstraintName == "ux_variants_sku" ? "sku_exists" : pg.SqlState == "23505" ? "catalog_unique_conflict" : "validation_failed",
+        "Dữ liệu không hợp lệ hoặc đã tồn tại.", pg.SqlState == "23505" ? ErrorType.Conflict : ErrorType.Validation));
+
     private static CatalogPersistenceException Rejected(string code) => new(new(code, "Không thể hoàn tất thay đổi.", ErrorType.Conflict));
     private static void Copy(VariantData x, Variant row)
     { row.Sku = x.Sku; row.Name = x.Name; row.Position = x.Position; row.PriceVnd = x.PriceVnd; row.IsUniquePiece = x.IsUniquePiece; row.WeightG = x.WeightG; row.PackageDimsCm = x.PackageDimsCm; row.Barcode = x.Barcode; row.LowStockThreshold = x.LowStockThreshold; row.Status = x.Status; }

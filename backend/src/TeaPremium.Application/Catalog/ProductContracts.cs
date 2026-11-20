@@ -103,7 +103,7 @@ public interface IProductStore
     Task<bool> PublicImageAsync(Guid asset, CancellationToken ct);
     Task<bool> VariantUsedAsync(Guid id, CancellationToken ct);
     Task<string?> ArchiveTargetAsync(ProductData p, CancellationToken ct);
-    Task SaveAsync(ProductData p, bool create, ProductActor actor, string? noindexReason, CancellationToken ct);
+    Task SaveAsync(ProductData p, bool create, ProductActor actor, string? noindexReason, CancellationToken ct, IReadOnlySet<string>? reservedSkus = null);
     Task<CatalogPage<ProductData>> ListAsync(ListProducts query, CancellationToken ct);
 }
 public sealed class ProductMutationValidator : AbstractValidator<ProductMutation>

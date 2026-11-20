@@ -9,6 +9,7 @@ public static class CatalogRegistration
     {
         services.AddScoped<CatalogWorkflow>();
         services.AddScoped<ProductWorkflow>();
+        services.AddScoped<IProductImportReference, EfProductImportReference>();
         services.AddScoped<IProductStore, EfProductStore>();
         services.AddScoped<ProductAudit>();
         services.AddScoped<TeaPremium.Infrastructure.Inventory.EfCatalogInventoryRead>();

@@ -64,6 +64,7 @@ public static class ProductEndpoints
     public static void MapProducts(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup(Root).WithTags("Products").RequireAuthorization(AdminSecurity.Ready);
+        group.MapImport();
         group.MapGet("", async (HttpContext http, IQueryHandler<ListProducts, CatalogPage<ProductData>> handler, CancellationToken ct,
             int page = 1, int pageSize = 20, string? q = null, string? status = null, Guid? type = null, Guid? category = null, Guid? material = null, Guid? artisan = null, string? stock = null) =>
         {
@@ -111,7 +112,7 @@ public static class ProductEndpoints
         }).Accepts<T>("application/json").RequireAuthorization(permission).Produces<ProductData>(create ? 201 : 200)
             .ProducesProblem(400).ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409).ProducesProblem(422);
     }
-    private static ProductActor Actor(HttpContext http) => new(Guid.Parse(http.User.FindFirstValue(ClaimTypes.NameIdentifier)!),
+    internal static ProductActor Actor(HttpContext http) => new(Guid.Parse(http.User.FindFirstValue(ClaimTypes.NameIdentifier)!),
         http.User.FindAll("permission").Select(x => x.Value).ToArray(), http.User.IsInRole("owner"));
     private static RouteHandlerBuilder ReadErrors(this RouteHandlerBuilder builder) => builder.ProducesProblem(401).ProducesProblem(403).ProducesProblem(404);
 }

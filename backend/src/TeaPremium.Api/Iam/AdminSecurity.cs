@@ -158,6 +158,8 @@ public sealed class AdminTransportMiddleware(RequestDelegate next)
 }
 
 // Runs AFTER authorization and BEFORE binding, idempotency filters, or any mutation.
+internal sealed class RequireCsrfHeader;
+
 public sealed class AdminCsrfMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context, IAntiforgery antiforgery)
@@ -166,6 +168,12 @@ public sealed class AdminCsrfMiddleware(RequestDelegate next)
             && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)
             && !HttpMethods.IsOptions(context.Request.Method))
         {
+            if (context.GetEndpoint()?.Metadata.GetMetadata<RequireCsrfHeader>() is not null &&
+                (context.Request.Headers["X-CSRF-TOKEN"].Count != 1 || string.IsNullOrWhiteSpace(context.Request.Headers["X-CSRF-TOKEN"].ToString())))
+            {
+                await AdminSecurity.Problem(context, 400, "csrf_invalid").ExecuteAsync(context);
+                return;
+            }
             try { await antiforgery.ValidateRequestAsync(context); }
             catch (AntiforgeryValidationException)
             {

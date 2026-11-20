@@ -6,7 +6,14 @@ type Patch = paths["/api/v1/admin/products/{id}"]["patch"]["requestBody"]["conte
 type VariantPatch = paths["/api/v1/admin/products/{id}/variants/{childId}"]["patch"]["requestBody"]["content"]["application/json"];
 type Published = paths["/api/v1/admin/products/{id}/publish"]["post"]["responses"][200]["content"]["application/json"];
 
+type Import = paths["/api/v1/admin/products/import"]["post"];
+type ImportRow = Import["responses"][200]["content"]["application/json"]["rows"][number];
+
 export type ProductContractAssertions = [
+  Assert<boolean extends Import["parameters"]["query"]["dryRun"] ? true : false>,
+  Assert<string extends Import["requestBody"]["content"]["multipart/form-data"]["file"] ? true : false>,
+  Assert<number | null extends ImportRow["priceVnd"] ? true : false>,
+  Assert<ImportRow["errors"][number] extends { row: number | string; column: string; code: string; message: string } ? true : false>,
   Assert<{ name: string; productTypeId: string } extends Create ? true : false>,
   Assert<Record<string, never> extends Create ? false : true>,
   Assert<{ name: null; productTypeId: string } extends Create ? false : true>,

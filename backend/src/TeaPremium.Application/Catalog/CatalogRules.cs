@@ -11,7 +11,7 @@ public sealed class ProductTypeInputValidator : AbstractValidator<ProductTypeInp
 {
     public ProductTypeInputValidator()
     {
-        RuleFor(x => x.Code).NotNull().WithMessage("Dữ liệu không hợp lệ.").Matches("\\A[a-z0-9_]{2,40}\\z").WithMessage("Dữ liệu không hợp lệ.");
+        RuleFor(x => x.Code).NotNull().WithMessage("Dữ liệu không hợp lệ.").Matches(CatalogRules.ReferenceCodePattern).WithMessage("Dữ liệu không hợp lệ.");
         RuleFor(x => x.SkuPrefix).Matches("\\A[A-Z]{2,4}\\z").WithMessage("Dữ liệu không hợp lệ.").When(x => x.SkuPrefix is not null);
         RuleFor(x => x.Name).Must(CatalogRules.ValidName).WithMessage("Dữ liệu không hợp lệ.");
         RuleFor(x => x.Description).Must(CatalogRules.IsPostgresText).WithMessage("Dữ liệu không hợp lệ.");
@@ -22,7 +22,7 @@ public sealed class AttributeInputValidator : AbstractValidator<AttributeInput>
 {
     public AttributeInputValidator()
     {
-        RuleFor(x => x.Code).NotNull().WithMessage("Dữ liệu không hợp lệ.").Matches("\\A[a-z0-9_]{2,40}\\z").WithMessage("Dữ liệu không hợp lệ.");
+        RuleFor(x => x.Code).NotNull().WithMessage("Dữ liệu không hợp lệ.").Matches(CatalogRules.ReferenceCodePattern).WithMessage("Dữ liệu không hợp lệ.");
         RuleFor(x => x.Name).Must(CatalogRules.ValidName).WithMessage("Dữ liệu không hợp lệ.");
         RuleFor(x => x.DataType).Must(x => x is "text" or "number" or "option" or "boolean" or "dimensions").WithMessage("Dữ liệu không hợp lệ.");
         RuleFor(x => x.Scope).Must(x => x is "product" or "variant").WithMessage("Dữ liệu không hợp lệ.");
@@ -41,6 +41,10 @@ public sealed class OptionInputValidator : AbstractValidator<OptionInput>
 }
 public static partial class CatalogRules
 {
+    internal const string ReferenceCodePattern = "\\A[a-z0-9_]{2,40}\\z";
+    [GeneratedRegex(ReferenceCodePattern, RegexOptions.CultureInvariant)]
+    internal static partial Regex ReferenceCode();
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = false };
     // PostgreSQL text cannot represent U+0000. Preserve other Unicode and whitespace as supplied.
     public static bool IsPostgresText(string? value) => value is null || !value.Contains('\0');

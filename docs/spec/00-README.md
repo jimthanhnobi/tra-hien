@@ -115,7 +115,7 @@ Code và test phải ghi mã luật ở comment hoặc tên test, ví dụ:
 
 ## 7. Amendment A01 — lịch sử được duyệt 18/11/2026
 
-A01 (D1–D14) đã owner-approved; amendment/spec qua [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20), evidence qua [PR #21](https://github.com/jimthanhnobi/tra-hien/pull/21). Quyết định kinh doanh và DB khác vẫn giữ hiệu lực; P1-07 variant import key vẫn OPEN. Hồ sơ gốc trong `docs/decisions/ADR-PROPOSAL-A01-p0-closure-p1-owner-decisions.md` giữ nguyên lịch sử.
+A01 (D1–D14) đã owner-approved; amendment/spec qua [PR #20](https://github.com/jimthanhnobi/tra-hien/pull/20), evidence qua [PR #21](https://github.com/jimthanhnobi/tra-hien/pull/21). Quyết định kinh doanh và DB khác vẫn giữ hiệu lực; Hợp đồng P1-07 để mở tại thời điểm A01 và đã được owner chốt trong BR-CAT-13. Hồ sơ gốc trong `docs/decisions/ADR-PROPOSAL-A01-p0-closure-p1-owner-decisions.md` giữ nguyên lịch sử.
 
 ## 8. B01 — right-size cho quy mô shop nhỏ (owner decision 18/11/2026)
 
