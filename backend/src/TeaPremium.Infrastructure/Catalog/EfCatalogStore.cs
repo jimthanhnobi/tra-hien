@@ -47,8 +47,10 @@ public sealed class EfCatalogStore(AppDbContext db, IClock clock, IAuditContext 
     }
     public Task<(IReadOnlyList<CatalogEntry> Items, long Total)> ListAsync(ListCatalog query, CancellationToken ct) => query.Kind switch
     {
-        CatalogKind.Category => ListAsync<Category>(query, ct), CatalogKind.Collection => ListAsync<CollectionRecord>(query, ct),
-        CatalogKind.Material => ListAsync<Material>(query, ct), CatalogKind.Artisan => ListAsync<Artisan>(query, ct),
+        CatalogKind.Category => ListAsync<Category>(query, ct),
+        CatalogKind.Collection => ListAsync<CollectionRecord>(query, ct),
+        CatalogKind.Material => ListAsync<Material>(query, ct),
+        CatalogKind.Artisan => ListAsync<Artisan>(query, ct),
         _ => throw new ArgumentOutOfRangeException(nameof(query))
     };
     private async Task<(IReadOnlyList<CatalogEntry> Items, long Total)> ListAsync<T>(ListCatalog query, CancellationToken ct) where T : class, ITaxonomyRecord
@@ -68,7 +70,8 @@ public sealed class EfCatalogStore(AppDbContext db, IClock clock, IAuditContext 
         CatalogKind.Category => db.Set<Category>().AnyAsync(x => x.Slug == slug && x.Id != id, ct),
         CatalogKind.Collection => db.Set<CollectionRecord>().AnyAsync(x => x.Slug == slug && x.Id != id, ct),
         CatalogKind.Material => db.Set<Material>().AnyAsync(x => x.Slug == slug && x.Id != id, ct),
-        CatalogKind.Artisan => db.Set<Artisan>().AnyAsync(x => x.Slug == slug && x.Id != id, ct), _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        CatalogKind.Artisan => db.Set<Artisan>().AnyAsync(x => x.Slug == slug && x.Id != id, ct),
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
     public Task<bool> SkuExistsAsync(string code, Guid id, CancellationToken ct) => db.Set<Material>().AnyAsync(x => x.SkuCode == code && x.Id != id, ct);
     public Task<bool> PublicImageAsync(Guid id, CancellationToken ct) => db.Set<MediaAsset>().AnyAsync(x => x.Id == id && x.Purpose != "evidence"
@@ -113,9 +116,21 @@ public sealed class EfCatalogStore(AppDbContext db, IClock clock, IAuditContext 
     }
     private static CatalogEntry ToEntry(ITaxonomyRecord row)
     {
-        var entry = new CatalogEntry { Id = row.Id, Name = row.Name, Slug = row.Slug, Status = row.Status,
-            FocusKeyword = row.FocusKeyword, SeoTitle = row.SeoTitle, SeoDescription = row.SeoDescription, RobotsNoindex = row.RobotsNoindex,
-            FirstPublishedAt = row.FirstPublishedAt, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt, Version = row.Version };
+        var entry = new CatalogEntry
+        {
+            Id = row.Id,
+            Name = row.Name,
+            Slug = row.Slug,
+            Status = row.Status,
+            FocusKeyword = row.FocusKeyword,
+            SeoTitle = row.SeoTitle,
+            SeoDescription = row.SeoDescription,
+            RobotsNoindex = row.RobotsNoindex,
+            FirstPublishedAt = row.FirstPublishedAt,
+            CreatedAt = row.CreatedAt,
+            UpdatedAt = row.UpdatedAt,
+            Version = row.Version
+        };
         switch (row)
         {
             case Material m:
@@ -175,10 +190,23 @@ public sealed class EfCatalogStore(AppDbContext db, IClock clock, IAuditContext 
     {
         // Retain the actual reason, protected by the existing key repository/certificate.
         // Free text can contain PII; the ordinary audit response must not expose it in plaintext.
-        db.AuditLogs.Add(new AuditLog { Id = Guid.CreateVersion7(), EntityType = "catalog." + (kind == CatalogKind.Category ? "categories" : "collections"),
-            EntityId = id, Action = "state_change", ActorType = audit.ActorType, ActorId = audit.ActorId, OccurredAt = clock.UtcNow.UtcDateTime,
-            CorrelationId = audit.CorrelationId, Changes = JsonSerializer.Serialize(new { robots_noindex = true,
-                reason = protection.CreateProtector("teapremium.catalog.noindex-reason.v1").Protect(reason), reason_format = "data_protection_v1" }) });
+        db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.CreateVersion7(),
+            EntityType = "catalog." + (kind == CatalogKind.Category ? "categories" : "collections"),
+            EntityId = id,
+            Action = "state_change",
+            ActorType = audit.ActorType,
+            ActorId = audit.ActorId,
+            OccurredAt = clock.UtcNow.UtcDateTime,
+            CorrelationId = audit.CorrelationId,
+            Changes = JsonSerializer.Serialize(new
+            {
+                robots_noindex = true,
+                reason = protection.CreateProtector("teapremium.catalog.noindex-reason.v1").Protect(reason),
+                reason_format = "data_protection_v1"
+            })
+        });
     }
     public async Task FlushAsync(CancellationToken ct)
     {

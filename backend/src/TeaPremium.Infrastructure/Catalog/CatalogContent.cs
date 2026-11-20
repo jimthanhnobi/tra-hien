@@ -95,7 +95,8 @@ public sealed class CatalogContentSanitizer(MediaStorageOptions media) : ICatalo
                     || markAttrs.EnumerateObject().Any(x => x.Name is not ("href" or "rel" or "target")))) throw new ArgumentException("Unsupported mark attributes.");
                 text = markType switch
                 {
-                    "bold" => "<strong>" + text + "</strong>", "italic" => "<em>" + text + "</em>",
+                    "bold" => "<strong>" + text + "</strong>",
+                    "italic" => "<em>" + text + "</em>",
                     "link" => "<a href=\"" + WebUtility.HtmlEncode(UrlAttribute(mark.GetProperty("attrs"), "href", false)) + "\">" + text + "</a>",
                     _ => throw new ArgumentException("Unsupported rich text mark.")
                 };
@@ -114,9 +115,21 @@ public sealed class CatalogContentSanitizer(MediaStorageOptions media) : ICatalo
         }
         var tag = type switch
         {
-            "doc" => "", "paragraph" => "p", "heading" => Heading(attrs), "bulletList" => "ul", "orderedList" => "ol", "listItem" => "li",
-            "blockquote" => "blockquote", "hardBreak" => "br", "table" => "table", "tableRow" => "tr", "tableCell" => "td", "tableHeader" => "th",
-            "figure" => "figure", "figcaption" => "figcaption", _ => throw new ArgumentException("Unsupported rich content node.")
+            "doc" => "",
+            "paragraph" => "p",
+            "heading" => Heading(attrs),
+            "bulletList" => "ul",
+            "orderedList" => "ol",
+            "listItem" => "li",
+            "blockquote" => "blockquote",
+            "hardBreak" => "br",
+            "table" => "table",
+            "tableRow" => "tr",
+            "tableCell" => "td",
+            "tableHeader" => "th",
+            "figure" => "figure",
+            "figcaption" => "figcaption",
+            _ => throw new ArgumentException("Unsupported rich content node.")
         };
         return tag.Length == 0 ? inner.ToString() : tag == "br" ? "<br>" : "<" + tag + ">" + inner + "</" + tag + ">";
     }

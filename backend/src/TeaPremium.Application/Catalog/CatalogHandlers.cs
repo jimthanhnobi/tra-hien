@@ -36,8 +36,12 @@ public sealed partial class CatalogWorkflow(ICatalogStore store, ICatalogContent
         // Namespace lock is only needed by routing/hierarchy/state mutations; pure metadata edits lock their aggregate row.
         if (create || fields.TryGetProperty("slug", out _) || fields.TryGetProperty("parentId", out _) || fields.TryGetProperty("status", out _))
             await store.LockNamespaceAsync(command.Kind, ct);
-        var entry = create ? new CatalogEntry { Id = Guid.CreateVersion7(), Status = command.Kind is CatalogKind.Category or CatalogKind.Collection ? "hidden" : "draft",
-            CreatedAt = clock.UtcNow.UtcDateTime } : await store.LoadAsync(command.Kind, command.Id!.Value, true, ct);
+        var entry = create ? new CatalogEntry
+        {
+            Id = Guid.CreateVersion7(),
+            Status = command.Kind is CatalogKind.Category or CatalogKind.Collection ? "hidden" : "draft",
+            CreatedAt = clock.UtcNow.UtcDateTime
+        } : await store.LoadAsync(command.Kind, command.Id!.Value, true, ct);
         if (entry is null) return Result.Failure<CatalogView>(Missing);
         if (!create && entry.Version != version) return Result.Failure<CatalogView>(Stale);
         var oldSlug = entry.Slug; var oldName = entry.Name; var oldStatus = entry.Status; var oldNoindex = entry.RobotsNoindex;
@@ -183,7 +187,8 @@ public sealed partial class CatalogWorkflow(ICatalogStore store, ICatalogContent
             CatalogKind.Category => ["parentId", "sortOrder", "coverMediaId", "descriptionHtml", "bodyHtml", "bodyJson"],
             CatalogKind.Collection => ["sortOrder", "coverMediaId", "descriptionHtml", "bodyHtml", "bodyJson"],
             CatalogKind.Material => ["skuCode", "kind", "summary", "sortOrder", "coverMediaId", "descriptionHtml", "descriptionJson"],
-            CatalogKind.Artisan => ["title", "portraitMediaId", "bioHtml", "bioJson"], _ => []
+            CatalogKind.Artisan => ["title", "portraitMediaId", "bioHtml", "bioJson"],
+            _ => []
         };
         var seen = new HashSet<string>(StringComparer.Ordinal);
         return fields.EnumerateObject().All(p => seen.Add(p.Name) && (Common.Contains(p.Name, StringComparer.Ordinal) || extra.Contains(p.Name, StringComparer.Ordinal)));

@@ -11,8 +11,10 @@ public static partial class TaxonomyRules
 {
     public static string Prefix(CatalogKind kind) => kind switch
     {
-        CatalogKind.Category => "/danh-muc/", CatalogKind.Collection => "/bo-suu-tap/",
-        CatalogKind.Material => "/chat-lieu/", CatalogKind.Artisan => "/nghe-nhan/",
+        CatalogKind.Category => "/danh-muc/",
+        CatalogKind.Collection => "/bo-suu-tap/",
+        CatalogKind.Material => "/chat-lieu/",
+        CatalogKind.Artisan => "/nghe-nhan/",
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };
     public static bool IsPublic(string status) => status is "visible" or "published";

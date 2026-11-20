@@ -67,7 +67,9 @@ public sealed class CatalogIntegrationTests(PlatformDatabaseFixture fixture) : I
         Assert.Equal(batches, await db.OutboxMessages.CountAsync(x => x.Status == "processed"));
     }
     [Theory]
-    [InlineData("product-types")] [InlineData("materials")] [InlineData("artisans")]
+    [InlineData("product-types")]
+    [InlineData("materials")]
+    [InlineData("artisans")]
     public async Task SecondBatchInsertFailureRollsBackTheWholeRenameAndAuditThenRetryProcessesEveryId(string resource)
     {
         await using var app = await P009Harness.CreateAsync(fixture); await app.LoginAsync();

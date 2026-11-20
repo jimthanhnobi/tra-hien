@@ -116,14 +116,25 @@ CREATE TRIGGER pause_reparent_fixture BEFORE UPDATE ON catalog.categories FOR EA
     }
 
     [Theory]
-    [InlineData("materials", 0)] [InlineData("materials", 399)] [InlineData("materials", 400)] [InlineData("materials", 401)]
-    [InlineData("artisans", 0)] [InlineData("artisans", 399)] [InlineData("artisans", 400)] [InlineData("artisans", 401)]
+    [InlineData("materials", 0)]
+    [InlineData("materials", 399)]
+    [InlineData("materials", 400)]
+    [InlineData("materials", 401)]
+    [InlineData("artisans", 0)]
+    [InlineData("artisans", 399)]
+    [InlineData("artisans", 400)]
+    [InlineData("artisans", 401)]
     public async Task PublishReturnsApprovedNonBlockingWarningAndNeverChangesNoindex(string resource, int words)
     {
         await using var h = await Harness.CreateAsync(fixture);
-        var fields = new Dictionary<string, object?> { ["name"] = resource == "materials" ? "Tử nê" : "Chu Bân", ["kind"] = "clay", ["robotsNoindex"] = true,
+        var fields = new Dictionary<string, object?>
+        {
+            ["name"] = resource == "materials" ? "Tử nê" : "Chu Bân",
+            ["kind"] = "clay",
+            ["robotsNoindex"] = true,
             [resource == "materials" ? "descriptionHtml" : "bioHtml"] = words == 0 ? null : "<p>" + string.Join("&nbsp;", Enumerable.Repeat("từ", words)) + "</p><script>not counted words</script>",
-            ["summary"] = string.Join(' ', Enumerable.Repeat("not counted", 500)) };
+            ["summary"] = string.Join(' ', Enumerable.Repeat("not counted", 500))
+        };
         var entry = await h.CreateAsync(resource, fields);
         using var response = await h.PublishAsync(resource, entry); Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var published = (await response.Content.ReadFromJsonAsync<CatalogPublication>())!; Assert.Equal("published", published.Status); Assert.NotEqual(entry.RowVersion, published.RowVersion);
@@ -155,8 +166,14 @@ CREATE TRIGGER pause_reparent_fixture BEFORE UPDATE ON catalog.categories FOR EA
     }
 
     [Theory]
-    [InlineData("clay")] [InlineData("metal")] [InlineData("glass")] [InlineData("ceramic")]
-    [InlineData("porcelain")] [InlineData("wood")] [InlineData("stone")] [InlineData("other")]
+    [InlineData("clay")]
+    [InlineData("metal")]
+    [InlineData("glass")]
+    [InlineData("ceramic")]
+    [InlineData("porcelain")]
+    [InlineData("wood")]
+    [InlineData("stone")]
+    [InlineData("other")]
     public async Task MaterialKindsNullableAndReservedSkuCodes(string kind)
     {
         await using var h = await Harness.CreateAsync(fixture);

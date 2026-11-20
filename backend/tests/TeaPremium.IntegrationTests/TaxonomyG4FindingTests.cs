@@ -64,7 +64,9 @@ SELECT EXISTS(SELECT FROM pg_locks WHERE NOT granted AND locktype='advisory' AND
     }
 
     [Theory]
-    [InlineData(false, false)] [InlineData(true, false)] [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
     public async Task RedirectGraphSnapshotSerializesCrossPrefixReclamationInEitherOrderAndSamePrefix(bool artisanFirst, bool samePrefix)
     {
         var gate = new RedirectSnapshotGate();
@@ -116,8 +118,12 @@ SELECT EXISTS(SELECT FROM pg_locks WHERE NOT granted AND locktype='advisory'
     }
 
     [Theory]
-    [InlineData("materials", "descriptionHtml", 399)] [InlineData("materials", "descriptionHtml", 400)] [InlineData("materials", "descriptionHtml", 401)]
-    [InlineData("artisans", "bioHtml", 399)] [InlineData("artisans", "bioHtml", 400)] [InlineData("artisans", "bioHtml", 401)]
+    [InlineData("materials", "descriptionHtml", 399)]
+    [InlineData("materials", "descriptionHtml", 400)]
+    [InlineData("materials", "descriptionHtml", 401)]
+    [InlineData("artisans", "bioHtml", 399)]
+    [InlineData("artisans", "bioHtml", 400)]
+    [InlineData("artisans", "bioHtml", 401)]
     public async Task PersistedSanitizedAdjacentBlocksUseTheSameWordBoundariesAsSeoAndPublish(string resource, string field, int words)
     {
         await using var app = await P009Harness.CreateAsync(fixture); await app.LoginAsync();
@@ -164,7 +170,10 @@ SELECT EXISTS(SELECT FROM pg_locks WHERE NOT granted AND locktype='advisory'
     }
 
     [Theory]
-    [InlineData("categories")] [InlineData("collections")] [InlineData("materials")] [InlineData("artisans")]
+    [InlineData("categories")]
+    [InlineData("collections")]
+    [InlineData("materials")]
+    [InlineData("artisans")]
     public async Task NulRejectedInEveryWritableTextFieldAndNestedJsonAndQueryBeforeDatabaseChanges(string resource)
     {
         await using var app = await P009Harness.CreateAsync(fixture); await app.LoginAsync();
@@ -172,7 +181,8 @@ SELECT EXISTS(SELECT FROM pg_locks WHERE NOT granted AND locktype='advisory'
         var entry = await CreateAsync(app, resource, initial);
         string[] extra = resource switch
         {
-            "materials" => ["kind", "skuCode", "summary", "descriptionHtml"], "artisans" => ["title", "bioHtml"],
+            "materials" => ["kind", "skuCode", "summary", "descriptionHtml"],
+            "artisans" => ["title", "bioHtml"],
             _ => ["descriptionHtml", "bodyHtml"]
         };
         var before = await FingerprintAsync(app);
@@ -202,7 +212,9 @@ SELECT EXISTS(SELECT FROM pg_locks WHERE NOT granted AND locktype='advisory'
         var contentField = resource == "artisans" ? "bioHtml" : "descriptionHtml";
         using var good = await app.MutateAsync(HttpMethod.Patch, Root + resource + "/" + entry.Id, new Dictionary<string, object?>
         {
-            ["rowVersion"] = entry.RowVersion, [contentField] = "<p>Tử nê\n\tChu Bân&nbsp;đẹp</p>", ["seoDescription"] = null
+            ["rowVersion"] = entry.RowVersion,
+            [contentField] = "<p>Tử nê\n\tChu Bân&nbsp;đẹp</p>",
+            ["seoDescription"] = null
         });
         Assert.Equal(HttpStatusCode.OK, good.StatusCode);
         using var goodQuery = await app.Client.GetAsync(Root + resource + "?q=" + Uri.EscapeDataString("Tiếng Việt\n\t")); Assert.Equal(HttpStatusCode.OK, goodQuery.StatusCode);

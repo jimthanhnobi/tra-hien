@@ -19,8 +19,10 @@ public sealed class TaxonomyG4ValidationTests
         Assert.False(new SaveCatalogValidator().Validate(command).IsValid);
     }
     [Theory]
-    [InlineData(CatalogKind.Category)] [InlineData(CatalogKind.Collection)]
-    [InlineData(CatalogKind.Material)] [InlineData(CatalogKind.Artisan)]
+    [InlineData(CatalogKind.Category)]
+    [InlineData(CatalogKind.Collection)]
+    [InlineData(CatalogKind.Material)]
+    [InlineData(CatalogKind.Artisan)]
     public void QueryRejectsOnlyNulWithoutRejectingVietnameseOrWhitespace(CatalogKind kind)
     {
         var validator = new ListCatalogValidator();
