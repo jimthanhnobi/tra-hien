@@ -24,17 +24,40 @@ export class ApiError extends Error {
       csrf_invalid: "Phiên bảo vệ đã thay đổi. Vui lòng thử lại thao tác.",
       https_required: "Kết nối quản trị yêu cầu HTTPS. Vui lòng kiểm tra địa chỉ truy cập.",
       totp_invalid: "Mã xác thực chưa đúng hoặc đã hết hạn. Hãy dùng mã mới.",
-      validation_failed: "Thông tin chưa hợp lệ. Vui lòng kiểm tra các trường bên dưới."
+      validation_failed: "Thông tin chưa hợp lệ. Vui lòng kiểm tra các trường bên dưới.",
+      concurrency_conflict: "Dữ liệu có xung đột phiên bản. Vui lòng tải bản mới trước khi lưu lại.",
+      slug_exists: "Đường dẫn đã tồn tại. Hãy chọn đường dẫn khác rồi lưu lại.",
+      sku_code_exists: "Mã SKU chất liệu đã tồn tại. Hãy chọn mã khác rồi lưu lại.",
+      product_type_code_exists: "Mã loại sản phẩm đã tồn tại. Hãy chọn mã khác rồi lưu lại.",
+      attribute_code_exists: "Mã thuộc tính đã tồn tại trong loại sản phẩm. Hãy chọn mã khác.",
+      option_code_exists: "Mã lựa chọn đã tồn tại trong thuộc tính. Hãy chọn mã khác.",
+      attribute_in_use: "Thuộc tính đã được sử dụng. Giữ nguyên kiểu, phạm vi, đơn vị và cờ trục biến thể.",
+      attribute_has_options: "Thuộc tính đã có lựa chọn. Không thể đổi sang kiểu khác.",
+      attribute_not_option: "Chỉ thuộc tính kiểu lựa chọn mới quản lý được các lựa chọn.",
+      slug_allocation_exhausted: "Chưa thể cấp đường dẫn tự động. Hãy nhập đường dẫn khác rồi lưu lại.",
+      publication_history_unverified: "Cần xác minh lịch sử công khai. Liên hệ người quản lý trước khi sửa."
     };
     super(status === 429 ? "Có quá nhiều yêu cầu. Vui lòng chờ một phút rồi thử lại."
       : messages[code] ?? (status === 403 ? messages.forbidden
         : status === 401 ? messages.unauthenticated
-          : problem.detail ?? problem.title ?? "Không thể kết nối. Vui lòng thử lại."));
+          : status === 404 ? "Không tìm thấy dữ liệu. Dữ liệu có thể đã được thay đổi hoặc gỡ bỏ."
+            : status === 409 ? "Thao tác có xung đột. Hãy kiểm tra thông tin trước khi thử lưu lại."
+              : status === 422 ? "Chưa thể thực hiện thao tác. Vui lòng kiểm tra các điều kiện bên dưới."
+                : problem.detail ?? problem.title ?? "Không thể kết nối. Vui lòng thử lại."));
     this.code = code;
     for (const [key, messages] of Object.entries(record(body.errors))) {
       if (Array.isArray(messages) && messages.every(x => typeof x === "string")) this.fields[key] = messages;
     }
+    const conflictFields: Record<string, string> = {
+      slug_exists: "slug", sku_code_exists: "skuCode", product_type_code_exists: "code",
+      attribute_code_exists: "code", option_code_exists: "code", slug_allocation_exhausted: "slug"
+    };
+    if (status === 409 && conflictFields[code] && !this.fields[conflictFields[code]]) this.fields[conflictFields[code]] = [this.message];
   }
+}
+
+export function isConcurrencyConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.code === "concurrency_conflict";
 }
 
 export class AdminApi {

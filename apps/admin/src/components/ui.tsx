@@ -43,8 +43,8 @@ export function Feedback({ children }: { children: ReactNode }) {
   return <div className="feedback" role="status">{children}</div>;
 }
 
-export function Confirmation({ trigger, title, children, pending, onConfirm }: {
-  trigger: ReactNode; title: string; children: ReactNode; pending: boolean; onConfirm: () => Promise<void>;
+export function Confirmation({ trigger, title, children, pending, onConfirm, confirmLabel = "Xác nhận đăng xuất" }: {
+  trigger: ReactNode; title: string; children: ReactNode; pending: boolean; onConfirm: () => Promise<void>; confirmLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -56,7 +56,7 @@ export function Confirmation({ trigger, title, children, pending, onConfirm }: {
       <div className="dialog-actions"><Dialog.Close asChild><button className="button secondary" disabled={pending}>Quay lại</button></Dialog.Close>
         <button className="button" disabled={pending} onClick={async () => {
           try { await onConfirm(); setOpen(false); } catch (error) { setError(error); }
-        }}>{pending ? "Đang xử lý…" : "Xác nhận đăng xuất"}</button></div>
+        }}>{pending ? "Đang xử lý…" : confirmLabel}</button></div>
       <Dialog.Close className="close-button" aria-label="Đóng hộp thoại" disabled={pending}><X size={20} /></Dialog.Close>
     </Dialog.Content></Dialog.Portal>
   </Dialog.Root>;
