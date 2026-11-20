@@ -153,16 +153,39 @@ public sealed class ProductWorkflow(IProductStore store, ICatalogContent content
             {
                 if (reference.Prefix is null) return Fail(Error.BusinessRule("sku_prefix_missing", "Loại sản phẩm chưa có tiền tố SKU."));
                 if (p.MaterialId is not null && reference.MaterialCode is null) return Fail(Error.BusinessRule("material_sku_code_missing", "Chất liệu chưa có mã SKU."));
-                p.SkuBase = await store.AllocateBaseAsync(reference, p.MaterialId is not null, ct);
+                return Result.Success(await SaveNewAsync(p, reference, command.Actor, reason, null, ct));
             }
             p.UpdatedAt = Now();
-            await store.SaveAsync(p, create, command.Actor, reason, ct);
+            await store.SaveAsync(p, false, command.Actor, reason, ct);
             return Result.Success((await store.LoadAsync(p.Id, false, ct))!);
         }
         catch (CatalogPersistenceException exception) { return Fail(exception.Error); }
         catch (JsonException) { return Fail(ProductRules.Bad("fields")); }
         catch (ArgumentException) { return Fail(ProductRules.Bad("content")); }
     }
+    internal async Task<ProductData> CreateImportedAsync(ProductData product, ProductActor actor,
+        IReadOnlySet<string> reservedSkus, CancellationToken ct)
+    {
+        product.Id = Guid.CreateVersion7();
+        product.CreatedAt = Now();
+        foreach (var variant in product.Variants) variant.Id = Guid.CreateVersion7();
+        var reference = (await store.ReferenceAsync(product.ProductTypeId, product.MaterialId, ct))!;
+        var clean = content.Sanitize(null, product.DescriptionHtml);
+        product.DescriptionJson = clean.Json;
+        product.DescriptionHtml = clean.Html;
+        product.DescriptionWordCount = clean.Words;
+        return await SaveNewAsync(product, reference, actor, null, reservedSkus, ct);
+    }
+
+    private async Task<ProductData> SaveNewAsync(ProductData product, ProductReference reference, ProductActor actor,
+        string? reason, IReadOnlySet<string>? reservedSkus, CancellationToken ct)
+    {
+        product.SkuBase = await store.AllocateBaseAsync(reference, product.MaterialId is not null, ct);
+        product.UpdatedAt = Now();
+        await store.SaveAsync(product, true, actor, reason, ct, reservedSkus);
+        return (await store.LoadAsync(product.Id, false, ct))!;
+    }
+
     private async Task<Error?> ApplyVariant(ProductData p, VariantData v, JsonElement fields, bool create, ProductActor actor, CancellationToken ct)
     {
         var oldSku = v.Sku; var oldStatus = v.Status;

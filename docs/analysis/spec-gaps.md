@@ -105,3 +105,7 @@ G2 **GO cho chuẩn bị amendment, HOLD migration/application tại gate review
 không cần hỏi lại lựa chọn owner đã chốt, không HOLD vì Q1–Q8 hay P1-03.
 Readiness, file scope, dependency/outbox strategy, matrix và kết quả baseline tại
 [p1-04-implementation.md](../plans/p1-04-implementation.md).
+
+## P1-07 — targeted closure 20/11/2026
+
+Owner đã phê duyệt định danh variant, import lại create-only, ô trống, nhóm mâu thuẫn và một transaction theo Product trong BR-CAT-13. Ghi chép OPEN tại A01 ở trên phản ánh thời điểm A01. Xem [P1-07 task record](../plans/p1-07-implementation.md) cho nguồn và test local.

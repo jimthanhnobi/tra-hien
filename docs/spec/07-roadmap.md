@@ -53,7 +53,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P1-04 | Categories (cây ≤ 3 cấp), collections, materials, artisans (CRUD, publish, slug + redirect BR-CAT-08) | M | P1-01 |
 | P1-05 | Products + variants: CRUD, giá trị thuộc tính, ảnh, SEO, quan hệ; publish BR-CAT-04; archive; `search_text` BR-CAT-10; SKU BR-CAT-14, giá active/inactive BR-CAT-15, count/thin noindex riêng manual, không nới metadata | L | P1-02, P1-03, P1-04 |
 | P1-06 | Giá KM (sale_prices) + `PricingCalculator` BR-PRC-01/02 | S | P1-05 |
-| P1-07 | Import sản phẩm Excel/CSV dry-run (BR-CAT-13); ưu tiên ngay sau P1-05 trước P1-06; key/import lại OPEN, không upsert thiếu khóa ổn định | M | P1-05 |
+| P1-07 | Import sản phẩm Excel/CSV dry-run (BR-CAT-13); ưu tiên ngay sau P1-05 trước P1-06; create-only, kiểm slug/SKU và transaction theo Product đã chốt trong BR-CAT-13 | M | P1-05 |
 | P1-08 | Kho: `stock_levels`, movements, giá vốn bình quân, tồn đầu kỳ import (BR-INV-01/05/06/09) | L | P1-05 |
 | P1-09 | Phiếu nhập kho, điều chỉnh, kiểm kê (BR-INV-07/08/10) | M | P1-08 |
 | P1-10 | Cảnh báo tồn thấp + job đối soát kho đêm (BR-INV-11/13); InventoryAlert nội bộ idempotent/retry có giới hạn; đối soát reservations từ P2-05; Telegram P2-13 không replay cảnh báo cũ | S | P1-08 |

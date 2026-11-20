@@ -4221,6 +4221,92 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/admin/products/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query: {
+                    dryRun: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["ProductImportUpload"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductImportResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/settings/{group}": {
         parameters: {
             query?: never;
@@ -4740,6 +4826,8 @@ export interface components {
         CsrfResponse: {
             token: string;
         };
+        /** Format: binary */
+        IFormFile: string;
         JsonElement: unknown;
         LoginRequest: {
             email: string;
@@ -4933,6 +5021,63 @@ export interface components {
             url?: null | string;
             /** Format: uuid */
             variantId?: null | string;
+        };
+        ProductImportError: {
+            code: string;
+            column: string;
+            message: string;
+            /** Format: int32 */
+            row: number | string;
+        };
+        ProductImportGroupResult: {
+            name: string;
+            operation: string;
+            /** Format: uuid */
+            productId: null | string;
+            rows: components["schemas"]["ProductImportRow"][];
+            slug: null | string;
+            status: string;
+            warnings: string[];
+        };
+        ProductImportResult: {
+            groups: components["schemas"]["ProductImportGroupResult"][];
+            rows: components["schemas"]["ProductImportRow"][];
+            summary: components["schemas"]["ProductImportSummary"];
+        };
+        ProductImportRow: {
+            attributes: components["schemas"]["ProductValue"][];
+            errors: components["schemas"]["ProductImportError"][];
+            generateOnApply: boolean;
+            packageDimensions: null | components["schemas"]["JsonElement"];
+            /** Format: int64 */
+            priceVnd: null | number | string;
+            /** Format: int32 */
+            row: number | string;
+            sku: null | string;
+            /** Format: uuid */
+            variantId: null | string;
+            variantName: null | string;
+            /** Format: int32 */
+            weightG: null | number | string;
+        };
+        ProductImportSummary: {
+            /** Format: int32 */
+            committed: number | string;
+            /** Format: int32 */
+            failed: number | string;
+            /** Format: int32 */
+            groups: number | string;
+            /** Format: int32 */
+            notProcessed: number | string;
+            /** Format: int32 */
+            ready: number | string;
+            /** Format: int32 */
+            rows: number | string;
+            /** Format: int32 */
+            unknown: number | string;
+        };
+        ProductImportUpload: {
+            file: components["schemas"]["IFormFile"];
         };
         /** @description Omitted fields are preserved on partial updates. rowVersion is opaque; null clears nullable fields. */
         ProductMediaCreate: {
