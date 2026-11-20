@@ -235,11 +235,11 @@
 | BR-SEO-22 | `docs/spec/09-seo.md:74` · 3. Vòng đời trang sản phẩm | P3-13 | Test tên `BR_SEO_22` (unit/integration) |
 | BR-SEO-23 | `docs/spec/09-seo.md:75` · 3. Vòng đời trang sản phẩm | P3-13 | Test tên `BR_SEO_23` (unit/integration) |
 | BR-SEO-30 | `docs/spec/09-seo.md:79` · 4. Metadata và nội dung trên trang | P3-09 | Test tên `BR_SEO_30` (unit/integration) |
-| BR-SEO-31 | `docs/spec/09-seo.md:80` · 4. Metadata và nội dung trên trang | P3-09 | Test tên `BR_SEO_31` (unit/integration) |
-| BR-SEO-32 | `docs/spec/09-seo.md:91` · 4. Metadata và nội dung trên trang | P3-09 | Test tên `BR_SEO_32` (unit/integration) |
+| BR-SEO-31 | `docs/spec/09-seo.md` §4 · BR-SEO-31, P1-04 fallback title | P1-04, P3-09 | BR_SEO_31: explicit SEO/missing brand/material template/artisan không main material/word boundaries; contract matrix trong docs/plans/p1-04-implementation.md; runtime NOT RUN |
+| BR-SEO-32 | `docs/spec/09-seo.md` §4 · BR-SEO-32, P1-04 description priority | P1-04, P3-09 | BR_SEO_32: source priority/null-empty/sanitize/neutral template tên thực tế/custom SEO không overwrite; contract matrix trong docs/plans/p1-04-implementation.md; runtime NOT RUN |
 | BR-SEO-33 | `docs/spec/09-seo.md:92` · 4. Metadata và nội dung trên trang | P3-09 | Test tên `BR_SEO_33` (unit/integration) |
 | BR-SEO-34 | `docs/spec/09-seo.md:93` · 4. Metadata và nội dung trên trang | P1-05 | Test tên `BR_SEO_34` (unit/integration) |
-| BR-SEO-35 | `docs/spec/09-seo.md:98` · 4. Metadata và nội dung trên trang | P3-08, P3-09 | Test tên `BR_SEO_35` (unit/integration) |
+| BR-SEO-35 | `docs/spec/09-seo.md` §4 · BR-SEO-35; `docs/spec/05-api.md` §4.2 | P1-04, P3-08, P3-09 | BR_SEO_35: source descriptionHtml/bioHtml, 0/399/400/401, entities/Unicode/NBSP/script-style/exclusions, HTTP 200 warnings không noindex/bypass; contract matrix trong docs/plans/p1-04-implementation.md; runtime NOT RUN |
 | BR-SEO-36 | `docs/spec/09-seo.md:99` · 4. Metadata và nội dung trên trang | P3-08, P3-09 | Test tên `BR_SEO_36` (unit/integration) |
 | BR-SEO-37 | `docs/spec/09-seo.md:100` · 4. Metadata và nội dung trên trang | P3-08, P3-09 | Test tên `BR_SEO_37` (unit/integration) |
 | BR-SEO-40 | `docs/spec/09-seo.md:104` · 5. Trang chủ đề (landing) — thay cho index bộ lọc | P3-14 | Test tên `BR_SEO_40` (unit/integration) |
@@ -425,3 +425,51 @@ Input 288ca8b55cab2017c9ee42bd35036e2d2e5bd87c, amendment local UNCOMMITTED/READ
 | D10 | AGENTS.md G4, WORKFLOW §5 | A/B vẫn fresh independent reviewer/same worktree/full change set, owner publish, CI published head; G4/CI NOT RUN |
 
 New IDs định nghĩa chính thức: BR-CAT-14/15, BR-IAM-07/08 ở 04; AC-P0-06/AC-P1-09/10 ở 07; DEC-25…30 ở 00. Trạng thái evidence/commands/SQL hash tại docs/reviews/a01-amendment-evidence.md.
+
+## P1-04 — G3 local sau owner approval amendment (19/11/2026)
+
+Input commit `f2227a07aeb75e9e8e5af655378a3d85c6b4e6e7` cùng amendment local
+owner-approved sau independent G4 PASS do owner cung cấp. Các mục NOT RUN cũ là
+baseline/amendment history; trạng thái implementation hiện hành và command/TRX tại
+[P1-04 G3 evidence](../plans/p1-04-g3-evidence.md). Không nhận implementation G4 PASS.
+
+| Requirement | P1-04 code/test trace |
+|---|---|
+| FR-CAT-02/03/08; 05 §4.2; NFR-07 | CatalogEndpoints + CatalogWorkflow; TaxonomyApiTests CRUD, permissions/CSRF, media/FK, collection order/atomic replace/cross-entity negatives |
+| BR-CAT-01/06/08/09; BR-SEO-03 | TaxonomyRules + EF namespace/row locks; TaxonomyRulesTests và TaxonomyApiTests depth/cycles/subtree/concurrent reparent, ever-public/hidden/archive/reuse/flatten/rollback |
+| BR-CAT-08; 03 §3.10/§8; NFR-08/09 | P1_04_TaxonomyPublicationHistory và TaxonomyMigrationTests: bốn nullable/no-default columns, preserve rows/FKs, idempotence, runtime role, safe Down/unknown history; EF/DDL parity regression |
+| BR-CAT-10/14 | RebuildProductSearchTextHandler; reference rename/outbox rollback/redelivery/current-state search, SKU/reference metadata invariants trong TaxonomyApiTests; không seed CLI/product CRUD |
+| BR-SEO-31/32/35; BR-CNT-02 | CatalogSeo/CatalogContentSanitizer; TaxonomyRulesTests/TaxonomyContentTests/TaxonomyApiTests explicit/neutral/brand/HTML/entities/Unicode/0-399-400-401/warnings/no-auto-noindex |
+| BR-SEO-23; NFR-04 | AuditValuePolicy scoped taxonomy; protected noindex reason round-trip và PII-negative audit/ProblemDetails tests |
+
+Tests là implementation evidence theo từng command, không thay G4 độc lập; future
+P1-03 seed command, live R2/production rollout/CI chưa được xác nhận bởi các fixture này.
+
+### P1-04 — focused fix sau implementation G4 BLOCK
+
+Owner giao sửa P1 redirect graph concurrency và P2 HTML boundaries/null items/NUL.
+Giữ spec/amendment/migration và roadmap; exact commands/red-green/full regression
+tại [finding fix evidence](../plans/p1-04-g4-fix-evidence.md), không self-approve G4.
+
+| Nguồn | Focused code / tests |
+|---|---|
+| BR-CAT-08, BR-SEO-03, NFR-09 | EfCatalogStore shared graph lock trước snapshot; TaxonomyG4FindingTests barriers/pg_locks, hai thứ tự cross-prefix/same-prefix, reclamation/rollback/retry/stale-version |
+| BR-CNT-02, BR-SEO-31/32/35 | CatalogContentSanitizer bảo toàn separators trước unwrap; TaxonomyContentTests và persisted 399/400/401/SEO/warning/XSS cases |
+| 05 §1/§4.2, FR-CAT-08, NFR-07/09 | PutCollectionProductsValidator null-before-dereference; TaxonomyG4ValidationTests và HTTP rejection/no DB/version/audit/outbox changes |
+| 05 §1/§4.2, NFR-07/09 | CatalogInput/SaveCatalogValidator/ListCatalogValidator chặn U+0000 decoded strings/JSON keys; unit + POST/PATCH/query bốn resources, nested JSON, valid Unicode/whitespace/null |
+
+### P1-04 — tích hợp với P1-03 đã merge PR #29
+
+Owner cho phép checkpoint/rebase local sau P1-04 G4 PASS. Checkpoint
+`c7f279ec687e444d733284b847dc72359c8d511c`; integrated HEAD
+`81afe9e3e837f7f5df347368bffb092bc978f5b8` trên main
+`0737dea96fa0e93d34b840d2bc8db5e56e4ffe13`. Không push/PR/merge/apply production.
+Giữ nguyên spec/migration; exact conflicts, manifest, combined command/results và
+accepted P2 tại [integration evidence](../plans/p1-04-integration-evidence.md).
+
+| Nguồn | Integrated verification |
+|---|---|
+| FR-CAT-01/02/03/08, 05 §4.2 | 32 operations=12 reference+20 taxonomy; preserve typed validator/metadata guards/seed và publication/redirect contracts; integrated OpenAPI/DI test |
+| BR-CAT-10/14, NFR-09 | Một canonical message/handler, producer đầy đủ chunk≤200; CatalogIntegrationTests: 0/1/200/201/350/401 cho ba resources, latest names, replay, SKU stability và second-batch failure/rollback/retry |
+| FR-CAT-01/03, BR-CAT-08/14 | Seed9/23/14/13→Materials CRUD, repeated seed/no metadata overwrite, publication timestamp, stable IDs/FKs/SKUs, Admin data→seed và conflict atomic rollback |
+| BR-CAT-08/09, BR-SEO-03/31/32/35, NFR-07/08/09 | Chạy lại cả Reference/Taxonomy, PG17 migration/parity/graph lock race/HTML/null-item/NUL/auth/CSRF/rowVersion trên integrated suite; không cộng totals cũ |

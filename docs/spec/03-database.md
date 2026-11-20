@@ -104,6 +104,32 @@ platform.settings, audit_logs, outbox_messages, idempotency_keys, inbound_webhoo
 - `platform.audit_logs` lưu định danh theo cặp `entity_type` và **đúng một** trong `entity_id uuid` (khóa UUID) hoặc `entity_key text` (khóa TEXT/khóa ghép khi có hợp đồng riêng). `entity_key` không rỗng; UUID không tự chuyển sang TEXT. `entity_type` là tên bảng DB có schema ổn định; truy vấn lịch sử dùng `(entity_type, entity_id)` hoặc `(entity_type, entity_key)` với chỉ mục từng phần tương ứng, thêm lọc actor/thời gian bằng `ix_audit_actor`/`ix_audit_time`.
 - Audit là lịch sử append-only, không dùng FK đa hình tới mọi entity nguồn. Role `tp_app` không được `UPDATE/DELETE/TRUNCATE` audit (§4); migration sau này không được xóa hoặc viết lại audit history khi đổi tên entity/khóa mà không có kế hoạch tương thích truy vấn và phục hồi đã duyệt. `changes` phải che PII/secret, kể cả JSON lồng nhau, theo 02 §5.4; P0-05 kiểm thử.
 
+### 3.10 Lịch sử public taxonomy — P1-04
+
+`catalog.categories`, `catalog.collections`, `catalog.materials`, `catalog.artisans`
+có `first_published_at timestamptz NULL`. BR-CAT-08: app/IClock đặt đúng một lần
+trong transaction đầu tiên đưa entity ra public; không overwrite/clear khi hide,
+archive, republish hoặc rename. Không thay IDs, FKs, slug/status/metadata hiện có.
+
+Migration EF additive mới phải đi cùng entity/mapping/snapshot; không sửa migration
+P1-01 hoặc migration đã commit. Trước apply, assessment bốn bảng trên đúng target:
+bảng rỗng không cần backfill; dữ liệu cũ có row phải phân biệt lịch sử có bằng
+chứng (đã public với thời điểm xác minh được, hoặc chưa từng public) và chưa xác
+định. Không suy ra lịch sử chỉ từ status hiện tại; không dùng created_at/updated_at,
+thời điểm migration hoặc thời điểm tùy ý làm timestamp publish lịch sử. Không coi
+NULL trên row cũ chưa xác minh là bằng chứng chưa từng public. Nếu còn lịch sử chưa
+xác định, **HOLD migration/backfill** cho target đó đến khi có phương án/evidence
+được owner duyệt; không âm thầm chọn đã/chưa public. Bằng chứng target thật không
+được suy từ fixture/test DB. Chi tiết executable backfill/recovery phải được review
+cùng migration, không phải đã được chứng minh bằng amendment này.
+
+Rollback source không xóa mốc public. Với dữ liệu thật, backup trước migration và
+roll forward/recovery có kiểm soát theo §8; Down chỉ DB dùng một lần, không xóa
+history/giá trị có ý nghĩa hoặc dependency ngoài scope. Seed material của P1-03
+độc lập: không sửa bốn bảng trong migration P1-03, không overwrite metadata hay
+tái sinh SKU đã cấp. P1-04 phải kiểm compatibility với reference records trước khi
+nhận đủ evidence triển khai; amendment không chạy seed hay cấp quyền production.
+
 ## 4. Vai trò database (tạo bởi `infra/postgres/init-roles.sql`)
 
 | Role | Quyền | Dùng bởi |

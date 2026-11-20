@@ -126,3 +126,21 @@ Quy mô lập kế hoạch: 10–20 người đồng thời, 100–1.000 lượt
 - [PR #22](https://github.com/jimthanhnobi/tra-hien/pull/22) đã merge Closure #1 (roles/grants). P1-01 chỉ được owner giao G3 khi B01 được review/merge, CI phù hợp và scoped readiness xác minh DB nền; nghiệm thu HTTPS/TOTP/backup thực tế là gate **trước dữ liệu thật/go-live**, không phải blocker cho migration trên DB giả.
 
 B01 chỉ sửa tài liệu; trạng thái G4/CI/publish của **bản amendment B01** được ghi trong PR riêng, không mặc định PASS.
+
+## 9. Amendment P1-04 — owner decisions 19/11/2026, local pending G4
+
+Owner duyệt nguyên tắc thêm `first_published_at timestamptz NULL` cho categories,
+collections, materials, artisans để thực hiện BR-CAT-08; set một lần khi public,
+giữ vĩnh viễn, không suy đoán lịch sử/timestamp khi assessment/backfill. Migration
+EF additive, không sửa migration cũ; IDs/FKs/slug/status/reference metadata giữ nguyên.
+
+Owner chốt material/artisan publish chỉ qua endpoint có `catalog.publish`, không
+bypass bằng PATCH; validate schema, sanitize server, media tùy chọn phải là public
+image hợp lệ; SEO defaults BR-SEO-31/32, không áp BR-CAT-04 của product. Dưới 400 từ
+chỉ là content-quality warning theo amendment BR-SEO-35, không tự noindex. Category/
+collection hidden/visible qua `catalog.write`, không thêm /publish hoặc luật archive
+redirect mới. Không thay đổi P1-03 hay roadmap.
+
+Nguồn phê duyệt và giới hạn tại [owner decision P1-04](../decisions/ADR-P1-04-publication-history-and-publish.md).
+Đây là amendment local đang chuẩn bị review độc lập, **chưa G4 PASS/chưa publish**;
+chưa thực thi EF migration hay xác nhận implementation/tests P1-04.

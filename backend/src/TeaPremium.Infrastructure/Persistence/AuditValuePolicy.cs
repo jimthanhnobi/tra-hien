@@ -70,6 +70,13 @@ public static class AuditValuePolicy
         }
 
         if (IsSensitive(field)) return Redacted;
+        // P1-04 entity/path classification. Never whitelist names/biographies/HTML globally.
+        if (entityType is "catalog.categories" or "catalog.collections" or "catalog.materials" or "catalog.artisans")
+        {
+            if (field == "status" && value is "visible" or "hidden" or "draft" or "published" or "archived") return value;
+            if (field == "robots_noindex" && value is bool) return value;
+            if (field == "first_published_at" && value is DateTime) return value;
+        }
         if (field == "status" && value is string status && SafeStatusValues.Contains(status)) return status;
         if (SafeNumericProperties.Contains(field) && IsNumber(value)) return value;
         if (SafeBooleanProperties.Contains(field) && value is bool) return value;

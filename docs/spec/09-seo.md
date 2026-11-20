@@ -85,11 +85,28 @@
 | Sản phẩm | `{tên} – {chất liệu} {dung tích}ml \| {Thương hiệu}` (bỏ phần nào không có) |
 | Danh mục | `{tên danh mục} \| {Thương hiệu}` |
 | Chất liệu | `{tên chất liệu}: đặc điểm, cách chọn và tác phẩm \| {Thương hiệu}` |
-| Nghệ nhân | `Nghệ nhân {tên} – tác phẩm {chất liệu chính} \| {Thương hiệu}` |
+| Nghệ nhân | `Nghệ nhân {tên} \| {Thương hiệu}`; chỉ dùng mẫu có chất liệu chính khi có nguồn xác minh tường minh như dưới đây |
 | Chủ đề | `{tiêu đề chủ đề} \| {Thương hiệu}` |
 | Bài viết | `{tiêu đề bài}` (≤ 60 ký tự) |
 
-- **BR-SEO-32** Meta description mặc định: `short_description`/`excerpt`/`intro` cắt 150–160 ký tự. Nhân viên được sửa; Admin hiện preview kết quả Google và đếm ký tự.
+P1-04 — fallback title **material/artisan** theo BR-SEO-31:
+
+- Ưu tiên `seo_title` do Admin nhập nếu có nội dung; chỉ sinh fallback khi giá trị là NULL, rỗng hoặc toàn whitespace Unicode/NBSP.
+- Material dùng mẫu chất liệu trong bảng trên với **tên material thực tế**.
+- Artisan không có nguồn chất liệu chính được xác minh tường minh dùng `Nghệ nhân {name} | {brand}`. Chỉ khi có nguồn chất liệu chính đã xác minh mới dùng mẫu `Nghệ nhân {name} – tác phẩm {chất liệu chính} | {brand}`; không suy ra chất liệu chính từ một sản phẩm bất kỳ hoặc thứ tự danh sách sản phẩm liên quan. P1-04 hiện không có nguồn chất liệu chính được đặc tả, nên dùng mẫu không có chất liệu chính; không thêm field/nguồn dữ liệu mới trong amendment này.
+- `{brand}` lấy từ cấu hình `seo.brand_name` khi có nội dung; nếu thiếu/rỗng/toàn whitespace thì bỏ thương hiệu **và** dấu phân cách ` | `, không tự dùng tên shop/giá trị giả định. Nếu title sinh có thương hiệu vượt mục tiêu 60 ký tự, bỏ hậu tố thương hiệu trước khi rút gọn phần còn lại.
+- Fallback chỉ giải quyết giá trị trả/render, không ghi đè `seo_title`/`seo_description` đã lưu. Không bịa xuất xứ, giải thưởng, kinh nghiệm, chứng nhận hoặc sản phẩm. Giá trị SEO Admin nhập được ưu tiên, không tự cắt/ghi lại bằng fallback; escape khi render HTML.
+- Với metadata **sinh tự động**, chuẩn hóa whitespace Unicode/NBSP thành khoảng trắng đơn, trim hai đầu; lấy prefix dài nhất gồm các từ trọn vẹn không vượt mục tiêu 60 ký tự cho title, 160 cho description (đếm Unicode text elements, không cắt giữa surrogate/combining sequence). Không tự thêm dấu chấm lửng hoặc đệm nội dung để đủ độ dài. Nếu token đầu dài hơn mục tiêu, giữ nguyên token đó để không cắt từ; đây là ngoại lệ của mục tiêu độ dài, không là lỗi publish. Nội dung ngắn được giữ nguyên; không thêm giới hạn tối thiểu/publish blocker hoặc tự bật noindex.
+
+- **BR-SEO-32** Meta description mặc định: `short_description`/`excerpt`/`intro` cắt 150–160 ký tự. Nhân viên được sửa; Admin hiện preview kết quả Google và đếm ký tự. Riêng P1-04 material/artisan dùng thứ tự xác định dưới đây; 150–160 là mục tiêu rút gọn, không phải độ dài tối thiểu để publish:
+
+| Entity | Chọn nguồn đầu tiên có nội dung, từ trái sang phải |
+|---|---|
+| Material | `seo_description` → `summary` (plain text) → plain text của `description_html` đã sanitize → `Thông tin về chất liệu {name}.` |
+| Artisan | `seo_description` → plain text của `bio_html` đã sanitize → `Thông tin về nghệ nhân {name}.` |
+
+Trong hai mẫu trung tính, `{name}` là tên thực tế của entity, không tự dịch/thay bằng tên giả và không khẳng định có sản phẩm, thành tích hoặc xuất xứ. Bỏ qua nguồn NULL/rỗng/toàn whitespace Unicode/NBSP; HTML không còn text sau sanitize cũng là rỗng. Plain text lấy theo quy trình BR-SEO-35 bên dưới. Chọn nguồn xong mới rút gọn **fallback được sinh** theo BR-SEO-31; không ghép các nguồn, không sửa giá trị SEO explicit đã lưu. Thiếu cả summary/description/bio vẫn có mẫu trung tính, không sinh publish blocker/noindex. Quy tắc này theo ưu tiên SEO DEC-21; BR-CAT-04 của product không áp sang material/artisan.
+
 - **BR-SEO-33** Open Graph + Twitter Card trên mọi trang public: `og:title`, `og:description`, `og:image` (1200×630, sinh từ ảnh bìa bằng route ảnh của Next), `og:url` = canonical, `og:type` (`product`/`article`/`website`), `og:locale=vi_VN`. (Zalo và Facebook dùng OG để hiện preview khi chia sẻ link.)
 - **BR-SEO-34** **Nội dung sản phẩm và điều kiện index** (bổ sung BR-CAT-04):
   - Mô tả riêng ≥ **150 từ** là điều kiện index, không chặn publish chỉ vì thiếu số từ. Không sao chép nguyên văn; giữ bảng thông số HTML crawl được và nội dung thật. Điều kiện không rỗng/metadata của BR-CAT-04 không đổi.
@@ -99,7 +116,19 @@
   - Khuyến nghị (cảnh báo, không chặn): ≥ 3 ảnh; có mục "Cách dùng & bảo quản"; có liên kết nghệ nhân/chất liệu; `focus_keyword` đã điền.
   - Trang sản phẩm tự chèn các khối: "Về chất liệu {X}" (tóm tắt + link `/chat-lieu/x`), "Về nghệ nhân {Y}" (tóm tắt + link), "Bài viết liên quan" (từ `article_links`).
   - SEO Audit báo **trùng mô tả** khi độ giống (trigram `similarity`) giữa hai mô tả > 0,8.
-- **BR-SEO-35** Trang danh mục/bộ sưu tập: đoạn giới thiệu ngắn (40–80 từ) phía trên lưới sản phẩm + nội dung hướng dẫn dài (`body_html`, ≥ 300 từ khuyến nghị) phía dưới lưới. Trang chất liệu/nghệ nhân: nội dung ≥ 400 từ + lưới sản phẩm + bài viết liên quan.
+- **BR-SEO-35** Trang danh mục/bộ sưu tập: đoạn giới thiệu ngắn (40–80 từ) phía trên lưới sản phẩm + nội dung hướng dẫn dài (`body_html`, ≥ 300 từ khuyến nghị) phía dưới lưới. Trang chất liệu/nghệ nhân: mục tiêu nội dung ≥ 400 từ + lưới sản phẩm + bài viết liên quan. Owner decision P1-04 (19/11/2026): dưới 400 từ plain text sau sanitize là cảnh báo chất lượng nội dung, **không chặn publish**, không tự set `robots_noindex` và không thêm publish restriction khác. Mục tiêu 400 từ tiếp tục dùng cho kế hoạch nội dung và SEO Audit sau này; không áp quy tắc thin-description riêng của product BR-SEO-34 sang material/artisan.
+
+P1-04 — phép đếm và cảnh báo material/artisan theo BR-SEO-35:
+
+1. Chỉ lấy `materials.description_html` hoặc `artisans.bio_html`; NULL/rỗng cho 0 từ. Sanitize HTML tại server theo BR-CNT-02.
+2. Loại cả thẻ **và toàn bộ nội dung** script/style, không unwrap nội dung chúng thành text. Trích text hiển thị; giữ ranh giới block, `<br>` và ô bảng bằng khoảng trắng để không nối từ ở hai block; không đếm tên thẻ/thuộc tính.
+3. Decode HTML entities thành text, không diễn giải text vừa decode thành HTML lần nữa.
+4. Chuẩn hóa mọi whitespace Unicode, gồm NBSP (U+00A0), thành khoảng trắng thường.
+5. Gộp whitespace liên tiếp thành một khoảng trắng và trim hai đầu.
+6. Đếm token không rỗng phân cách bằng whitespace; text rỗng sau xử lý cho 0. Không đếm `summary`, SEO metadata, product listings, related articles hoặc generated boilerplate; chỉ đếm nội dung nguồn của entity trước khi ghép các khối đó.
+
+Khi `actualWords < 400`, POST /publish thành công trả cảnh báo `content_below_recommended_words` với `field = descriptionHtml` (material) hoặc `bioHtml` (artisan), số từ thực tế và `recommendedWords = 400`; từ 400 trở lên trả `warnings: []`. Payload và HTTP 200 được đặc tả trong `05-api.md` §4.2. Cảnh báo không đổi trạng thái thành công, không thay quyền publish, không ghi/clear `robots_noindex` và **không dùng** `thin_description_noindex` của product.
+
 - **BR-SEO-36** **Một từ khóa chính cho một trang**: `focus_keyword` trên product/category/collection/landing/material/artisan/article. Trùng `focus_keyword` (sau `f_unaccent`) giữa hai trang indexable → SEO Audit cảnh báo "ăn thịt từ khóa" (cannibalization).
 - **BR-SEO-37** Nội dung AI: được dùng AI viết nháp, nhưng bài/sản phẩm phải có thông tin thực tế từ shop (ảnh thật, thông số đo thật, kinh nghiệm dùng) và người duyệt trước khi publish. Không sinh hàng loạt trang mỏng. Không khẳng định xuất xứ/chứng nhận khi không có bằng chứng.
 

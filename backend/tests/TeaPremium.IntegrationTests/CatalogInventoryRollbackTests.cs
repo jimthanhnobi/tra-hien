@@ -18,7 +18,7 @@ public sealed class CatalogInventoryRollbackTests(CatalogInventoryFixture fixtur
     [InlineData(Seed + "INSERT INTO pricing.sale_prices(id,variant_id,sale_price_vnd,starts_at,ends_at,created_by) SELECT gen_random_uuid(),id,1,now(),now()+interval '1 hour',gen_random_uuid() FROM catalog.variants;")]
     public async Task DownWithDataRefusesBeforeAnyDrop(string seed)
     {
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: "202611190201_P1_01_CatalogInventoryFoundation");
         await ExecuteAsync(c, seed);
         var before = await ShapeAsync(c);
         await using var db = Context(c);
@@ -47,7 +47,7 @@ public sealed class CatalogInventoryRollbackTests(CatalogInventoryFixture fixtur
     [InlineData("CREATE TABLE public.p101_outside(id bigint DEFAULT nextval('catalog.sku_number_seq'))", "DROP TABLE public.p101_outside")]
     public async Task DownWithOutsideObjectOrDependencyRefusesAndThenRecovers(string create, string remove)
     {
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: "202611190201_P1_01_CatalogInventoryFoundation");
         await ExecuteAsync(c, create);
         var before = await ShapeAsync(c);
         await using var db = Context(c);
@@ -65,7 +65,7 @@ public sealed class CatalogInventoryRollbackTests(CatalogInventoryFixture fixtur
     [Fact]
     public async Task ExternalAdministratorOperatorFamilyBlocksDown()
     {
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: "202611190201_P1_01_CatalogInventoryFoundation");
         var admin = fixture.Admin(c);
         // PostgreSQL requires superuser for CREATE OPERATOR FAMILY. Keep runtime
         // and migration role permissions unchanged; only this disposable fixture
@@ -88,7 +88,7 @@ public sealed class CatalogInventoryRollbackTests(CatalogInventoryFixture fixtur
     [Fact]
     public async Task ExternalCollationBlocksDownBeforeAnyDropAndEmptyDownUpStillWorks()
     {
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: "202611190201_P1_01_CatalogInventoryFoundation");
         Assert.StartsWith("17.", await ScalarAsync<string>(c, "SHOW server_version"), StringComparison.Ordinal);
         await ExecuteAsync(c, """
 CREATE COLLATION catalog.g4_outside FROM pg_catalog."C";
@@ -123,7 +123,7 @@ SELECT setval('catalog.sku_number_seq',9876);
     [Fact]
     public async Task EmptyDownUpPreservesP0AndRestrictedPermissions()
     {
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: "202611190201_P1_01_CatalogInventoryFoundation");
         await ExecuteAsync(c, "INSERT INTO platform.settings(key,value) VALUES ('p101.down_fixture','{}')");
         var before = await CatalogInventoryDatabaseTests.P0FingerprintAsync(c);
         await using var db = Context(c);

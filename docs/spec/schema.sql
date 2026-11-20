@@ -234,6 +234,7 @@ CREATE TABLE catalog.materials (
   description_html text,
   cover_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
+  first_published_at timestamptz,               -- BR-CAT-08: set một lần khi public; không suy đoán lịch sử khi backfill
   focus_keyword  text,
   seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
   sort_order     int NOT NULL DEFAULT 0,
@@ -250,6 +251,7 @@ CREATE TABLE catalog.artisans (
   bio_html       text,
   portrait_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
+  first_published_at timestamptz,               -- BR-CAT-08: giữ nguyên sau archive/republish/đổi slug
   focus_keyword  text,
   seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
   created_at     timestamptz NOT NULL DEFAULT now(),
@@ -266,6 +268,7 @@ CREATE TABLE catalog.categories (
   body_json      jsonb,
   cover_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'hidden' CHECK (status IN ('visible','hidden')),
+  first_published_at timestamptz,               -- BR-CAT-08: giữ nguyên sau hide/đổi slug
   sort_order     int NOT NULL DEFAULT 0,
   focus_keyword  text,
   seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,
@@ -398,6 +401,7 @@ CREATE TABLE catalog.collections (
   body_json      jsonb,
   cover_media_id uuid REFERENCES media.assets(id),
   status         text NOT NULL DEFAULT 'hidden' CHECK (status IN ('visible','hidden')),
+  first_published_at timestamptz,               -- BR-CAT-08: giữ nguyên sau hide/đổi slug
   sort_order     int NOT NULL DEFAULT 0,
   focus_keyword  text,
   seo_title      text, seo_description text, robots_noindex boolean NOT NULL DEFAULT false,

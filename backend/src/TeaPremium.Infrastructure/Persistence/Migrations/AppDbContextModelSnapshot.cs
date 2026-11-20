@@ -750,6 +750,10 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTime?>("FirstPublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_published_at");
+
                     b.Property<string>("FocusKeyword")
                         .HasColumnType("text")
                         .HasColumnName("focus_keyword");
@@ -798,6 +802,12 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id")
                         .HasName("pk_artisans");
@@ -1063,6 +1073,10 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description_html");
 
+                    b.Property<DateTime?>("FirstPublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_published_at");
+
                     b.Property<string>("FocusKeyword")
                         .HasColumnType("text")
                         .HasColumnName("focus_keyword");
@@ -1113,6 +1127,12 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id")
                         .HasName("pk_categories");
@@ -1185,6 +1205,10 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description_html");
 
+                    b.Property<DateTime?>("FirstPublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_published_at");
+
                     b.Property<string>("FocusKeyword")
                         .HasColumnType("text")
                         .HasColumnName("focus_keyword");
@@ -1231,6 +1255,12 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id")
                         .HasName("pk_collections");
@@ -1365,6 +1395,10 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("description_json");
 
+                    b.Property<DateTime?>("FirstPublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_published_at");
+
                     b.Property<string>("FocusKeyword")
                         .HasColumnType("text")
                         .HasColumnName("focus_keyword");
@@ -1424,6 +1458,12 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id")
                         .HasName("pk_materials");

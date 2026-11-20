@@ -69,7 +69,7 @@ INSERT INTO platform.administrative_data_imports(id,dataset_version,release_orde
         Assert.Equal(before, await P0FingerprintAsync(connection));
         Assert.Equal(4, oldHistory.Length);
         Assert.Equal(oldHistory, (await db.Database.GetAppliedMigrationsAsync()).Take(4));
-        Assert.Equal(5, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(6, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.False(db.Database.HasPendingModelChanges());
         Assert.Equal(25, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content')"));
         Assert.Equal(0, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE tablename IN ('reservations','product_reviews','review_media','vouchers','redemptions')"));
@@ -305,7 +305,7 @@ INSERT INTO content.redirects(source_path,target_path) VALUES ('/fake-source','/
         var before = await P0FingerprintAsync(c);
         await ExecuteAsync(c, sql);
         Assert.Equal(before, await P0FingerprintAsync(c));
-        Assert.Equal(5, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(6, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Equal(1, await ScalarAsync<int>(c, "SELECT count(*)::int FROM catalog.products"));
         Assert.Equal(2L, await ScalarAsync<long>(c, "SELECT nextval('catalog.sku_number_seq')"));
         await ErrorAsync(DatabaseProvisioning.Login(c, "tp_app"), "TRUNCATE inventory.stock_movements", "42501");
@@ -328,6 +328,6 @@ INSERT INTO content.redirects(source_path,target_path) VALUES ('/fake-source','/
         finally { await ExecuteAsync(admin, "ALTER ROLE p101_missing_backup RENAME TO tp_readonly"); }
         await using var recovered = Context(c);
         await recovered.Database.MigrateAsync();
-        Assert.Equal(5, (await recovered.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(6, (await recovered.Database.GetAppliedMigrationsAsync()).Count());
     }
 }
