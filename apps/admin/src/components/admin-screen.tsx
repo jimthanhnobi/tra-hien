@@ -12,12 +12,13 @@ import { ApiError, type Auth } from "../lib/api";
 import { useAdmin, useSession } from "./providers";
 import { LoginForm, PasswordForm, TotpForm } from "./auth-forms";
 import { Confirmation, FormError, Pending } from "./ui";
+import { CatalogScreen, type CatalogSection } from "./catalog/catalog-screen";
 
 const icons = { home: LayoutDashboard, package: Package, warehouse: Warehouse, orders: ShoppingBag, users: Users,
   megaphone: Megaphone, file: FileText, chart: ChartNoAxesCombined, settings: Settings, staff: UserRoundCog };
 const authPages = ["/login", "/change-password", "/totp-setup"];
 
-export function AdminScreen({ path }: { path: string }) {
+export function AdminScreen({ path, catalogSection }: { path: string; catalogSection?: CatalogSection }) {
   const session = useSession();
   const router = useRouter();
   const target = session.data === undefined ? undefined : destination(session.data);
@@ -38,6 +39,7 @@ export function AdminScreen({ path }: { path: string }) {
     {!session.data ? <LoginForm /> : path === "/change-password" ? <PasswordForm /> : path === "/totp-setup" ? <TotpForm />
       : <ApplicationShell auth={session.data} path={path}>
     {forbidden ? <StatusPage status={403} embedded /> : path === "/" ? <Welcome auth={session.data} />
+      : path === "/catalog" ? <CatalogScreen section={catalogSection} permissions={session.data.user.permissions} />
       : item ? <ModulePlaceholder title={item.label} /> : <StatusPage status={404} embedded />}
   </ApplicationShell>}</div></>;
 }
@@ -98,9 +100,9 @@ function Welcome({ auth }: { auth: Auth }) {
     <section className="welcome-panel"><div><span className="section-tag">NỀN TẢNG QUẢN TRỊ</span><h2>Mọi việc bắt đầu<br />từ một không gian gọn gàng.</h2>
       <p>Tài khoản của bạn đã sẵn sàng. Các khu vực bên dưới được hiển thị theo quyền truy cập hiện tại.</p></div><Sprout className="welcome-sprout" size={126} strokeWidth={0.7} aria-hidden="true" /></section>
     <div className="section-heading"><h2>Khu vực làm việc</h2><span>{items.length} khu vực được cấp quyền</span></div>
-    <p className="module-notice">Các chức năng nghiệp vụ đang được xây dựng. Hiện chưa có dữ liệu hay thao tác nghiệp vụ trong phiên bản này.</p>
+    <p className="module-notice">Quản lý catalog đã sẵn sàng. Các khu vực khác sẽ được bổ sung theo từng giai đoạn.</p>
     {items.length ? <div className="module-grid">{items.map(item => { const Icon = icons[item.icon]; return <Link key={item.path} href={item.path} className="module-card">
-      <span className="module-icon"><Icon size={23} /></span><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" /><h3>{item.label}</h3><p>Chưa triển khai</p></Link>; })}</div>
+      <span className="module-icon"><Icon size={23} /></span><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" /><h3>{item.label}</h3><p>{item.path === "/catalog" ? "Quản lý danh mục và nội dung" : "Chưa triển khai"}</p></Link>; })}</div>
       : <div className="empty-state"><ShieldCheck size={28} /><h2>Chưa có khu vực được cấp quyền</h2><p>Liên hệ người quản lý để được hỗ trợ.</p></div>}
     <p className="security-note"><ShieldCheck size={18} /> Quyền truy cập được kiểm tra bởi hệ thống. Hãy đăng xuất khi kết thúc ca làm việc.</p>
   </>;
