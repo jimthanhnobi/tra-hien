@@ -537,14 +537,20 @@ test("F2 identical product names have distinct checkbox names and keyboard selec
   await expect(first).not.toBeChecked();
   await expect(second).toBeChecked();
   await dialog.getByRole("button", { name: "Thêm 1 sản phẩm đã chọn" }).click();
+  await expect(dialog).toBeHidden();
   const name = page.getByLabel("Tên", { exact: true });
   await expect(name).toBeDisabled();
-  await name.press("Enter", { timeout: 1500 });
   await expect(name).toHaveValue("Trà cụ mùa thu");
-  await region.getByRole("button", { name: "Lưu danh sách sản phẩm" }).click();
+  const save = region.getByRole("button", { name: "Lưu danh sách sản phẩm" });
+  await expect(save).toBeEnabled();
+  await save.focus();
+  await expect(save).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(name).toBeEnabled();
   expect(server.calls.filter(x => x.method === "PATCH")).toHaveLength(0);
-  expect(server.calls.find(x => x.method === "PUT")?.body?.items).toEqual([{ productId: productB, sortOrder: 0 }]);
+  expect(server.calls.filter(x => x.method === "PUT").map(x => x.body?.items)).toEqual([
+    [{ productId: productB, sortOrder: 0 }]
+  ]);
 });
 
 test("FR-CAT-08 empty collection: multi-select, full replacement, persist/reload, returned version", async ({ page }) => {
