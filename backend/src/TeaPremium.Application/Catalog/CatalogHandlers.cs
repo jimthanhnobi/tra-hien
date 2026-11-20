@@ -33,6 +33,7 @@ public sealed partial class CatalogWorkflow(ICatalogStore store, ICatalogContent
         var version = 0u;
         if (!create && (!fields.TryGetProperty("rowVersion", out var rv) || rv.ValueKind != JsonValueKind.String || !CatalogVersions.TryDecode(rv.GetString(), out version)))
             return Result.Failure<CatalogView>(Bad("rowVersion"));
+        await store.PrepareWriteAsync(command.Kind, ct);
         // Namespace lock is only needed by routing/hierarchy/state mutations; pure metadata edits lock their aggregate row.
         if (create || fields.TryGetProperty("slug", out _) || fields.TryGetProperty("parentId", out _) || fields.TryGetProperty("status", out _))
             await store.LockNamespaceAsync(command.Kind, ct);

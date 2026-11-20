@@ -28,6 +28,7 @@ public static class MediaRegistration
         });
         services.AddSingleton<IMediaContentValidator, FfmpegContentValidator>();
         services.AddScoped<IMediaWorkflow, EfMediaWorkflow>();
+        services.AddScoped<IPublicImageAssets, EfPublicImageAssets>();
         services.AddScoped<UploadCleanup>();
         if (!string.IsNullOrWhiteSpace(configuration.GetConnectionString("Default")) && configuration["MediaStorage:Provider"] is "R2" or "Fake")
             services.AddHostedService<ExpireUploadSessions>();

@@ -28,6 +28,7 @@ builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer(SettingsOpenApi.TransformAsync);
     options.AddDocumentTransformer(CatalogOpenApi.TransformAsync);
+    options.AddDocumentTransformer(ProductOpenApi.TransformAsync);
 });
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
@@ -91,6 +92,7 @@ app.MapSettings();
 app.MapMedia();
 app.MapCatalogReference();
 app.MapCatalog();
+app.MapProducts();
 
 app.Run();
 

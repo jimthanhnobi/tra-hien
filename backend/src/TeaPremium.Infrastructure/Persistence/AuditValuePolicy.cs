@@ -70,6 +70,17 @@ public static class AuditValuePolicy
         }
 
         if (IsSensitive(field)) return Redacted;
+        // P1-05: classify variant business fields by entity and runtime type. Names,
+        // barcode, free text and arbitrary JSON remain redacted, including on creation.
+        if (entityType == "catalog.variants")
+        {
+            if (field == "price_vnd" && value is long) return value;
+            if (field == "status" && value is "active" or "inactive") return value;
+            if (field == "is_unique_piece" && value is bool) return value;
+            if (field is "position" or "weight_g" or "low_stock_threshold" && value is int) return value;
+            if (field is "created_at" or "updated_at" && value is DateTime) return value;
+            return Redacted;
+        }
         // P1-04 entity/path classification. Never whitelist names/biographies/HTML globally.
         if (entityType is "catalog.categories" or "catalog.collections" or "catalog.materials" or "catalog.artisans")
         {

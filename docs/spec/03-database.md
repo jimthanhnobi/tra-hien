@@ -93,7 +93,8 @@ platform.settings, audit_logs, outbox_messages, idempotency_keys, inbound_webhoo
 
 ### 3.7 Tìm kiếm không dấu
 - `search_text` = `f_unaccent(...)` các trường liên quan, **app tự cập nhật** khi lưu (BR-CAT-10, BR-CRM-14).
-- Query: `WHERE search_text LIKE '%' || f_unaccent(@q) || '%'` (escape `%`, `_`, `\` trong @q) hoặc `search_text % f_unaccent(@q)` cho tìm gần đúng; index GIN trigram.
+- Query Catalog products (P1-05, owner-approved 20/11/2026; AC-P1-07): chuẩn hóa `q` bằng `f_unaccent`, tách theo Unicode whitespace, bỏ token rỗng; **AND mọi token trên cùng một `search_text`**, không cần liền nhau hoặc đúng thứ tự. Mỗi token dùng parameterized literal substring (escape `%`, `_`, `\` khi dùng LIKE); giữ index GIN trigram, không thêm fuzzy/ranking. Query rỗng/toàn whitespace giữ hành vi không lọc search; filters/sort/pagination/total giữ nguyên. Composition BR-CAT-10 không đổi.
+- Các phạm vi ngoài Catalog products giữ query hiện hành: `WHERE search_text LIKE '%' || f_unaccent(@q) || '%'` (escape `%`, `_`, `\` trong @q) hoặc `search_text % f_unaccent(@q)` cho tìm gần đúng; index GIN trigram.
 - Tìm SĐT: chuẩn hóa input về chữ số rồi so khớp đuôi (`phone_e164 LIKE '%' || @digits`).
 
 ### 3.8 Giá khuyến mãi

@@ -473,3 +473,68 @@ accepted P2 tại [integration evidence](../plans/p1-04-integration-evidence.md)
 | BR-CAT-10/14, NFR-09 | Một canonical message/handler, producer đầy đủ chunk≤200; CatalogIntegrationTests: 0/1/200/201/350/401 cho ba resources, latest names, replay, SKU stability và second-batch failure/rollback/retry |
 | FR-CAT-01/03, BR-CAT-08/14 | Seed9/23/14/13→Materials CRUD, repeated seed/no metadata overwrite, publication timestamp, stable IDs/FKs/SKUs, Admin data→seed và conflict atomic rollback |
 | BR-CAT-08/09, BR-SEO-03/31/32/35, NFR-07/08/09 | Chạy lại cả Reference/Taxonomy, PG17 migration/parity/graph lock race/HTML/null-item/NUL/auth/CSRF/rowVersion trên integrated suite; không cộng totals cũ |
+
+### P1-05 — owner-approved local G3 (20/11/2026)
+
+Base `bb9a901044d41a0783d226fcd678e3865390fa30`, dedicated worktree
+`D:\tra-hien-p1-05`, branch `feature/p1-05-products-variants`; reuse targeted G1/G2,
+owner giữ ngoại lệ draft active price NULL theo BR-CAT-15/AC-P1-09. Scope và lock
+protocol tại [task record](../plans/p1-05-implementation.md), exact final evidence
+tại [G3 evidence](../plans/p1-05-g3-evidence.md). Không là independent G4 approval.
+
+| Nguồn | Code/test trace P1-05 |
+|---|---|
+| FR-CAT-04/05/06/07; 05 §4.2 | ProductWorkflow/IProductStore/ProductEndpoints: 16 operations, 11 paths; ProductApiTests/ProductMediaSecurityTests/ProductOutboxContractTests; old P1-03/P1-04 paths preserved |
+| BR-CAT-01/03/06; DEC-04/26 | ProductApiTests: draft+default variant, typed values, confirmed type cleanup, fixed SKU/identity, no product/variant DELETE route |
+| BR-CAT-02/14 | ProductRulesTests/ProductVariantTests: min4/full sequence, 9999→10000, concurrency, manual/inactive collision, bounded64 suffix exhaustion, savepoint/audit cleanup, rollback gap, movement usage và injected order-usage contract; Sales tables/integration vẫn P2 |
+| BR-CAT-04/15; AC-P1-01/02/09 | ProductPublicationTests: entire publish errors, active/inactive NULL, activation, price bounds, duplicate axes, metadata; ProductConcurrencyTests: parent locking chống publish/NULL-price race cả hai thứ tự. Import part AC-P1-09 không thuộc P1-05 |
+| 03 §3.1, P1-03 reference contract | ProductValueTests và ProductConcurrencyTests: new/changed assignment dùng TypedAttributeValidator dưới SHARE refs; wrong scope/type/option/precision, historical inactive values; metadata-first/writer-first cho product và variant values |
+| BR-CAT-07; FR-CAT-06 | Completed public asset của Media/R2 qua IPublicImageAssets; ProductMediaSecurityTests: real P1-02 complete, ALT, ownership, private/video rejection, cover unique/rollback/concurrency, relation deletion không xóa asset |
+| BR-CAT-08; BR-SEO-03/22; AC-P1-03 | ProductPublicationTests/ProductConcurrencyTests: ever-public history, archive/restore, flatten/reclaim/cross-prefix inbound, real product/material HTTP race. ProductLockOrderTests tái hiện baseline cycle rồi proof early material RowExclusive trước graph; không đổi shared graph key |
+| BR-CAT-10; FR-CAT-11; AC-P1-07 hỗ trợ | Shared canonical RebuildProductSearchText SQL khi save, existing message/handler qua outbox khi rename; current-name replay/SKU stability/one consumer trong ProductOutboxContractTests |
+| BR-SEO-23/34; DEC-27; AC-P1-10 | ProductPublicationTests: sanitized count149/150/151/both directions/manual/site priority, metadata errors vẫn block; ProductAudit targeted manual/thin/word count và protected reason; atomic bounded StorefrontInvalidate tags/delivery/retry tests |
+| NFR-04/07/08/09; 02 §5.2/5.4/5.5 | Real tp_app/AdminCookie/CSRF/permission/field filtering/rowVersion; fingerprint rollback audit/outbox/redirect sau early save. Model/grants/migrations giữ nguyên; full PG17 regression evidence ghi riêng |
+
+BR-CAT-05/11/12, BR-SEO-20/21 và phần SSR/robots/canonical/sitemap/feed của
+AC-P1-10 tiếp tục tại Store API/P3; không claim cache thật khi receiver chưa có.
+
+### P1-05 — focused G4 remediation F1/F2/F3 (20/11/2026)
+
+Owner-reported G4 BLOCK; base/head bb9a901044d41a0783d226fcd678e3865390fa30,
+snapshot39file SHA256 khớp100% trước sửa. [Focused evidence](../plans/p1-05-g4-fix-evidence.md)
+giữ commands/results/inventory/triage; không tự nhận independent G4 PASS.
+
+| Requirement / finding | Remediation và regression |
+|---|---|
+| BR-CAT-04.6/15, AC-P1-02/09; F1/P1 | Shared VariantAxisErrors cho publish/final active aggregate; parent lock xuyên validation/commit. ProductG4FindingTests/ProductG4ConcurrencyTests: create/patch/activate, both publish orders, real PG blocking/barriers, failed values/version/audit/all outbox fingerprint giữ nguyên; draft/inactive/multi-axis/single-active/unrelated edits |
+| 05 §1/4.2, BR-CAT-03, BR-SEO-23; F2/P2 | Pre-transaction typed control validation; optional string/null reason, bool/null confirmation và omitted semantics; malformed controls400, unknown/NUL/duplicates không nới, embedded default controls kiểm cùng kiểu |
+| 05 §1 OpenAPI/rowVersion, FR-CAT-04/05; F3/P2 | Clone per-property schema, required+nonnull không lẫn optional+nullable; regenerate existing client; schema/HTTP/TS negative+positive tests; preserve P1-03/P1-04 contracts |
+| FR-CAT-11/BR-CAT-10/AC-P1-07; extra triage A | OPEN direct Admin q acceptance gap P1-05, shared fixture/token semantics cần owner giao correction; P1-14 Store read-side acceptance riêng, không silently defer toàn AC |
+| BR-SEO-22/03, AC-P3-13; extra triage B | OPEN semantic redirect target validation ở archive P1-05, default public filtering đã có; target eligibility/atomic rejection cần focused scope riêng; P3-13 kiểm end-to-end301→200 một bước |
+
+Local focused fix PASS/READY_FOR_FOCUSED_G4 YES: focused50/50, full regression
+**981/981=174unit+34architecture+773integration PG17**, zero skip, frontend26/26,
+model/API/client checks PASS. F1/F2/F3 CLOSED chỉ local remediation, independent
+G4 closure chưa thực hiện. Hai extra gaps OPEN giữ nguyên, không âm thầm defer/
+implement ngoài scope hoặc claim full acceptance P1-05.
+
+### P1-05 — final blockers F4/F5, owner authorization 20/11/2026
+
+F1/F2/F3 independently CLOSED theo owner; source/contracts giữ nguyên snapshot42.
+Current [final blocker evidence](../plans/p1-05-final-blocker-evidence.md) ghi scoped
+spec amendment, baseline/hash, lock protocol, tests/results và deferred ownership.
+
+| Finding / existing IDs | Implementation và acceptance ownership |
+|---|---|
+| F4/P1; FR-CAT-11, BR-CAT-10, AC-P1-07; 03 §3.7/05 §4.2 | Product ListAsync f_unaccent + Unicode token AND literal; SQL parameterized, composition/filters/paging/total giữ nguyên. ProductFinalBlockerTests kiểm Admin search; P1-14 nhận Store API cùng fixture. Owner-approved semantics ghi 00 §10/03/07, không fuzzy/dependency/index mới. |
+| F5/P1; BR-CAT-08, BR-SEO-01/03/22; 05 §4.2 | Resolve canonical Catalog leaf; destination protection trước graph, fresh graph/state check, discovery conflict và atomic rollback. ProductFinalBlockerTests/PathTests + ProductArchiveConcurrencyTests kiểm5types×state/slug×2orders và changed discovery. P3 nhận SSR301→200/target future lifecycle; không claim từ backend tests. |
+
+Migration NO; local regression/gate hiện hành xem evidence, không dùng historical
+981/981 làm kết quả của revision mới. Không publish/merge hoặc tự nhận independent G4.
+
+Final local F4/F5 CLOSED/FOCUSED_FIX PASS, READY_FOR_FOCUSED_G4 YES: focused74/74;
+full mới1055/1055 =174unit+34architecture+847integration PG17, zero fail/skip.
+Trong full có50/50 F1/F2/F3 regression và74/74 F4/F5, source41backend/client hashes
+giữ nguyên trong suite. Có SDK build-server cleanup để giải phóng baseline
+RunToolAsync output pipe; limitation/evidence/NOT RUN ghi trong current record.
+Owner publish NO, independent focused G4 F4/F5 chưa thực hiện.
