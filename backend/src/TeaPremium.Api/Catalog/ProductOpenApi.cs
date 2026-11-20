@@ -17,6 +17,13 @@ public static class ProductOpenApi
         Set(document, "/api/v1/admin/products/{id}/variants", HttpMethod.Post, nameof(VariantWriteRequest), "VariantCreate", ["rowVersion"], []);
         Set(document, "/api/v1/admin/products/{id}/variants/{childId}", HttpMethod.Patch, nameof(VariantWriteRequest), "VariantPatch", ["rowVersion"], []);
         Set(document, "/api/v1/admin/products/{id}/media", HttpMethod.Post, nameof(ProductMediaRequest), "ProductMediaCreate", ["rowVersion", "assetId", "altText"], []);
+        var import = document.Paths["/api/v1/admin/products/import"].Operations![HttpMethod.Post];
+        if (import.Parameters!.Single(x => x.Name == "dryRun") is OpenApiParameter mode)
+        {
+            mode.Required = true;
+            mode.Schema = new OpenApiSchema { Type = JsonSchemaType.Boolean };
+        }
+        if (import.RequestBody is OpenApiRequestBody body) body.Required = true;
         return Task.CompletedTask;
     }
     private static void Nonnullable(IOpenApiSchema schema, string[] fields)

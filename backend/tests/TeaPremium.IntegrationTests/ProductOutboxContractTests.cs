@@ -82,13 +82,24 @@ public sealed class ProductOutboxContractTests(PlatformDatabaseFixture fixture) 
         var retried = await h.Patch(p, new { slug = "transaction-new", descriptionHtml = ProductPublicationTests.Words(149) }); Assert.Equal("transaction-new", retried.Slug);
     }
     [Fact]
-    public async Task OpenApiAddsExactlyElevenProductPathsAndSixteenOperationsAndKeepsReferenceTaxonomyContracts()
+    public async Task OpenApiKeepsProductAndTaxonomyContractsAndAddsOneMultipartImportOperation()
     {
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseEnvironment("CI").UseSetting("ConnectionStrings:Default", ""));
         using var client = factory.CreateClient(); using var document = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
         var all = document.RootElement.GetProperty("paths");
         var paths = all.EnumerateObject().Where(p => p.Name.StartsWith(ProductApiTests.Root, StringComparison.Ordinal)).ToArray();
-        Assert.Equal(11, paths.Length); Assert.Equal(16, paths.Sum(p => p.Value.EnumerateObject().Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete")));
+        var existing = paths.Where(p => p.Name != ProductApiTests.Root + "/import").ToArray();
+        Assert.Equal(11, existing.Length);
+        Assert.Equal(16, existing.Sum(p => p.Value.EnumerateObject().Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete")));
+        var import = Assert.Single(Assert.Single(paths, p => p.Name == ProductApiTests.Root + "/import").Value.EnumerateObject());
+        Assert.Equal("post", import.Name);
+        var mode = Assert.Single(import.Value.GetProperty("parameters").EnumerateArray());
+        Assert.Equal("dryRun", mode.GetProperty("name").GetString());
+        Assert.True(mode.GetProperty("required").GetBoolean());
+        Assert.Equal("boolean", mode.GetProperty("schema").GetProperty("type").GetString());
+        var upload = import.Value.GetProperty("requestBody");
+        Assert.True(upload.GetProperty("required").GetBoolean());
+        Assert.True(upload.GetProperty("content").TryGetProperty("multipart/form-data", out _));
         var baselinePath = Path.Combine(FindRoot(), "packages", "api-client", "openapi.json"); using var baseline = JsonDocument.Parse(await File.ReadAllTextAsync(baselinePath));
         foreach (var old in baseline.RootElement.GetProperty("paths").EnumerateObject())
             if (!old.Name.StartsWith(ProductApiTests.Root, StringComparison.Ordinal)) Assert.True(JsonElement.DeepEquals(old.Value, all.GetProperty(old.Name)), old.Name);

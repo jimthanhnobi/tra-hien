@@ -538,3 +538,13 @@ Trong full có50/50 F1/F2/F3 regression và74/74 F4/F5, source41backend/client h
 giữ nguyên trong suite. Có SDK build-server cleanup để giải phóng baseline
 RunToolAsync output pipe; limitation/evidence/NOT RUN ghi trong current record.
 Owner publish NO, independent focused G4 F4/F5 chưa thực hiện.
+
+### P1-07 — Product Import, G1 TARGETED / G3 local (20/11/2026)
+
+Input f39a78a11f9ad5c954e43aa430bf08de3882f504, reuse full G1 cadce575597738bf40ad7c45689482de5a5fbc3d và G2/A01/B01. Owner đã chốt 5 hợp đồng OPEN tại BR-CAT-13. [Task record và kiểm chứng](../plans/p1-07-implementation.md).
+
+| Yêu cầu | Bằng chứng G3 |
+|---|---|
+| FR-CAT-09, BR-CAT-13, AC-P1-09, DEC-25 | ProductImportTests: CSV/XLSX, lỗi dòng, hai draft hợp lệ, giá NULL, fingerprint preview, replay create-only, conflict nhóm, rollback và tiếp tục nhóm khác. |
+| BR-CAT-02/14, DEC-26 | ProductImportTests: giữ SKU tay giữa nhóm, cạnh tranh cùng slug, unique SKU, mốc 9999–10000 và khoảng trống sequence khi rollback. ProductVariantTests giữ regression đổi metadata, độ dài/va chạm SKU và chặn sửa sau giao dịch. |
+| BR-CAT-10/15, NFR-04/09 | ProductImportTests: search text ngay sau commit, audit/outbox đúng actor, draft không công khai, kho và adapter media giữ nguyên, quyền field và CSRF cả hai chế độ, EF parity PostgreSQL 17. |
