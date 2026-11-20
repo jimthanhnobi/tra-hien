@@ -144,3 +144,13 @@ redirect mới. Không thay đổi P1-03 hay roadmap.
 Nguồn phê duyệt và giới hạn tại [owner decision P1-04](../decisions/ADR-P1-04-publication-history-and-publish.md).
 Đây là amendment local đang chuẩn bị review độc lập, **chưa G4 PASS/chưa publish**;
 chưa thực thi EF migration hay xác nhận implementation/tests P1-04.
+
+## 10. P1-05 — owner-approved scoped clarification 20/11/2026, local pending focused G4
+
+Owner giao final blocker remediation F4/P1 và F5/P1: product search dùng AND mọi
+literal token sau `f_unaccent`/Unicode whitespace theo 03 §3.7 và AC-P1-07; archive
+chỉ nhận canonical final public Catalog destination với transactional state/graph
+validation theo BR-SEO-22 và 05 §4.2. Chỉ làm rõ hai contract này, không đổi DDL,
+composition BR-CAT-10, SKU, F1/F2/F3 đã review, roadmap hay hạ tầng. Admin acceptance
+ở P1-05; Store search ở P1-14, SSR/HTTP lifecycle ở P3. Owner authorization không
+thay independent focused G4/publish permission; chưa claim G4 PASS/production readiness.

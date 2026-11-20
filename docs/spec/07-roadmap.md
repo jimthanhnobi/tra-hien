@@ -71,7 +71,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 - AC-P1-04: Nhập kho 2 lần (10 cái × 100.000, 10 cái × 130.000) → `avg_cost = 115.000`; sổ kho có 2 dòng, Σ = on_hand.
 - AC-P1-05: Variant độc bản đang có 1 → phiếu nhập thêm 1 bị từ chối `unique_piece_violation`.
 - AC-P1-06: Tài khoản `content` gọi API sản phẩm/kho không nhận được field `avgCostVnd` (kiểm JSON, không chỉ UI).
-- AC-P1-07: Tìm "am tu sa chu ban" ra ấm tử sa của nghệ nhân Chu Bân.
+- AC-P1-07: Tìm "am tu sa chu ban" ra ấm tử sa của nghệ nhân Chu Bân. Owner-approved 20/11/2026: product search AND các token đã `f_unaccent`, tách Unicode whitespace, cùng một product, không yêu cầu liền/thứ tự; `%`, `_`, `\` là literal (03 §3.7). P1-05 chứng minh Admin search; P1-14 tiếp nhận cùng acceptance qua Store API.
 - AC-P1-08: Kiểm kê: đếm 5 khi hệ thống 6; trong lúc chờ duyệt bán 1 (on_hand 5) → duyệt xong on_hand = 4.
 
 - AC-P1-09: import 3 dòng khác product: (1) đủ, (2) tên + type có prefix, (3) type không tồn tại → 1–2 draft, dòng 2 giá NULL + SKU đúng mẫu và không bán được, dòng 3 lỗi. Dry-run không ghi/cấp sequence; import lại thiếu khóa variant ổn định không tự cập nhật variant có sẵn. Fixture publish đủ mọi điều kiện khác, có 1 active giá hợp lệ + 1 inactive giá NULL → thành công; kích hoạt inactive giá NULL → 422 `variant_price_missing`, không đổi trạng thái. Fixture draft có active giá NULL → publish 422 `publish_requirements_not_met`, toàn bộ lỗi có `variant_price_missing`; điền giá hợp lệ mới kích hoạt/publish được. Test giá và kích hoạt thuộc P1-05, import/key thuộc P1-07; giữ bộ test cạnh tranh/bất biến SKU BR-CAT-14, không giả định trạng thái import khi hợp đồng P1-07 chưa chốt.

@@ -16,9 +16,16 @@ public sealed class EfCatalogStore(AppDbContext db, IClock clock, IAuditContext 
     private Guid? redirectSnapshotTransaction;
     public async Task LockNamespaceAsync(CatalogKind kind, CancellationToken ct)
     {
+        await PrepareWriteAsync(kind, ct);
         // Transaction scoped, per taxonomy namespace; no process/global catalog lock.
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(8104, {(int)kind})", ct);
     }
+    public Task PrepareWriteAsync(CatalogKind kind, CancellationToken ct)
+        // P1-05: acquire the eventual UPDATE table lock BEFORE row/graph locks.
+        // Otherwise a product's reference SHARE -> graph and material graph -> UPDATE form a cycle.
+        => kind == CatalogKind.Material
+            ? db.Database.ExecuteSqlRawAsync("LOCK TABLE catalog.materials IN ROW EXCLUSIVE MODE", ct)
+            : Task.CompletedTask;
     public Task<CatalogEntry?> LoadAsync(CatalogKind kind, Guid id, bool forUpdate, CancellationToken ct) => kind switch
     {
         CatalogKind.Category => LoadAsync<Category>(kind, "categories", id, forUpdate, ct),

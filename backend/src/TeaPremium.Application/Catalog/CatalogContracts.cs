@@ -122,6 +122,7 @@ public interface ICatalogContent
 
 public interface ICatalogStore
 {
+    Task PrepareWriteAsync(CatalogKind kind, CancellationToken ct);
     Task LockNamespaceAsync(CatalogKind kind, CancellationToken ct);
     Task<CatalogEntry?> LoadAsync(CatalogKind kind, Guid id, bool forUpdate, CancellationToken ct);
     Task<(IReadOnlyList<CatalogEntry> Items, long Total)> ListAsync(ListCatalog query, CancellationToken ct);

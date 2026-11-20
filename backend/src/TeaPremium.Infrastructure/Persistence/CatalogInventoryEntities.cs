@@ -198,6 +198,7 @@ public sealed class ProductRelation
     public int SortOrder { get; set; }
 }
 
+[Audited]
 public sealed class Variant
 {
     public Guid Id { get; set; }
