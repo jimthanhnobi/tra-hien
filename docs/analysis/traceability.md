@@ -457,3 +457,19 @@ tại [finding fix evidence](../plans/p1-04-g4-fix-evidence.md), không self-app
 | BR-CNT-02, BR-SEO-31/32/35 | CatalogContentSanitizer bảo toàn separators trước unwrap; TaxonomyContentTests và persisted 399/400/401/SEO/warning/XSS cases |
 | 05 §1/§4.2, FR-CAT-08, NFR-07/09 | PutCollectionProductsValidator null-before-dereference; TaxonomyG4ValidationTests và HTTP rejection/no DB/version/audit/outbox changes |
 | 05 §1/§4.2, NFR-07/09 | CatalogInput/SaveCatalogValidator/ListCatalogValidator chặn U+0000 decoded strings/JSON keys; unit + POST/PATCH/query bốn resources, nested JSON, valid Unicode/whitespace/null |
+
+### P1-04 — tích hợp với P1-03 đã merge PR #29
+
+Owner cho phép checkpoint/rebase local sau P1-04 G4 PASS. Checkpoint
+`c7f279ec687e444d733284b847dc72359c8d511c`; integrated HEAD
+`81afe9e3e837f7f5df347368bffb092bc978f5b8` trên main
+`0737dea96fa0e93d34b840d2bc8db5e56e4ffe13`. Không push/PR/merge/apply production.
+Giữ nguyên spec/migration; exact conflicts, manifest, combined command/results và
+accepted P2 tại [integration evidence](../plans/p1-04-integration-evidence.md).
+
+| Nguồn | Integrated verification |
+|---|---|
+| FR-CAT-01/02/03/08, 05 §4.2 | 32 operations=12 reference+20 taxonomy; preserve typed validator/metadata guards/seed và publication/redirect contracts; integrated OpenAPI/DI test |
+| BR-CAT-10/14, NFR-09 | Một canonical message/handler, producer đầy đủ chunk≤200; CatalogIntegrationTests: 0/1/200/201/350/401 cho ba resources, latest names, replay, SKU stability và second-batch failure/rollback/retry |
+| FR-CAT-01/03, BR-CAT-08/14 | Seed9/23/14/13→Materials CRUD, repeated seed/no metadata overwrite, publication timestamp, stable IDs/FKs/SKUs, Admin data→seed và conflict atomic rollback |
+| BR-CAT-08/09, BR-SEO-03/31/32/35, NFR-07/08/09 | Chạy lại cả Reference/Taxonomy, PG17 migration/parity/graph lock race/HTML/null-item/NUL/auth/CSRF/rowVersion trên integrated suite; không cộng totals cũ |
