@@ -204,6 +204,73 @@ class CiScopeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.changed_paths('push', '', 'invalid', before='0'*40)
 
+    def test_impact_matrix(self):
+        cases = [
+            ([("M", "apps/admin/src/app/page.tsx")], "frontend"),
+            ([("A", "apps/store/tests/store.test.tsx")], "frontend"),
+            ([("D", "apps/store/public/logo.svg"), ("M", "docs/plans/ui.md")], "frontend"),
+            ([("M", "apps/admin/src/app/page.tsx"), ("M", "apps/store/src/app/page.tsx")], "frontend"),
+            ([("M", "backend/src/TeaPremium.Application/Catalog/Products.cs")], "backend"),
+            ([("M", "backend/tests/TeaPremium.UnitTests/ProductsTests.cs"), ("M", "docs/spec/05-api.md")], "backend"),
+            ([("M", "backend/src/TeaPremium.Infrastructure/Persistence/Migrations/Example.cs")], "backend"),
+            ([("M", "apps/admin/src/app/page.tsx"), ("M", "backend/src/App.cs")], "full"),
+            ([("M", "packages/api-client/src/generated/schema.ts")], "full"),
+            ([("M", "apps/admin/package.json")], "full"),
+            ([("M", "apps/admin/next.config.ts")], "full"),
+            ([("M", "pnpm-lock.yaml")], "full"),
+            ([("M", "backend/Directory.Packages.props")], "full"),
+            ([("M", "backend/src/App.csproj")], "full"),
+            ([("M", "infra/postgres/preflight.sql")], "full"),
+            ([("M", "docs/spec/schema.sql")], "full"),
+            ([("M", ".github/workflows/ci.yml")], "full"),
+            ([("M", "scripts/ci-fastpath.py")], "full"),
+            ([("T", "apps/admin/src/app/page.tsx")], "full"),
+            ([("M", "apps/admin/src/line\nbreak.ts")], "full"),
+            ([("M", "apps/admin/src/back\\slash.ts")], "full"),
+            ([("M", "apps/adminish/src/app/page.tsx")], "full"),
+            ([("M", "README.md")], "docs"),
+            ([], "full"),
+        ]
+        for changes, expected in cases:
+            with self.subTest(changes=changes):
+                self.assertEqual(module.classify_scope(changes), expected)
+
+    def test_frontend_scope_both_events(self):
+        def mutate():
+            self.write("apps/admin/src/app/page.tsx", "export const x = 1;\n")
+            self.write("docs/plans/ui.md", "# UI\n")
+        for event, _ in self.changed(mutate):
+            changes = module.changed_files(event, self.base, cmd("rev-parse", "HEAD", cwd=self.repo),
+                                           before=self.base)
+            self.assertEqual(module.classify_scope(changes), "frontend")
+
+    def test_rename_from_backend_to_frontend_is_full(self):
+        self.write("backend/src/Example.cs", "class Example {}\n")
+        cmd("add", "-A", cwd=self.repo)
+        cmd("commit", "-qm", "add backend", cwd=self.repo)
+        self.base = cmd("rev-parse", "HEAD", cwd=self.repo)
+        def mutate():
+            target = self.repo / "apps/admin/src/Example.cs"
+            target.parent.mkdir(parents=True)
+            (self.repo / "backend/src/Example.cs").rename(target)
+        for event, _ in self.changed(mutate):
+            changes = module.changed_files(event, self.base, cmd("rev-parse", "HEAD", cwd=self.repo),
+                                           before=self.base)
+            self.assertEqual(module.classify_scope(changes), "full")
+
+    def test_manual_full_and_invalid_sha(self):
+        output = self.repo / "scope-output.txt"
+        script = str(Path(__file__).with_name("ci-fastpath.py"))
+        for sha, expected in [(self.base, 0), ("invalid", 1)]:
+            output.write_text("", encoding="utf-8")
+            result = subprocess.run([
+                os.sys.executable, script, "--event", "workflow_dispatch",
+                "--head", sha, "--github-output", str(output)
+            ], cwd=self.repo, capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, expected, result.stderr)
+            self.assertEqual(output.read_text(encoding="utf-8"),
+                             "mode=full\ndocs_only=false\n" if expected == 0 else "")
+
     def test_empty_change_is_full(self):
         self.assertFalse(module.is_docs_only([]))
 

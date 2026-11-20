@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Conservative, dependency-free CI docs-only fast path.
+"""Conservative, dependency-free CI scope classifier.
 
 Unrecognized changes and broken diffs never take the fast path.
 """
@@ -64,6 +64,27 @@ def is_docs_only(paths: list[str]) -> bool:
         and "\\" not in p and "\n" not in p and "\r" not in p
         for p in paths
     )
+
+
+def classify_scope(changes: list[tuple[str, str]]) -> str:
+    """Only narrow, known paths may avoid unrelated heavy jobs."""
+    if not changes or any(status not in {"A", "M", "D"} for status, _ in changes):
+        return "full"
+    paths = [path for _, path in changes]
+    if any(not path or any(ord(char) < 32 or char == "\\" for char in path)
+           for path in paths):
+        return "full"
+    if is_docs_only(paths):
+        return "docs"
+    # Markdown is neutral only for scope selection; docs-only validation remains
+    # unchanged. Unknown paths, config, dependencies and generated contracts are full.
+    code = [path for path in paths if not is_docs_only([path])]
+    if all(re.fullmatch(r"apps/(admin|store)/(src|tests|public)/.+", path)
+           for path in code):
+        return "frontend"
+    if all(re.fullmatch(r"backend/(src|tests)/.+\.cs", path) for path in code):
+        return "backend"
+    return "full"
 
 
 def validate_docs(paths: list[str], root: Path) -> None:
@@ -155,23 +176,28 @@ def validate_changed_docs(changes: list[tuple[str, str]], root: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--event", required=True, choices=["push", "pull_request"])
+    parser.add_argument("--event", required=True, choices=["push", "pull_request", "workflow_dispatch"])
     parser.add_argument("--base", default="")
     parser.add_argument("--head", required=True)
     parser.add_argument("--before", default="")
     parser.add_argument("--github-output", required=True)
     args = parser.parse_args()
     try:
-        changes = changed_files(args.event, args.base, args.head, args.before)
-        paths = [path for _, path in changes]
-        docs_only = is_docs_only(paths) and all(status in {"A", "M", "D"} for status, _ in changes)
-        if docs_only:
+        if args.event == "workflow_dispatch":
+            if not _SHA.fullmatch(args.head):
+                raise ValueError("Missing or invalid manual run HEAD SHA")
+            changes = []
+            mode = "full"
+        else:
+            changes = changed_files(args.event, args.base, args.head, args.before)
+            mode = classify_scope(changes)
+        if mode == "docs":
             validate_changed_docs(changes, Path.cwd())
-        # Only emit docs_only after *all* validation passes; if any error,
-        # the classifier job fails and all required jobs fail closed.
+        # Only emit scope after all validation passes.
         with open(args.github_output, "a", encoding="utf-8") as output:
-            output.write(f"docs_only={'true' if docs_only else 'false'}\n")
-        print(f"CI scope: {'docs-only fast path' if docs_only else 'full suite'} ({len(paths)} changed paths)")
+            output.write(f"mode={mode}\n")
+            output.write(f"docs_only={'true' if mode == 'docs' else 'false'}\n")
+        print(f"CI scope: {mode} ({len(changes)} changed paths)")
         return 0
     except (OSError, subprocess.CalledProcessError, ValueError) as exc:
         print(f"CI scope error (required checks must fail): {exc}", file=sys.stderr)

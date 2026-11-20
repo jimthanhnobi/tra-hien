@@ -213,10 +213,13 @@ Mục tiêu: RPO ≤ 24h, RTO ≤ 4h (NFR-05). Khi đơn > 30/ngày: bật WAL a
 
 ## 7. CI/CD
 
-**`ci.yml`** (PR vào main và push main, phân phạm vi an toàn):
+**`ci.yml`** (PR vào main, push main và chạy tay full CI, phân phạm vi an toàn):
 
 - Thay đổi **chỉ** `docs/**/*.md` hoặc `README.md`: chạy unit tests của bộ phân loại và kiểm tra Markdown (UTF-8, fenced code, trailing whitespace, local link target), **không** restore/build backend, test Testcontainers, Playwright hay Docker. Ba status `Backend and API contract`, `Frontend verification`, `Docker regression builds` vẫn được tạo và PASS chỉ sau khi classifier/docs checks thành công.
-- Mọi thay đổi khác (kể cả `docs/spec/schema.sql`, workflow/scripts, backend, frontend, infra, rename/delete từ code sang docs và file lạ): **full CI hiện hữu**. Diff lỗi/không xác minh được, classifier failure hoặc Markdown invalid phải **FAIL CLOSED** ở ba required jobs, không dùng workflow-level `paths-ignore` gây Pending.
+- Chỉ source/test/static assets dưới `apps/admin/{src,tests,public}/` hoặc `apps/store/{src,tests,public}/` (có thể kèm Markdown): chạy full frontend và hai web Docker builds, không chạy backend/PostgreSQL hoặc Docker API.
+- Chỉ file `.cs` dưới `backend/src/` hoặc `backend/tests/` (có thể kèm Markdown): chạy toàn bộ backend (gồm PostgreSQL 17, migration SQL và kiểm tra generated API client) và Docker API; frontend/web Docker không cần chạy nếu contract không thay đổi. Contract không khớp sẽ fail required backend job; khi cập nhật generated client thì scope trở thành full.
+- Mọi thay đổi khác (kể cả `docs/spec/schema.sql`, workflow/scripts, dependency/config, package API client, infra, mixed backend/frontend, status không nhận diện và file lạ): **full CI hiện hữu**. Diff lỗi/không xác minh được, classifier failure hoặc Markdown invalid trong docs-only phải **FAIL CLOSED** ở ba required jobs, không dùng workflow-level `paths-ignore` gây Pending. Rename được xét cả tên cũ và mới. Không lọc bớt backend test khi chạy backend.
+- `workflow_dispatch` luôn chạy full CI; bắt buộc full trên đúng release candidate trước production.
 - PR và push-main đều được đánh giá theo git diff thực tế, không tái sử dụng CI trên tree khác. Không bỏ CI merge-main. Giữ tên và contract ba required status của ruleset `protect-main`.
 
 **Full CI code path:**
