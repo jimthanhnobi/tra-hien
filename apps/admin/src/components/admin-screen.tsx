@@ -9,16 +9,18 @@ import { Sprout, LayoutDashboard, Package, Warehouse, ShoppingBag, Users, Megaph
   Settings, UserRoundCog, PanelLeftClose, PanelLeftOpen, Menu, X, ChevronDown, ChevronRight, LogOut, ShieldCheck, ArrowUpRight, LockKeyhole, SearchX } from "lucide-react";
 import { destination, navigation, visibleNavigation } from "../lib/navigation";
 import { ApiError, type Auth } from "../lib/api";
+import { productRoute } from "../lib/products-api";
 import { useAdmin, useSession } from "./providers";
 import { LoginForm, PasswordForm, TotpForm } from "./auth-forms";
 import { Confirmation, FormError, Pending } from "./ui";
 import { CatalogScreen, type CatalogSection } from "./catalog/catalog-screen";
+import { ProductsScreen, type ProductsPage } from "./products/products-screen";
 
 const icons = { home: LayoutDashboard, package: Package, warehouse: Warehouse, orders: ShoppingBag, users: Users,
   megaphone: Megaphone, file: FileText, chart: ChartNoAxesCombined, settings: Settings, staff: UserRoundCog };
 const authPages = ["/login", "/change-password", "/totp-setup"];
 
-export function AdminScreen({ path, catalogSection }: { path: string; catalogSection?: CatalogSection }) {
+export function AdminScreen({ path, catalogSection, productsPage }: { path: string; catalogSection?: CatalogSection; productsPage?: ProductsPage }) {
   const session = useSession();
   const router = useRouter();
   const target = session.data === undefined ? undefined : destination(session.data);
@@ -39,7 +41,8 @@ export function AdminScreen({ path, catalogSection }: { path: string; catalogSec
     {!session.data ? <LoginForm /> : path === "/change-password" ? <PasswordForm /> : path === "/totp-setup" ? <TotpForm />
       : <ApplicationShell auth={session.data} path={path}>
     {forbidden ? <StatusPage status={403} embedded /> : path === "/" ? <Welcome auth={session.data} />
-      : path === "/catalog" ? <CatalogScreen section={catalogSection} permissions={session.data.user.permissions} />
+      : path === "/catalog" ? productsPage ? <ProductsScreen page={productsPage} user={session.data.user} />
+          : <CatalogScreen section={catalogSection} permissions={session.data.user.permissions} />
       : item ? <ModulePlaceholder title={item.label} /> : <StatusPage status={404} embedded />}
   </ApplicationShell>}</div></>;
 }
@@ -55,7 +58,7 @@ function ApplicationShell({ auth, path, children }: { auth: Auth; path: string; 
   const current = items.find(item => item.path === path)?.label ?? (path === "/403" ? "Không có quyền truy cập" : "Trang không khả dụng");
   const nav = <nav aria-label="Điều hướng chính"><p className="nav-section">KHÔNG GIAN LÀM VIỆC</p>{items.map(item => {
     const Icon = icons[item.icon];
-    return <Link key={item.path} href={item.path} className={`nav-link ${item.path === path ? "active" : ""}`} aria-current={item.path === path ? "page" : undefined}
+    return <Link key={item.path} href={item.path === "/catalog" ? productRoute : item.path} className={`nav-link ${item.path === path ? "active" : ""}`} aria-current={item.path === path ? "page" : undefined}
       title={collapsed ? item.label : undefined} onClick={() => setDrawer(false)}><Icon size={20} aria-hidden="true" /><span>{item.label}</span></Link>;
   })}</nav>;
   return <div className={`app-shell ${collapsed ? "is-collapsed" : ""}`}>
@@ -101,8 +104,8 @@ function Welcome({ auth }: { auth: Auth }) {
       <p>Tài khoản của bạn đã sẵn sàng. Các khu vực bên dưới được hiển thị theo quyền truy cập hiện tại.</p></div><Sprout className="welcome-sprout" size={126} strokeWidth={0.7} aria-hidden="true" /></section>
     <div className="section-heading"><h2>Khu vực làm việc</h2><span>{items.length} khu vực được cấp quyền</span></div>
     <p className="module-notice">Quản lý catalog đã sẵn sàng. Các khu vực khác sẽ được bổ sung theo từng giai đoạn.</p>
-    {items.length ? <div className="module-grid">{items.map(item => { const Icon = icons[item.icon]; return <Link key={item.path} href={item.path} className="module-card">
-      <span className="module-icon"><Icon size={23} /></span><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" /><h3>{item.label}</h3><p>{item.path === "/catalog" ? "Quản lý danh mục và nội dung" : "Chưa triển khai"}</p></Link>; })}</div>
+    {items.length ? <div className="module-grid">{items.map(item => { const Icon = icons[item.icon]; return <Link key={item.path} href={item.path === "/catalog" ? productRoute : item.path} className="module-card">
+      <span className="module-icon"><Icon size={23} /></span><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" /><h3>{item.label}</h3><p>{item.path === "/catalog" ? "Quản lý sản phẩm và danh mục" : "Chưa triển khai"}</p></Link>; })}</div>
       : <div className="empty-state"><ShieldCheck size={28} /><h2>Chưa có khu vực được cấp quyền</h2><p>Liên hệ người quản lý để được hỗ trợ.</p></div>}
     <p className="security-note"><ShieldCheck size={18} /> Quyền truy cập được kiểm tra bởi hệ thống. Hãy đăng xuất khi kết thúc ca làm việc.</p>
   </>;

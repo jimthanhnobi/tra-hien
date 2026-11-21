@@ -27,6 +27,13 @@ export class ApiError extends Error {
       validation_failed: "Thông tin chưa hợp lệ. Vui lòng kiểm tra các trường bên dưới.",
       concurrency_conflict: "Dữ liệu có xung đột phiên bản. Vui lòng tải bản mới trước khi lưu lại.",
       slug_exists: "Đường dẫn đã tồn tại. Hãy chọn đường dẫn khác rồi lưu lại.",
+      sku_exists: "SKU này đã tồn tại. Hãy chọn mã khác rồi lưu lại.",
+      sku_locked: "Biến thể đã có giao dịch. SKU hiện tại không thể thay đổi.",
+      sku_prefix_missing: "Loại sản phẩm chưa có tiền tố SKU. Hãy chọn loại khác hoặc bổ sung tiền tố.",
+      material_sku_code_missing: "Chất liệu chưa có mã SKU. Hãy chọn chất liệu khác hoặc bổ sung mã.",
+      variant_price_missing: "Biến thể cần giá niêm yết hợp lệ trước khi kích hoạt.",
+      redirect_conflict: "Đường dẫn chuyển hướng trùng hoặc tạo vòng lặp. Hãy chọn đích khác.",
+      product_type_change_confirmation_required: "Cần xác nhận trước khi đổi loại sản phẩm.",
       sku_code_exists: "Mã SKU chất liệu đã tồn tại. Hãy chọn mã khác rồi lưu lại.",
       product_type_code_exists: "Mã loại sản phẩm đã tồn tại. Hãy chọn mã khác rồi lưu lại.",
       attribute_code_exists: "Mã thuộc tính đã tồn tại trong loại sản phẩm. Hãy chọn mã khác.",
@@ -49,7 +56,7 @@ export class ApiError extends Error {
       if (Array.isArray(messages) && messages.every(x => typeof x === "string")) this.fields[key] = messages;
     }
     const conflictFields: Record<string, string> = {
-      slug_exists: "slug", sku_code_exists: "skuCode", product_type_code_exists: "code",
+      slug_exists: "slug", sku_exists: "sku", sku_locked: "sku", redirect_conflict: "redirectTo", sku_code_exists: "skuCode", product_type_code_exists: "code",
       attribute_code_exists: "code", option_code_exists: "code", slug_allocation_exhausted: "slug"
     };
     if (status === 409 && conflictFields[code] && !this.fields[conflictFields[code]]) this.fields[conflictFields[code]] = [this.message];
