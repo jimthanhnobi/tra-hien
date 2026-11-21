@@ -62,11 +62,16 @@ public sealed partial class EfProductStore(AppDbContext db, IConfiguration confi
         { var slug = await db.Set<Category>().Where(x => x.Id == category && x.Status == "visible" && x.FirstPublishedAt != null).Select(x => x.Slug).SingleOrDefaultAsync(ct); if (slug is not null) return "/danh-muc/" + slug; }
         return null;
     }
-    public async Task<ProductData?> LoadAsync(Guid id, bool update, CancellationToken ct)
+    internal static async Task<Product?> LockProductAsync(AppDbContext db, Guid id, CancellationToken ct)
     {
         // Parent keys never change. NO KEY UPDATE serializes writers while allowing FK key-share
         // reads from related products, avoiding A->B / B->A relation-insert deadlocks.
-        var row = update ? (await db.Set<Product>().FromSqlInterpolated($"SELECT *, xmin FROM catalog.products WHERE id={id} FOR NO KEY UPDATE").ToArrayAsync(ct)).SingleOrDefault()
+        return (await db.Set<Product>().FromSqlInterpolated($"SELECT *, xmin FROM catalog.products WHERE id={id} FOR NO KEY UPDATE").ToArrayAsync(ct)).SingleOrDefault();
+    }
+
+    public async Task<ProductData?> LoadAsync(Guid id, bool update, CancellationToken ct)
+    {
+        var row = update ? await LockProductAsync(db, id, ct)
             : await db.Set<Product>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (row is null) return null;
         var p = ToData(row);

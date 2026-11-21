@@ -567,6 +567,7 @@ internal static class CatalogInventoryModel
             b.Property(x => x.CreatedBy).HasColumnName("created_by").HasColumnType("uuid").IsRequired();
             b.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone").IsRequired().HasDefaultValueSql("now()");
             b.HasOne<Variant>().WithMany().HasForeignKey(x => x.VariantId).HasConstraintName("fk_sale_prices_variant_id").OnDelete(DeleteBehavior.Cascade);
+            b.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").IsRowVersion();
             b.HasAnnotation("TeaPremium:Exclusion", "ex_sale_prices_no_overlap USING gist\n    (variant_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&)");
         });
         builder.Entity<Redirect>(b =>

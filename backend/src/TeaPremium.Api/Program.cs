@@ -93,6 +93,7 @@ app.MapMedia();
 app.MapCatalogReference();
 app.MapCatalog();
 app.MapProducts();
+app.MapSalePrices();
 
 app.Run();
 

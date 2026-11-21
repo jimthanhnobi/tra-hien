@@ -2317,6 +2317,12 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("variant_id");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_sale_prices");
 

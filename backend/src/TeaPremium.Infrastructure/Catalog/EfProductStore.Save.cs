@@ -1,8 +1,6 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using TeaPremium.Application.Catalog;
-using TeaPremium.Application.Outbox;
 using TeaPremium.Application.Results;
 using TeaPremium.Domain.Catalog;
 using TeaPremium.Infrastructure.Persistence;
@@ -101,9 +99,7 @@ public sealed partial class EfProductStore
             entity.AssetId = image.AssetId; entity.VariantId = image.VariantId; entity.AltText = image.AltText; entity.SortOrder = image.SortOrder; entity.IsCover = image.IsCover;
         }
         audit.Record(before, p, noindexReason);
-        var tags = new[] { "product:" + p.Slug, "product:" + (before?.Slug ?? p.Slug), "catalog", "sitemap", "feed" }
-            .Concat(categorySlugs.Select(slug => "category:" + slug)).Distinct(StringComparer.Ordinal).ToArray();
-        foreach (var batch in tags.Chunk(200)) outbox.Enqueue(StorefrontInvalidate.Message, JsonSerializer.Serialize(new StorefrontInvalidate(batch)));
+        ProductInvalidation.Enqueue(outbox, p.Slug, categorySlugs, before?.Slug);
         await Flush(ct);
         // Reuse exactly the canonical consumer's SQL, synchronously in the write UoW. Rename producers remain outbox based.
         await RebuildProductSearchTextHandler.RebuildAsync(db, [p.Id], ct);
