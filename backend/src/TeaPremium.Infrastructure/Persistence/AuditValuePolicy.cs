@@ -89,6 +89,19 @@ public static class AuditValuePolicy
             if (field == "variant_id" && value is Guid) return value;
             return Redacted;
         }
+        if (entityType is "inventory.receipts" or "inventory.stocktakes")
+        {
+            if (field == "status" && value is "draft" or "posted" or "counting" or "submitted" or "approved" or "cancelled") return value;
+            if (field is "received_at" or "posted_at" or "submitted_at" or "approved_at" && value is DateTime) return value;
+            if (field is "posted_by" or "approved_by" or "created_by" && value is Guid) return value;
+            return Redacted;
+        }
+        if (entityType == "inventory.receipt_lines")
+        {
+            if (field is "receipt_id" or "variant_id" && value is Guid) return value;
+            if (field == "quantity" && value is int) return value;
+            return Redacted;
+        }
         if (entityType == "inventory.stock_levels")
         {
             if (field is "on_hand" or "reserved" && value is int) return value;

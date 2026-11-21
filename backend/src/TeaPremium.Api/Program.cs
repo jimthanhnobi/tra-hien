@@ -32,6 +32,7 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer(SettingsOpenApi.TransformAsync);
     options.AddDocumentTransformer(CatalogOpenApi.TransformAsync);
     options.AddDocumentTransformer(ProductOpenApi.TransformAsync);
+    options.AddDocumentTransformer(InventoryDocumentEndpoints.TransformOpenApiAsync);
 });
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
@@ -52,6 +53,8 @@ builder.Services.AddCatalog();
 builder.Services.AddScoped<IInventoryStockStore, EfInventoryStockStore>();
 builder.Services.AddScoped<IInventoryQueries, EfInventoryQueries>();
 builder.Services.AddScoped<InventoryMutation>();
+builder.Services.AddScoped<IInventoryDocumentStore, EfInventoryDocumentStore>();
+builder.Services.AddScoped<InventoryDocuments>();
 builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSection("OutboxDispatcher"));
 builder.Services.AddHostedService<OutboxDispatcher>();
 // Scaffold/OpenAPI generation can start without a DB. Production supplies this setting.
@@ -101,6 +104,7 @@ app.MapCatalog();
 app.MapProducts();
 app.MapSalePrices();
 app.MapInventory();
+app.MapInventoryDocuments();
 
 app.Run();
 

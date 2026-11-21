@@ -307,6 +307,7 @@ public sealed class StockMovement
     public DateTime CreatedAt { get; set; }
 }
 
+[Audited]
 public sealed class Receipt
 {
     public Guid Id { get; set; }
@@ -322,6 +323,7 @@ public sealed class Receipt
     public uint Version { get; set; }
 }
 
+[Audited]
 public sealed class ReceiptLine
 {
     public Guid Id { get; set; }
@@ -331,6 +333,7 @@ public sealed class ReceiptLine
     public long UnitCostVnd { get; set; }
 }
 
+[Audited]
 public sealed class Stocktake
 {
     public Guid Id { get; set; }
