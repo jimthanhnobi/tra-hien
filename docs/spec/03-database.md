@@ -8,7 +8,7 @@ DDL đích: `schema.sql`. A01 owner-approved 18/11/2026: **79 bảng, 11 schema,
 |---|---|
 | Schema | Một schema mỗi module: `platform, media, catalog, inventory, pricing, crm, sales, marketing, content, finance, iam`. |
 | Khóa chính | Mặc định `uuid` v7 do app sinh (`Guid.CreateVersion7()`), có thứ tự theo thời gian. Ngoại lệ đã có trong DDL: `platform.settings.key`, `platform.provinces.code`, `platform.wards.code` là `text`; `platform.idempotency_keys(scope, key)` là khóa ghép; `platform.data_protection_keys.id` là `serial`. Các bảng khác có khóa ghép/kiểu khác giữ đúng `schema.sql`, không tự thêm UUID thay thế. |
-| Mã cho người đọc | `orders.code` `TP` + `yyMMdd` (giờ VN) + 4 ký tự từ bảng `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (bỏ 0/O/1/I/L), tạo lại khi trùng. Khách: `KH` + sequence. Phiếu nhập `PN-yyMMdd-NNN`, đổi trả `DT-yyMMdd-NNN`, kiểm kê `KK-yyMMdd-NNN`. |
+| Mã cho người đọc | `orders.code` `TP` + `yyMMdd` (giờ VN) + 4 ký tự từ bảng `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (bỏ 0/O/1/I/L), tạo lại khi trùng. Khách: `KH` + sequence. Phiếu nhập `PN-yyMMdd-N`, đổi trả `DT-yyMMdd-NNN`, kiểm kê `KK-yyMMdd-N`. Phiếu nhập và kiểm kê dùng ngày Việt Nam và hậu tố số nguyên dương tăng dần, riêng theo ngày và loại chứng từ. Đệm ít nhất ba chữ số, tiếp tục `1000`, `1001` sau `999`. Mã duy nhất trong bảng chứng từ. |
 | Tiền | `bigint` VND, hậu tố `_vnd`. |
 | Thời gian | `timestamptz`, hậu tố `_at`. Ngày thuần (`date`) hậu tố `_on`. |
 | Enum | `text` + `CHECK`. Đổi tập giá trị = migration sửa CHECK. Domain có `static class` hằng số tương ứng. |
