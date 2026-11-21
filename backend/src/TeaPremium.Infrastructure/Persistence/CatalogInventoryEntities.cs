@@ -280,6 +280,7 @@ public sealed class CollectionProduct
     public int SortOrder { get; set; }
 }
 
+[Audited]
 public sealed class StockLevel
 {
     public Guid VariantId { get; set; }

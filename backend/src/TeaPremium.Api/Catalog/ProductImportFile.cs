@@ -25,15 +25,17 @@ internal static partial class ProductImportFile
     private const string Package = "http://schemas.openxmlformats.org/package/2006/relationships";
     private const string Content = "http://schemas.openxmlformats.org/package/2006/content-types";
 
-    public static ImportProductLine[] Read(Stream input, string filename)
+    public static ImportProductLine[] Read(Stream input, string filename) => Read(input, filename, null);
+
+    public static ImportProductLine[] Read(Stream input, string filename, string[]? openingColumns)
     {
         var extension = Path.GetExtension(filename).ToLowerInvariant();
         try
         {
             return extension switch
             {
-                ".csv" => Bind(Csv(input)),
-                ".xlsx" => Bind(Excel(input)),
+                ".csv" => Bind(Csv(input), openingColumns),
+                ".xlsx" => Bind(Excel(input, openingColumns is null ? "SanPham" : null), openingColumns),
                 _ => throw Unsupported()
             };
         }
@@ -42,7 +44,7 @@ internal static partial class ProductImportFile
         { throw Invalid(1, "file", "malformed_file", "Không đọc được cấu trúc tệp."); }
     }
 
-    private static ImportProductLine[] Bind(IEnumerable<(int Row, string[] Cells)> records)
+    private static ImportProductLine[] Bind(IEnumerable<(int Row, string[] Cells)> records, string[]? openingColumns)
     {
         using var enumerator = records.GetEnumerator();
         if (!enumerator.MoveNext() || enumerator.Current.Row != 1)
@@ -52,12 +54,14 @@ internal static partial class ProductImportFile
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var header in headers)
         {
-            if (!HeaderPattern().IsMatch(header.Name) || ProductImportPlanner.RejectColumn(header.Name) is not null)
+            if (openingColumns is null
+                ? !HeaderPattern().IsMatch(header.Name) || ProductImportPlanner.RejectColumn(header.Name) is not null
+                : !openingColumns.Contains(header.Name, StringComparer.Ordinal))
                 throw Invalid(1, $"#{header.Index}", "invalid_header", "Tên cột không có trong mẫu.");
             if (!seen.Add(header.Name))
                 throw Invalid(1, header.Name, "duplicate_header", "Cột xuất hiện nhiều lần.");
         }
-        foreach (var required in new[] { "name", "product_type_code" })
+        foreach (var required in openingColumns ?? ["name", "product_type_code"])
             if (!seen.Contains(required)) throw Invalid(1, required, "missing_header", "Thiếu cột bắt buộc.");
 
         var output = new List<ImportProductLine>();
@@ -131,7 +135,7 @@ internal static partial class ProductImportFile
         }
     }
 
-    private static IEnumerable<(int Row, string[] Cells)> Excel(Stream input)
+    private static IEnumerable<(int Row, string[] Cells)> Excel(Stream input, string? sheetName)
     {
         using var archive = new ZipArchive(input, ZipArchiveMode.Read);
         var parts = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
@@ -179,13 +183,13 @@ internal static partial class ProductImportFile
             var found = false;
             foreach (var element in Elements(workbook))
             {
-                if (!Is(element, "sheet") || element.GetAttribute("name") != "SanPham") continue;
-                if (found) throw MissingSheet();
+                if (!Is(element, "sheet") || sheetName is not null && element.GetAttribute("name") != sheetName) continue;
+                if (found) throw MissingSheet(sheetName);
                 found = true;
                 id = element.GetAttribute("id", Office);
             }
         }
-        if (string.IsNullOrEmpty(id)) throw MissingSheet();
+        if (string.IsNullOrEmpty(id)) throw MissingSheet(sheetName);
 
         string? worksheetPath = null;
         string? sharedPath = null;
@@ -219,9 +223,9 @@ internal static partial class ProductImportFile
         var hasData = false;
         foreach (var element in Elements(worksheet))
         {
-            if (element.Depth == 0 && !Is(element, "worksheet")) throw MalformedSheet();
+            if (element.Depth == 0 && !Is(element, "worksheet")) throw MalformedSheet(sheetName);
             if (element.Depth != 1 || !Is(element, "sheetData")) continue;
-            if (hasData) throw MalformedSheet();
+            if (hasData) throw MalformedSheet(sheetName);
             hasData = true;
             var lastRow = 0;
             foreach (var row in Elements(element, element.Depth))
@@ -234,11 +238,13 @@ internal static partial class ProductImportFile
                 yield return (rowNumber, ReadRow(row, rowNumber, shared));
             }
         }
-        if (!hasData) throw MalformedSheet();
+        if (!hasData) throw MalformedSheet(sheetName);
     }
 
-    private static ProductImportFileException MissingSheet() => Invalid(1, "file", "missing_sheet", "Cần một trang tính tên SanPham.");
-    private static ProductImportFileException MalformedSheet() => Invalid(1, "file", "malformed_sheet", "Trang SanPham thiếu bảng dữ liệu hợp lệ.");
+    private static ProductImportFileException MissingSheet(string? sheetName) => Invalid(1, "file", "missing_sheet",
+        sheetName is null ? "Tệp phải có đúng một trang tính." : "Cần một trang tính tên SanPham.");
+    private static ProductImportFileException MalformedSheet(string? sheetName) => Invalid(1, "file", "malformed_sheet",
+        sheetName is null ? "Trang tính thiếu bảng dữ liệu hợp lệ." : "Trang SanPham thiếu bảng dữ liệu hợp lệ.");
 
     private static string ReadTarget(XmlReader element, string? previous)
     {

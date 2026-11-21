@@ -44,6 +44,7 @@ export function ProductEditor({ id, user }: { id: string; user: ProductUser }) {
   const write = user.permissions.includes("catalog.write");
   const publish = user.permissions.includes("catalog.publish");
   const price = user.permissions.includes("pricing.write");
+  const canEnableUniquePiece = user.permissions.includes("inventory.read") && user.permissions.includes("inventory.write");
   const owner = user.roles.includes("owner");
   const editPermission = edit?.kind === "archive" ? publish : write;
   const editing = Boolean(edit) || pending;
@@ -161,8 +162,8 @@ export function ProductEditor({ id, user }: { id: string; user: ProductUser }) {
       <div className="product-heading"><h2 id="variants" tabIndex={-1}>Biến thể và giá niêm yết</h2>{write && <button type="button" className="button" disabled={locked || !definitions.data}
         onClick={() => begin({ kind: "new-variant", product })}>Thêm biến thể</button>}</div>
       {definitions.isError && <><FormError error={definitions.error} /><button className="button secondary" type="button" onClick={() => void definitions.refetch()}>Tải lại thuộc tính</button></>}
-      {(activeEdit === "variant" || activeEdit === "new-variant") && <VariantForm variant={variant} rowVersion={variant?.rowVersion ?? rowVersion} canPrice={price} owner={owner} definitions={variantDefinitions}
-        actions={actions} save={body => commit(() => api.saveVariant(id, variant?.id, body))} />}
+      {(activeEdit === "variant" || activeEdit === "new-variant") && <VariantForm variant={variant} rowVersion={variant?.rowVersion ?? rowVersion} canPrice={price} owner={owner}
+        canEnableUniquePiece={canEnableUniquePiece} definitions={variantDefinitions} actions={actions} save={body => commit(() => api.saveVariant(id, variant?.id, body))} />}
       {!product.variants?.length && <p>Chưa có biến thể.</p>}
       <ul className="product-variants">{product.variants?.map((row, index) => <li key={row.id} className="product-card" id={`variant-${row.id}`} tabIndex={-1}>
         <div className="product-heading"><div><h3>{row.name || (index === 0 ? "Biến thể mặc định" : `Biến thể ${index + 1}`)}</h3><p>{row.sku} · {row.status === "active" ? "Hoạt động" : "Ngừng bán"} · <VariantPrice amount={row.priceVnd} /></p></div>

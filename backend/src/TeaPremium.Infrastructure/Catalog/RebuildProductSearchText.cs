@@ -19,6 +19,17 @@ public sealed class RebuildProductSearchTextHandler(AppDbContext db) : IOutboxHa
     }
     internal static async Task RebuildAsync(AppDbContext db, Guid[] ids, CancellationToken cancellationToken)
     {
+        if (ids.Length > 1)
+        {
+            if (db.Database.CurrentTransaction is null)
+                throw new InvalidOperationException("Bulk search rebuild requires the outbox transaction.");
+
+            // PostgreSQL UUID order matches the Inventory parent lock query.
+            await db.Database.SqlQuery<Guid>(
+                $"SELECT id AS \"Value\" FROM catalog.products WHERE id=ANY({ids}) ORDER BY id FOR NO KEY UPDATE")
+                .ToArrayAsync(cancellationToken);
+        }
+
         // Correlated lookups also handle products without material/artisan.
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE catalog.products p SET search_text = public.f_unaccent(concat_ws(' ', p.name, p.subtitle,

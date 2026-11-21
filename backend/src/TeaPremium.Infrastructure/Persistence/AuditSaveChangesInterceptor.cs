@@ -60,9 +60,10 @@ public sealed class AuditSaveChangesInterceptor(IClock clock, IAuditContext audi
         foreach (var property in entry.Properties)
         {
             if (property.Metadata.IsPrimaryKey()) continue;
-            // Before INSERT, a database-generated value (for example settings.updated_at
-            // DEFAULT now()) is not known yet. Never write the CLR sentinel as the after value.
-            if (entry.State == EntityState.Added && property.Metadata.ValueGenerated != ValueGenerated.Never) continue;
+            // StockLevel writes supply the quantity, known zero reserved default and clock time.
+            // Other generated values may still be unknown before INSERT.
+            if (entry.State == EntityState.Added && property.Metadata.ValueGenerated != ValueGenerated.Never
+                && entry.Entity is not StockLevel) continue;
             if (entry.State == EntityState.Modified && property.Metadata.ValueGenerated == ValueGenerated.OnAddOrUpdate) continue;
             if (entry.State == EntityState.Modified && !property.IsModified) continue;
             var before = dbValues?[property.Metadata.Name];

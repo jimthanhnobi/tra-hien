@@ -1371,6 +1371,248 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Restricted readers receive only binary availability and cannot use status=low. Cost fields require costs.read. */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number | string;
+                    pageSize?: number | string;
+                    q?: string;
+                    status?: string;
+                    type?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogPageOfInventoryStockView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventory/{variantId}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Filter occurredAt from (inclusive) to (exclusive), using offset timestamps or Vietnam dates (yyyy-MM-dd). */
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    page?: number | string;
+                    pageSize?: number | string;
+                    to?: string;
+                    type?: string;
+                };
+                header?: never;
+                path: {
+                    variantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogPageOfInventoryMovementView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventory/opening-import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Preview validates all rows. Apply requires a preview token, the same file, and the same staff identity. All rows commit together. */
+        post: {
+            parameters: {
+                query: {
+                    dryRun: boolean;
+                };
+                header?: {
+                    /** @description Required when dryRun=false. Use previewToken from the dry-run response within 30 minutes. */
+                    "X-Inventory-Preview-Token"?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OpeningResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/materials": {
         parameters: {
             query?: never;
@@ -4933,6 +5175,24 @@ export interface components {
             /** Format: int64 */
             totalItems: number | string;
         };
+        CatalogPageOfInventoryMovementView: {
+            items: components["schemas"]["InventoryMovementView"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int64 */
+            totalItems: number | string;
+        };
+        CatalogPageOfInventoryStockView: {
+            items: components["schemas"]["InventoryStockView"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int64 */
+            totalItems: number | string;
+        };
         CatalogPageOfOptionView: {
             items: components["schemas"]["OptionView"][];
             /** Format: int32 */
@@ -5090,6 +5350,49 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        InventoryMovementView: {
+            /** Format: uuid */
+            actorId: null | string;
+            actorType: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            movementType: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: int32 */
+            onHandAfter: number | string;
+            /** Format: int32 */
+            quantity: number | string;
+            reason: null | string;
+            /** Format: uuid */
+            refId: null | string;
+            refType: null | string;
+            /** Format: int64 */
+            unitCostVnd?: null | number | string;
+        };
+        InventoryStockView: {
+            availability: string;
+            /** Format: int32 */
+            available?: null | number | string;
+            /** Format: int64 */
+            avgCostVnd?: null | number | string;
+            lowStock?: null | boolean;
+            /** Format: int32 */
+            onHand?: null | number | string;
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            /** Format: uuid */
+            productTypeId: string;
+            /** Format: int32 */
+            reserved?: null | number | string;
+            sku: string;
+            /** Format: uuid */
+            variantId: string;
+            variantName: null | string;
+        };
         JsonElement: unknown;
         LoginRequest: {
             email: string;
@@ -5124,6 +5427,29 @@ export interface components {
             pageSize: number | string;
             /** Format: int64 */
             totalItems: number | string;
+        };
+        OpeningError: {
+            code: string;
+            column: string;
+            message: string;
+        };
+        OpeningResult: {
+            committed: boolean;
+            dryRun: boolean;
+            /** Format: int32 */
+            invalidRows: number | string;
+            previewToken?: null | string;
+            rows: components["schemas"]["OpeningRow"][];
+            /** Format: int32 */
+            validRows: number | string;
+        };
+        OpeningRow: {
+            errors: components["schemas"]["OpeningError"][];
+            /** Format: int32 */
+            row: number | string;
+            sku: null | string;
+            /** Format: uuid */
+            variantId: null | string;
         };
         OptionInput: {
             code: string;

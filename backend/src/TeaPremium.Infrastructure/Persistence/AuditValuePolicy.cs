@@ -89,6 +89,12 @@ public static class AuditValuePolicy
             if (field == "variant_id" && value is Guid) return value;
             return Redacted;
         }
+        if (entityType == "inventory.stock_levels")
+        {
+            if (field is "on_hand" or "reserved" && value is int) return value;
+            if (field == "updated_at" && value is DateTime) return value;
+            return Redacted;
+        }
         // P1-04 entity/path classification. Never whitelist names/biographies/HTML globally.
         if (entityType is "catalog.categories" or "catalog.collections" or "catalog.materials" or "catalog.artisans")
         {

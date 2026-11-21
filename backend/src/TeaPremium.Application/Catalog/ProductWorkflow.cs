@@ -188,8 +188,11 @@ public sealed class ProductWorkflow(IProductStore store, ICatalogContent content
 
     private async Task<Error?> ApplyVariant(ProductData p, VariantData v, JsonElement fields, bool create, ProductActor actor, CancellationToken ct)
     {
-        var oldSku = v.Sku; var oldStatus = v.Status;
+        var oldSku = v.Sku; var oldStatus = v.Status; var wasUnique = v.IsUniquePiece;
         if (!ProductRules.Apply(v, fields, VariantFields)) return ProductRules.Bad("variant");
+        var enablingUniquePiece = !create && !wasUnique && v.IsUniquePiece;
+        // Check access before consulting stock or movement history.
+        if (enablingUniquePiece && (!actor.Has("inventory.read") || !actor.Has("inventory.write"))) return Forbidden;
         if (fields.TryGetProperty("priceVnd", out _) && !actor.Has("pricing.write")) return Forbidden;
         if (fields.TryGetProperty("sku", out _) && v.Sku != oldSku)
         {
@@ -197,6 +200,9 @@ public sealed class ProductWorkflow(IProductStore store, ICatalogContent content
             if (!ProductRules.ValidSku(v.Sku)) return ProductRules.Bad("sku");
             if (!create && await store.VariantUsedAsync(v.Id, ct)) return new("sku_locked", "SKU đã có giao dịch, không thể sửa.", ErrorType.Conflict);
         }
+        // LoadAsync holds the parent and variant locks also used by Inventory mutations.
+        if (enablingUniquePiece && await store.VariantOnHandAsync(v.Id, ct) > 1)
+            return new("unique_piece_violation", "Tồn hàng độc bản không được vượt quá một.", ErrorType.Conflict);
         if (v.Status is not ("active" or "inactive") || v.PriceVnd is not null && !ProductRules.ValidPrice(v.PriceVnd) || v.WeightG is <= 0 || v.LowStockThreshold < 0
             || v.Attributes is null) return ProductRules.Bad("variant");
         if (v.Status == "active" && (!create && oldStatus == "inactive" || p.Status == "active") && !ProductRules.ValidPrice(v.PriceVnd))

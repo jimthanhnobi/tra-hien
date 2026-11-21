@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ApiError } from "../../lib/api";
 import type { AttributeRow } from "../../lib/catalog-api";
 import { buildAttributes, nullable, parseDimensions, parseVnd, readDimensions, variantPayload, vnd, type DimensionDraft } from "../../lib/product-forms";
@@ -31,8 +31,8 @@ function integer(raw: string, key: string, label: string, minimum: number) {
   return value;
 }
 
-export function VariantForm({ variant, rowVersion, canPrice, owner, definitions, actions, save }: {
-  variant?: Variant; rowVersion: string; canPrice: boolean; owner: boolean; definitions: AttributeRow[]; actions: EditorActions;
+export function VariantForm({ variant, rowVersion, canPrice, owner, canEnableUniquePiece, definitions, actions, save }: {
+  variant?: Variant; rowVersion: string; canPrice: boolean; owner: boolean; canEnableUniquePiece: boolean; definitions: AttributeRow[]; actions: EditorActions;
   save: (body: VariantPatch) => Promise<unknown>;
 }) {
   const [patch, setPatch] = useState<VariantPatch>({ rowVersion });
@@ -45,6 +45,8 @@ export function VariantForm({ variant, rowVersion, canPrice, owner, definitions,
   const skuLocked = actions.failure instanceof ApiError && actions.failure.code === "sku_locked";
   const skuEditable = owner && !skuLocked;
   const current = { ...variant, ...patch };
+  const uniqueRestricted = !!variant && !variant.isUniquePiece && !canEnableUniquePiece;
+  const uniqueHint = useId();
   const currentDims = dims === undefined ? variant?.packageDimsCm == null ? null : readDimensions(variant.packageDimsCm) : dims;
   const original = variant?.attributes ?? [];
   function change<K extends keyof VariantPatch>(key: K, value: VariantPatch[K]) { setPatch(old => ({ ...old, [key]: value })); actions.dirty(); }
@@ -52,6 +54,7 @@ export function VariantForm({ variant, rowVersion, canPrice, owner, definitions,
   const changed = !variant || Object.keys(patch).length > 1 || [price, weight, position, threshold, dims].some(value => value !== undefined) || Object.keys(attrs).length > 0;
   return <ProductForm actions={actions} save={variant ? "Lưu biến thể" : "Tạo biến thể"} disabled={!changed} onSave={async () => {
     const body = { ...patch };
+    if (uniqueRestricted) delete body.isUniquePiece;
     if (canPrice && price !== undefined && price !== String(variant?.priceVnd ?? "")) {
       try { body.priceVnd = parseVnd(price); } catch (error) { throw inputError("priceVnd", (error as Error).message); }
     }
@@ -86,7 +89,11 @@ export function VariantForm({ variant, rowVersion, canPrice, owner, definitions,
       <Field name="weightG" label="Khối lượng (g)" inputMode="numeric" value={weight ?? current.weightG ?? ""} onChange={event => setString(setWeight, event.target.value)} />
       <Field name="position" label="Vị trí" inputMode="numeric" value={position ?? current.position ?? ""} onChange={event => setString(setPosition, event.target.value)} />
       <Field name="lowStockThreshold" label="Ngưỡng tồn thấp" inputMode="numeric" value={threshold ?? current.lowStockThreshold ?? ""} onChange={event => setString(setThreshold, event.target.value)} />
-      <label className="product-check"><input type="checkbox" checked={!!current.isUniquePiece} onChange={event => change("isUniquePiece", event.target.checked)} /> Hàng độc bản</label>
+      <div>
+        <label className="product-check"><input type="checkbox" checked={!uniqueRestricted && !!current.isUniquePiece} disabled={uniqueRestricted}
+          aria-describedby={uniqueRestricted ? uniqueHint : undefined} onChange={event => change("isUniquePiece", event.target.checked)} /> Hàng độc bản</label>
+        {uniqueRestricted && <small id={uniqueHint}>Cần quyền đọc và ghi kho để chuyển biến thể này thành hàng độc bản.</small>}
+      </div>
     </div>
     {currentDims === null ? <button type="button" className="button secondary" onClick={() => { setDims({}); actions.dirty(); }}>Nhập kích thước gói</button>
       : <><DimensionFields label="Kích thước gói (cm)" value={currentDims} onChange={value => { setDims(value); actions.dirty(); }} />

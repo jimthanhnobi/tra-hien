@@ -101,6 +101,7 @@ public interface IProductStore
     Task<bool> ReferencesExistAsync(ProductData p, CancellationToken ct);
     Task<bool> CategoryVisibleAsync(Guid id, CancellationToken ct);
     Task<bool> PublicImageAsync(Guid asset, CancellationToken ct);
+    Task<int> VariantOnHandAsync(Guid id, CancellationToken ct);
     Task<bool> VariantUsedAsync(Guid id, CancellationToken ct);
     Task<string?> ArchiveTargetAsync(ProductData p, CancellationToken ct);
     Task SaveAsync(ProductData p, bool create, ProductActor actor, string? noindexReason, CancellationToken ct, IReadOnlySet<string>? reservedSkus = null);

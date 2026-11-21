@@ -418,6 +418,54 @@ test("P1-12 catalog writer omits price and SKU from the write payload", async ({
   await expect(button(page, "Công khai")).toHaveCount(0);
 });
 
+test("G4-F1 restricted staff can edit other fields, reverse classification and create unique variants", async ({ page }) => {
+  const permissions = ["catalog.read", "catalog.write", "inventory.read"];
+  const api = await fixture(page, { user: { permissions, roles: ["content"] }, product: { variants: [
+    { ...base.variants![0], isUniquePiece: false },
+    { id: uid(170), sku: "AM-UNIQUE-01", rowVersion: "unique-v", status: "active", isUniquePiece: true }
+  ] } });
+  await page.goto(editPage);
+  await tab(page, "Biến thể & giá").click();
+  await button(page, "Chỉnh sửa biến thể AM-XX-0001").click();
+  const unique = page.getByRole("checkbox", { name: "Hàng độc bản", exact: true });
+  await expect(unique).toBeDisabled();
+  await expect(unique).not.toBeChecked();
+  await expect(unique).toHaveAccessibleDescription("Cần quyền đọc và ghi kho để chuyển biến thể này thành hàng độc bản.");
+  await page.getByLabel("Tên biến thể").fill("Giữ phân loại");
+  await button(page, "Lưu biến thể").click();
+  await expect(page.getByRole("heading", { name: "Giữ phân loại" })).toBeVisible();
+  expect(api.writes().at(-1)?.body).toEqual({ name: "Giữ phân loại", rowVersion: childVersion });
+
+  await button(page, "Chỉnh sửa biến thể AM-UNIQUE-01").click();
+  await expect(unique).toBeEnabled();
+  await expect(unique).toBeChecked();
+  await unique.uncheck();
+  await button(page, "Lưu biến thể").click();
+  await expect(unique).toHaveCount(0);
+  expect(api.writes().at(-1)?.body).toEqual({ isUniquePiece: false, rowVersion: "unique-v" });
+
+  await button(page, "Thêm biến thể").click();
+  await expect(unique).toBeEnabled();
+  await unique.check();
+  await button(page, "Tạo biến thể").click();
+  await expect(unique).toHaveCount(0);
+  expect(api.writes().at(-1)?.body).toMatchObject({ isUniquePiece: true });
+});
+
+test("G4-F1 staff with catalog and inventory permissions can classify an existing variant", async ({ page }) => {
+  const permissions = ["catalog.read", "catalog.write", "inventory.read", "inventory.write"];
+  const api = await fixture(page, { user: { permissions, roles: ["content", "sales"] } });
+  await page.goto(editPage);
+  await tab(page, "Biến thể & giá").click();
+  await button(page, "Chỉnh sửa biến thể AM-XX-0001").click();
+  const unique = page.getByRole("checkbox", { name: "Hàng độc bản", exact: true });
+  await expect(unique).toBeEnabled();
+  await unique.check();
+  await button(page, "Lưu biến thể").click();
+  await expect(unique).toHaveCount(0);
+  expect(api.writes().at(-1)?.body).toEqual({ isUniquePiece: true, rowVersion: childVersion });
+});
+
 test("P1-12 read-only list/editor and direct create or denied routes do not start mutations", async ({ page, context }) => {
   const api = await fixture(page, { user: { permissions: ["catalog.read"], roles: ["sales"] } });
   await page.goto(route);

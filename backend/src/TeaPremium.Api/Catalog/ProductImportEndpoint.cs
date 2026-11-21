@@ -34,7 +34,7 @@ internal static partial class ProductImportEndpoint
         ImportProductLine[] lines;
         try
         {
-            lines = await ReadAsync(http.Request, ct);
+            lines = await ReadUploadAsync(http.Request, ProductImportFile.Read, ct);
         }
         catch (ProductImportFileException error) { return FileProblem(error); }
         catch (InvalidDataException) { return FileProblem(ProductImportFile.Invalid(1, "file", "invalid_multipart", "Yêu cầu multipart không hợp lệ.")); }
@@ -121,11 +121,14 @@ internal static partial class ProductImportEndpoint
         return new("skipGroup", status, slug.Length > 0 ? slug : null, null, lines[0].Cell("name"), [], rows);
     }
 
-    private static IResult FileProblem(ProductImportFileException error) =>
+    internal static IResult FileProblem(ProductImportFileException error, HttpContext? http = null) =>
         Results.Problem(statusCode: error.Status, title: error.Message,
-            extensions: new Dictionary<string, object?> { ["code"] = error.Error.Code, ["errors"] = new[] { error.Error } });
+            type: http is null ? null : $"https://teapremium/errors/{error.Error.Code}",
+            extensions: http is null
+                ? new Dictionary<string, object?> { ["code"] = error.Error.Code, ["errors"] = new[] { error.Error } }
+                : new Dictionary<string, object?> { ["code"] = error.Error.Code, ["errors"] = new[] { error.Error }, ["traceId"] = http.TraceIdentifier });
 
-    private static async Task<ImportProductLine[]> ReadAsync(HttpRequest request, CancellationToken ct)
+    internal static async Task<T> ReadUploadAsync<T>(HttpRequest request, Func<MemoryStream, string, T> parse, CancellationToken ct)
     {
         if (request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
             limit.MaxRequestBodySize = Math.Min(limit.MaxRequestBodySize ?? long.MaxValue, ProductImportFile.MaxRequest);
@@ -155,6 +158,6 @@ internal static partial class ProductImportEndpoint
         if (await reader.ReadNextSectionAsync(ct) is not null)
             throw ProductImportFile.Invalid(1, "file", "invalid_upload", "Gửi đúng một trường tệp có tên file.");
         data.Position = 0;
-        return ProductImportFile.Read(data, filename);
+        return parse(data, filename);
     }
 }
