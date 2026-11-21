@@ -33,6 +33,7 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer(CatalogOpenApi.TransformAsync);
     options.AddDocumentTransformer(ProductOpenApi.TransformAsync);
     options.AddDocumentTransformer(InventoryDocumentEndpoints.TransformOpenApiAsync);
+    options.AddDocumentTransformer(StoreCatalogOpenApi.TransformAsync);
 });
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
@@ -50,6 +51,7 @@ builder.Services.AddStaffIdentity(builder.Configuration, builder.Environment.IsP
 builder.Services.AddAdminSecurity(builder.Configuration);
 builder.Services.AddMedia(builder.Configuration, builder.Environment);
 builder.Services.AddCatalog();
+builder.Services.AddScoped<TeaPremium.Application.Catalog.IStoreCatalogRead, EfStoreCatalogRead>();
 builder.Services.AddScoped<IInventoryStockStore, EfInventoryStockStore>();
 builder.Services.AddScoped<IInventoryQueries, EfInventoryQueries>();
 builder.Services.AddScoped<InventoryMutation>();
@@ -105,6 +107,7 @@ app.MapProducts();
 app.MapSalePrices();
 app.MapInventory();
 app.MapInventoryDocuments();
+app.MapStoreCatalog();
 
 app.Run();
 

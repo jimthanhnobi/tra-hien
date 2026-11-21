@@ -141,7 +141,7 @@ public sealed class ConfirmOrderHandler(IOrderRepository orders, IUnitOfWork uow
 | `ExpireCarts` | 1 giờ | xóa giỏ hết hạn |
 | `ExpireUploadSessions` | 1 giờ | dọn upload dở |
 | `RecomputeCustomerStats` | 02:00 hằng ngày | đối chiếu chỉ số khách (sự kiện cập nhật realtime, job này sửa lệch) |
-| `ActivateScheduledPrices` | 5 phút | revalidate cache khi giá KM bắt đầu/kết thúc |
+| `ActivateScheduledPrices` | 5 phút | P3-09 revalidate cache khi giá KM bắt đầu/kết thúc, trước khi bật cache giá/tồn |
 | `QualifyReferrals` | 1 giờ | BR-MKT-07 |
 | `DataRetention` | 03:00 hằng ngày | BR-CRM-12 |
 | `PurgeIdempotencyKeys` | 1 giờ | xóa key > 48h |
@@ -168,6 +168,7 @@ Webhook đầu vào (giai đoạn 5) lưu thô vào `platform.inbound_webhooks` 
 Sinh payload EMVCo theo chuẩn VietQR (NAPAS) **tại server** từ cấu hình `bank_bin`, `account_number`, `account_name`, số tiền, nội dung = mã đơn. Không gọi dịch vụ ngoài. Trả về chuỗi payload; frontend render QR bằng thư viện (ví dụ `qrcode`). Có unit test CRC16.
 
 ### 5.8 Cache storefront
+- P1-14 trả product list/detail động với `Cache-Control: no-store`, tính giá và tồn lúc đọc, giữ hợp đồng `StorefrontInvalidate`. P3-09 nghiệm thu cache đã làm nóng qua mốc lịch giá, tồn 0 ↔ dương và lowStock 3 ↔ 4 trước khi bật cache giá/tồn. P3-15 sở hữu cache và parity của Merchant Feed.
 - Storefront dùng fetch có tag (`product:{slug}`, `category:{slug}`, `catalog`, `settings`, `article:{slug}`) và `revalidate` mặc định 300s.
 - API phát sự kiện outbox `StorefrontInvalidate(tags[])` khi publish/sửa sản phẩm, giá, KM, tồn chuyển 0↔>0, bài viết, settings. Dispatcher gọi `POST http://store:3000/api/revalidate` (secret nội bộ) → `revalidateTag`.
 - Sitemap và feed Merchant cache theo tag `sitemap`, `feed` (làm mới khi có `StorefrontInvalidate` liên quan, tối đa 1 giờ).
