@@ -47,6 +47,7 @@ public sealed partial class EfProductStore(AppDbContext db, IConfiguration confi
     }
     public Task<bool> CategoryVisibleAsync(Guid id, CancellationToken ct) => db.Set<Category>().AnyAsync(x => x.Id == id && x.Status == "visible", ct);
     public Task<bool> PublicImageAsync(Guid asset, CancellationToken ct) => assets.ExistsAsync(asset, ct);
+    public Task<int> VariantOnHandAsync(Guid id, CancellationToken ct) => inventory.OnHandAsync(id, ct);
     public async Task<bool> VariantUsedAsync(Guid id, CancellationToken ct)
     {
         foreach (var source in usage) if (await source.UsedAsync(id, ct)) return true;

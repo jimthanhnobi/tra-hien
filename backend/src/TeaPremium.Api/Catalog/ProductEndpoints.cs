@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using TeaPremium.Api.Iam;
 using TeaPremium.Api.Middleware;
 using TeaPremium.Application.Catalog;
@@ -61,6 +62,7 @@ public sealed record ProductMediaOrderRequest(string RowVersion, Guid[] MediaIds
 public static class ProductEndpoints
 {
     private const string Root = "/api/v1/admin/products";
+    private static readonly JsonSerializerOptions RestrictedInventoryJson = CreateRestrictedInventoryJson();
     public static void MapProducts(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup(Root).WithTags("Products").RequireAuthorization(AdminSecurity.Ready);
@@ -69,18 +71,18 @@ public static class ProductEndpoints
             int page = 1, int pageSize = 20, string? q = null, string? status = null, Guid? type = null, Guid? category = null, Guid? material = null, Guid? artisan = null, string? stock = null) =>
         {
             var result = await handler.Handle(new(page, pageSize, q, status, type, category, material, artisan, stock, Actor(http)), ct);
-            return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem(http);
+            return result.IsSuccess ? ProductResponse(http, result.Value) : result.Error.ToProblem(http);
         }).RequireAuthorization("catalog.read").Produces<CatalogPage<ProductData>>().ProducesProblem(400).ProducesProblem(401).ProducesProblem(403);
         group.MapGet("/{id:guid}", ReadProduct).RequireAuthorization("catalog.read").Produces<ProductData>().ReadErrors();
         group.MapGet("/{id:guid}/variants", async (Guid id, HttpContext http, IQueryHandler<GetProduct, ProductData> handler, CancellationToken ct) =>
         {
-            var result = await handler.Handle(new(id), ct); return result.IsSuccess ? Results.Ok(result.Value.Variants) : result.Error.ToProblem(http);
+            var result = await handler.Handle(new(id), ct); return result.IsSuccess ? ProductResponse(http, result.Value.Variants) : result.Error.ToProblem(http);
         }).RequireAuthorization("catalog.write").Produces<List<VariantData>>().ReadErrors();
         group.MapGet("/{id:guid}/variants/{childId:guid}", async (Guid id, Guid childId, HttpContext http, IQueryHandler<GetProduct, ProductData> handler, CancellationToken ct) =>
         {
             var result = await handler.Handle(new(id), ct); if (!result.IsSuccess) return result.Error.ToProblem(http);
             var v = result.Value.Variants.SingleOrDefault(x => x.Id == childId);
-            return v is null ? new TeaPremium.Application.Results.Error("not_found", "Không tìm thấy biến thể.", TeaPremium.Application.Results.ErrorType.NotFound).ToProblem(http) : Results.Ok(v);
+            return v is null ? new TeaPremium.Application.Results.Error("not_found", "Không tìm thấy biến thể.", TeaPremium.Application.Results.ErrorType.NotFound).ToProblem(http) : ProductResponse(http, v);
         }).RequireAuthorization("catalog.write").Produces<VariantData>().ReadErrors();
         Write<ProductWriteRequest>(group, "", "product", HttpMethod.Post, "catalog.write", true);
         Write<ProductWriteRequest>(group, "/{id:guid}", "product", HttpMethod.Patch, "catalog.write");
@@ -96,7 +98,7 @@ public static class ProductEndpoints
         Write<ProductMediaOrderRequest>(group, "/{id:guid}/media/order", "order", HttpMethod.Put, "catalog.write");
     }
     private static async Task<IResult> ReadProduct(Guid id, HttpContext http, IQueryHandler<GetProduct, ProductData> handler, CancellationToken ct)
-    { var result = await handler.Handle(new(id), ct); return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem(http); }
+    { var result = await handler.Handle(new(id), ct); return result.IsSuccess ? ProductResponse(http, result.Value) : result.Error.ToProblem(http); }
     private static void Write<T>(RouteGroupBuilder group, string path, string operation, HttpMethod method, string permission, bool create = false) where T : notnull
     {
         group.MapMethods(path, [method.Method], async (HttpContext http, ICommandHandler<ProductMutation, ProductData> handler, CancellationToken ct) =>
@@ -108,10 +110,34 @@ public static class ProductEndpoints
             Guid? id = Guid.TryParse(http.Request.RouteValues["id"]?.ToString(), out var productId) ? productId : null;
             Guid? child = Guid.TryParse(http.Request.RouteValues["childId"]?.ToString(), out var childId) ? childId : null;
             var result = await handler.Handle(new(id, operation, child, fields, Actor(http)), ct);
-            return !result.IsSuccess ? result.Error.ToProblem(http) : create ? Results.Created(Root + "/" + result.Value.Id, result.Value) : Results.Ok(result.Value);
+            if (!result.IsSuccess) return result.Error.ToProblem(http);
+            return ProductResponse(http, result.Value, create ? Root + "/" + result.Value.Id : null);
         }).Accepts<T>("application/json").RequireAuthorization(permission).Produces<ProductData>(create ? 201 : 200)
             .ProducesProblem(400).ProducesProblem(401).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409).ProducesProblem(422);
     }
+    private static IResult ProductResponse<T>(HttpContext http, T value, string? location = null)
+    {
+        if (!http.User.HasClaim("permission", "inventory.read") || http.User.HasClaim("permission", "inventory.write"))
+            return location is null ? Results.Ok(value) : Results.Created(location, value);
+
+        // The threshold combined with binary availability would reveal low status for out-of-stock variants.
+        if (location is not null) http.Response.Headers.Location = location;
+        return Results.Json(value, RestrictedInventoryJson, statusCode: location is null ? 200 : 201);
+    }
+
+    private static JsonSerializerOptions CreateRestrictedInventoryJson()
+    {
+        var options = new Microsoft.AspNetCore.Http.Json.JsonOptions().SerializerOptions;
+        var resolver = new DefaultJsonTypeInfoResolver();
+        resolver.Modifiers.Add(type =>
+        {
+            if (type.Type == typeof(VariantData))
+                type.Properties.Single(x => x.Name == "lowStockThreshold").ShouldSerialize = (_, _) => false;
+        });
+        options.TypeInfoResolver = resolver;
+        return options;
+    }
+
     internal static ProductActor Actor(HttpContext http) => new(Guid.Parse(http.User.FindFirstValue(ClaimTypes.NameIdentifier)!),
         http.User.FindAll("permission").Select(x => x.Value).ToArray(), http.User.IsInRole("owner"));
     private static RouteHandlerBuilder ReadErrors(this RouteHandlerBuilder builder) => builder.ProducesProblem(401).ProducesProblem(403).ProducesProblem(404);

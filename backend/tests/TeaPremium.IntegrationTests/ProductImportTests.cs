@@ -264,7 +264,7 @@ second,Second,p105_teapot,,,AM-XX-9999
         Assert.Equal(before, await Fingerprint(h));
     }
 
-    private static async Task<string> CreateStaff(ProductHarness h, string role, bool ready)
+    internal static async Task<string> CreateStaff(ProductHarness h, string role, bool ready)
     {
         await using var scope = h.App.Factory.Services.CreateAsyncScope();
         var email = $"{role}-{ready}@example.test";
@@ -317,7 +317,7 @@ SELECT concat_ws('|',(SELECT count(*) FROM catalog.products),(SELECT count(*) FR
         return Convert.ToString(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture)!;
     }
 
-    private static byte[] Workbook(string[][] rows, bool formula = false, bool macro = false,
+    internal static byte[] Workbook(string[][] rows, bool formula = false, bool macro = false,
         bool expandedOverflow = false, string sheet = "SanPham", string? worksheetXml = null, string? shared = null, int? numericColumn = null)
     {
         using var buffer = new MemoryStream();
