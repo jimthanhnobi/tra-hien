@@ -354,6 +354,7 @@ public sealed class StocktakeLine
     public Guid CountedBy { get; set; }
 }
 
+[Audited]
 public sealed class SalePrice
 {
     public Guid Id { get; set; }
@@ -364,6 +365,7 @@ public sealed class SalePrice
     public string? Note { get; set; }
     public Guid CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; }
+    public uint Version { get; set; }
 }
 
 public sealed class Redirect

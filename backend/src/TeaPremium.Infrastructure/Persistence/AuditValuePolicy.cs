@@ -81,6 +81,14 @@ public static class AuditValuePolicy
             if (field is "created_at" or "updated_at" && value is DateTime) return value;
             return Redacted;
         }
+        // BR-PRC-03: audit the price, schedule and parent identity, with free-text notes redacted.
+        if (entityType == "pricing.sale_prices")
+        {
+            if (field == "sale_price_vnd" && value is long) return value;
+            if (field is "starts_at" or "ends_at" or "created_at" && value is DateTime) return value;
+            if (field == "variant_id" && value is Guid) return value;
+            return Redacted;
+        }
         // P1-04 entity/path classification. Never whitelist names/biographies/HTML globally.
         if (entityType is "catalog.categories" or "catalog.collections" or "catalog.materials" or "catalog.artisans")
         {
