@@ -34,7 +34,7 @@
 | GET | `store/settings` | Thông tin website công khai, phương thức thanh toán bật, phí ship, ngưỡng freeship |
 | GET | `store/navigation` | Cây danh mục visible, collections visible |
 | GET | `store/products` | Danh sách. Query: `category`, `collection`, `type`, `material`, `artisan`, `priceMin`, `priceMax`, `attr.<code>=<optionCode\|min-max>`, `inStock=true`, `q`, `sort=newest\|price_asc\|price_desc`, `page`. Trả thêm `facets` (đếm theo filter) |
-| GET | `store/products/{slug}` | Chi tiết: thông tin, thuộc tính hiển thị, variants (giá hiệu lực, giá gốc, `availability`: `in_stock`/`out_of_stock`/`sold`, **không** trả số tồn chính xác nếu > 5 → trả `"lowStock": true` khi ≤ 3), ảnh, SEO, sản phẩm liên quan |
+| GET | `store/products/{slug}` | Chi tiết: thông tin, thuộc tính hiển thị, variants (giá hiệu lực, giá gốc, `availability`: `in_stock`/`out_of_stock`/`sold`, `lowStock` đúng khi 0 < available ≤ 3), ảnh, SEO, sản phẩm liên quan |
 | GET | `store/categories/{slug}`, `store/collections/{slug}` | Thông tin + SEO (sản phẩm lấy qua `store/products`) |
 | GET | `store/materials`, `store/materials/{slug}` | Chất liệu |
 | GET | `store/artisans`, `store/artisans/{slug}` | Nghệ nhân |
@@ -53,6 +53,12 @@
 | POST | `store/vitals` | Ghi Web Vitals (rate limit, không PII) |
 | GET | `/r/{code}` | (Route của app store, gọi `store/links/{code}/click`) BR-MKT-04 |
 | POST | `store/links/{code}/click` | Body `{visitorId, userAgent, referrerHost}` → `{targetPath, setAttribution}`; chỉ gọi từ server store (header secret nội bộ) |
+
+**Catalog P1-14 (owner-approved).** Store API không công bố số tồn chính xác ở bất kỳ mức nào, gồm `onHand`, `reserved` và số lượng `available`. Không trả giá vốn, ngưỡng kho nội bộ hoặc lịch sử biến động. Thiếu dòng tồn đọc là 0. Chỉ trả `sold` khi có bằng chứng bán nghiệp vụ, nếu tồn khả dụng bằng 0 và chưa có bằng chứng thì trả `out_of_stock`. Product list/detail động trả `Cache-Control: no-store`.
+
+Mỗi key lọc nhận một giá trị. `category`, `collection`, `material`, `artisan` dùng slug, `type` dùng code. Category gồm liên kết trực tiếp và hậu duệ qua nhánh visible, không trả tham chiếu category ẩn. `attr.<code>` nhận option code hoặc khoảng số inclusive theo đơn vị đã lưu, dùng dấu chấm thập phân. Chỉ xét definition active, visible, filterable. Key lặp, sai định dạng hoặc mơ hồ trả `400 validation_failed`. Predicate cấp product áp trên product. Thuộc tính variant, khoảng giá hiệu lực inclusive và `inStock=true` cùng khớp trên một variant đủ điều kiện. Thẻ và sort dùng giá đại diện theo BR-CAT-11, có thứ tự phá hòa ổn định và định danh variant đại diện. Facets đếm product distinct trên tập đã lọc đầy đủ trước phân trang, lấy giá trị variant từ tập variant khớp.
+
+Giữ `search_text` chuẩn và AND token literal đã bỏ dấu theo BR-CAT-10, AC-P1-07. SKU/tên variant inactive có thể khớp product cha công khai. Response không trả variant inactive hoặc trường nội bộ đã khớp.
 
 ### Giỏ hàng và checkout (cookie `tp_cart`, CSRF)
 | Method | Path | Mô tả |

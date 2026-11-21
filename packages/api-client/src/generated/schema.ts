@@ -6241,6 +6241,400 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/store/artisans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreTaxonomySummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/artisans/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreTaxonomyDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/categories/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreTaxonomyDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/collections/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreTaxonomyDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreTaxonomySummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/materials/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreTaxonomyDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/navigation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreNavigation"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Filter attributes with attr.<code>=<optionCode> or attr.<code>=<min>-<max>. Use one value per key. Variant predicates match the same eligible variant. Facets count distinct products before pagination. */
+        get: {
+            parameters: {
+                query?: {
+                    artisan?: string;
+                    category?: string;
+                    collection?: string;
+                    inStock?: string;
+                    material?: string;
+                    page?: string;
+                    pageSize?: string;
+                    priceMax?: string;
+                    priceMin?: string;
+                    q?: string;
+                    sort?: "newest" | "price_asc" | "price_desc";
+                    type?: string;
+                    [key: `attr.${string}`]: string | undefined;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreProductPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/products/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreProductDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7212,6 +7606,154 @@ export interface components {
         StocktakeView: {
             document: components["schemas"]["StocktakeSummary"];
             lines: components["schemas"]["StocktakeLineView"][];
+        };
+        StoreAttributeValue: {
+            boolean: null | boolean;
+            code: string;
+            dimensions: null | components["schemas"]["StoreDimensions"];
+            name: string;
+            /** Format: double */
+            number: null | number | string;
+            optionCode: null | string;
+            optionLabel: null | string;
+            text: null | string;
+            unit: null | string;
+        };
+        StoreCategoryNode: {
+            children: components["schemas"]["StoreCategoryNode"][];
+            name: string;
+            slug: string;
+        };
+        StoreDimensions: {
+            /** Format: double */
+            d: null | number | string;
+            /** Format: double */
+            h: null | number | string;
+            /** Format: double */
+            l: null | number | string;
+            /** Format: double */
+            mouth: null | number | string;
+            /** Format: double */
+            w: null | number | string;
+        };
+        StoreFacet: {
+            key: string;
+            label: string;
+            /** Format: int64 */
+            productCount: number | string;
+            type?: null | string;
+            value: string;
+        };
+        StoreImage: {
+            alt: null | string;
+            /** Format: int32 */
+            height: null | number | string;
+            url: string;
+            /** Format: int32 */
+            width: null | number | string;
+        };
+        StoreNavigation: {
+            categories: components["schemas"]["StoreCategoryNode"][];
+            collections: components["schemas"]["StoreReference"][];
+        };
+        StorePrice: {
+            /** Format: int64 */
+            effectivePriceVnd: number | string;
+            /** Format: int64 */
+            originalPriceVnd: null | number | string;
+        };
+        StoreProductCard: {
+            /** @enum {string} */
+            availability: "in_stock" | "out_of_stock" | "sold";
+            cover: null | components["schemas"]["StoreImage"];
+            lowStock: boolean;
+            name: string;
+            price: components["schemas"]["StorePrice"];
+            /** Format: uuid */
+            representativeVariantId: string;
+            shortDescription: null | string;
+            slug: string;
+            subtitle: null | string;
+        };
+        StoreProductDetail: {
+            artisan: null | components["schemas"]["StoreReference"];
+            attributes: components["schemas"]["StoreAttributeValue"][];
+            careHtml: null | string;
+            categories: components["schemas"]["StoreReference"][];
+            descriptionHtml: null | string;
+            images: components["schemas"]["StoreProductImage"][];
+            material: null | components["schemas"]["StoreReference"];
+            name: string;
+            originNote: null | string;
+            relatedProducts: components["schemas"]["StoreReference"][];
+            seo: components["schemas"]["StoreProductSeo"];
+            shortDescription: null | string;
+            slug: string;
+            subtitle: null | string;
+            type: components["schemas"]["StoreReference"];
+            variants: components["schemas"]["StoreVariant"][];
+        };
+        StoreProductImage: {
+            image: components["schemas"]["StoreImage"];
+            isCover: boolean;
+            /** Format: uuid */
+            variantId: null | string;
+        };
+        StoreProductPage: {
+            facets: components["schemas"]["StoreFacet"][];
+            items: components["schemas"]["StoreProductCard"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int64 */
+            totalItems: number | string;
+        };
+        StoreProductSeo: {
+            description: null | string;
+            /** Format: int32 */
+            descriptionWordCount: number | string;
+            indexable: boolean;
+            manualNoindex: boolean;
+            ogImage: null | components["schemas"]["StoreImage"];
+            thinDescription: boolean;
+            title: null | string;
+        };
+        StoreReference: {
+            name: string;
+            slug: string;
+        };
+        StoreSeo: {
+            description: null | string;
+            indexable: boolean;
+            title: null | string;
+        };
+        StoreTaxonomyDetail: {
+            bodyHtml: null | string;
+            descriptionHtml: null | string;
+            image: null | components["schemas"]["StoreImage"];
+            kind: null | string;
+            name: string;
+            seo: components["schemas"]["StoreSeo"];
+            slug: string;
+            summary: null | string;
+        };
+        StoreTaxonomySummary: {
+            image: null | components["schemas"]["StoreImage"];
+            name: string;
+            slug: string;
+            summary: null | string;
+        };
+        StoreVariant: {
+            attributes: components["schemas"]["StoreAttributeValue"][];
+            /** @enum {string} */
+            availability: "in_stock" | "out_of_stock" | "sold";
+            /** Format: uuid */
+            id: string;
+            lowStock: boolean;
+            name: null | string;
+            price: components["schemas"]["StorePrice"];
+            sku: string;
         };
         TotpRequest: {
             code: string;

@@ -60,7 +60,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P1-11 | Admin UI: product types, danh mục, materials, artisans, collections | M | P1-03, P1-04 |
 | P1-12 | Admin UI: danh sách + form sản phẩm (tab Thông tin / Thuộc tính / Biến thể & giá / Ảnh / SEO), checklist publish hiển thị lỗi BR-CAT-04 | L | P1-05 |
 | P1-13 | Admin UI kho: tồn kho, sổ kho, phiếu nhập, điều chỉnh, kiểm kê (dùng tốt trên điện thoại); hiển thị cảnh báo kho P1; dashboard tổng hợp P2-16 | M | P1-09, P1-10 |
-| P1-14 | Store API catalog (`store/products`, facets, chi tiết, navigation, materials, artisans) + test không lộ giá vốn/tồn chính xác | M | P1-05, P1-08 |
+| P1-14 | Chín Store GET catalog (products list/detail và facets, navigation, category/collection detail, material/artisan list/detail), product list/detail no-store, test không lộ giá vốn/tồn chính xác | M | P1-05, P1-08 |
 
 **DoD P1:** Nhập được toàn bộ catalog thật (ảnh thật, thông số, nghệ nhân, chất đất), tồn đầu kỳ và giá vốn từ bảng giá nhập; tồn khớp kiểm kê.
 
@@ -87,12 +87,12 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P2-02 | Customers: CRUD, chuẩn hóa SĐT, tìm không dấu, tags, địa chỉ, correct-identity, 360° (BR-CRM-01..04, 14) | L | P2-01 |
 | P2-03 | Import khách cũ dry-run (BR-CRM-03) | M | P2-02 |
 | P2-04 | Interactions + hẹn chăm sóc + "Cần liên hệ hôm nay" (BR-CRM-06/07) | M | P2-02 |
-| P2-05 | Order aggregate + state machine + `CheckoutCalculator` dùng chung (BR-ORD, BR-CRT-05) + giữ/nhả/tiêu thụ hàng (BR-INV-03/04) + test đồng thời NFR-02; migration inventory.reservations + indexes + fk_reservations_line sau sales.order_lines; bật đối soát reservation BR-INV-13 | L | P2-01, P1-08 |
+| P2-05 | Order aggregate + state machine + `CheckoutCalculator` dùng chung (BR-ORD, BR-CRT-05) + giữ/nhả/tiêu thụ hàng (BR-INV-03/04) + test đồng thời NFR-02; migration inventory.reservations + indexes + fk_reservations_line sau sales.order_lines; bật đối soát reservation BR-INV-13, sản xuất bằng chứng bán nghiệp vụ cho BR-SEO-21 | L | P2-01, P1-08 |
 | P2-06 | Tạo/sửa/hủy đơn Admin (BR-ORD-04/08, BR-PRC-06/07), đơn backfill (BR-ORD-09) | M | P2-05 |
 | P2-07 | Payments: ghi nhận chuyển khoản/tiền mặt, `OrderPaymentStatusCalculator`, void, refund (BR-PAY-01..03, 06, 07) | M | P2-05 |
-| P2-08 | Shipments thủ công + sự kiện + delivered/failed + restock (BR-SHP-02..05, BR-ORD-07) | M | P2-05 |
+| P2-08 | Shipments thủ công + sự kiện + delivered/failed + restock (BR-SHP-02..05, BR-ORD-07), giữ đúng trạng thái bán BR-SEO-21 khi giao thất bại/nhập lại | M | P2-05 |
 | P2-09 | Đối soát COD (BR-PAY-05) | S | P2-07, P2-08 |
-| P2-10 | Đổi trả (BR-RET-01..04) | M | P2-07, P2-08 |
+| P2-10 | Đổi trả (BR-RET-01..04), giữ đúng trạng thái bán BR-SEO-21 khi trả hàng/nhập lại | M | P2-07, P2-08 |
 | P2-11 | Sở thích khách từ đơn (BR-CRM-08), chỉ số khách + job đối soát | S | P2-08 |
 | P2-12 | Consent (admin), merge, erase, export (BR-CRM-05, 09, 11, 13) | M | P2-02 |
 | P2-13 | Notifications: Telegram + email shop, template, digest 08:00 (BR-PLT-03); cảnh báo hiện tại/digest, không phát lại backlog P1 lỗi thời | S | P0-06, P1-10 |
@@ -128,10 +128,10 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P3-06 | Email khách (đặt đơn, đã nhận tiền, đang giao, hủy) | S | P2-13 |
 | P3-07 | Content: articles, pages, redirects, sanitizer (BR-CNT-01..03, 06) + Admin UI editor Tiptap; redirects table đã có ở P1-01, pha này thêm editor/UI, không tạo lại bảng | L | P1 |
 | P3-08 | Store app base: layout, trang chủ (bộ sưu tập, hàng mới), danh mục + bộ lọc, chi tiết sản phẩm (gallery, chọn biến thể, thông số, nghệ nhân/chất liệu, liên quan), tìm kiếm, giỏ, checkout, trang xác nhận + QR, tra đơn, tài khoản, bài viết, trang nghệ nhân/chất liệu, chính sách | L | P3-01..07 |
-| P3-09 | SEO kỹ thuật: URL + 308 chuẩn hóa, ma trận index, phân trang, robots, metadata + OG, JSON-LD (Product/ProductGroup, Breadcrumb, Organization, BlogPosting, ProfilePage), sitemap index + ảnh, cache theo tag (09 §1–4, §6–8; BR-SEO-01..14, 30..33, 50..56, 70..77) | L | P3-08 |
+| P3-09 | SEO kỹ thuật: URL + 308 chuẩn hóa, ma trận index, phân trang, robots, metadata + OG, JSON-LD (Product/ProductGroup, Breadcrumb, Organization, BlogPosting, ProfilePage), sitemap index + ảnh, cache theo tag, ActivateScheduledPrices và nghiệm thu cache đã làm nóng qua biên lịch giá và tồn 0 ↔ dương/lowStock 3 ↔ 4 (09 §1–4, §6–8; BR-SEO-01..14, 30..33, 50..56, 70..77) | L | P3-08 |
 | P3-13 | Vòng đời trang sản phẩm: hàng độc bản đã bán, lưu trữ bắt buộc 301 (BR-SEO-20..23) | S | P3-09 |
 | P3-14 | Trang chủ đề + tác giả (BR-SEO-40..42, 73/74) + Admin UI | M | P3-07 |
-| P3-15 | Feed Google Merchant Center + test khớp giá với trang (BR-SEO-80/81) | M | P3-09 |
+| P3-15 | Feed Google Merchant Center + cache và test khớp giá/tình trạng với trang (BR-SEO-80/81) | M | P3-09 |
 | P3-16 | Ảnh SEO (tên file, ALT, kích thước) + ngân sách tốc độ trong CI (Lighthouse CI) + Web Vitals thực tế (BR-SEO-82..88) | M | P3-08 |
 | P3-17 | SEO Audit + Điểm SEO trong form + log 404 → tạo redirect (BR-SEO-60/61/96) | M | P3-09 |
 | P3-18 | GA4 sau consent + sự kiện thương mại điện tử (BR-SEO-94); xác minh Search Console, gửi sitemap, đăng ký Merchant Center (vận hành) | S | P3-09 |

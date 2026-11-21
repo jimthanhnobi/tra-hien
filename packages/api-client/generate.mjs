@@ -66,8 +66,45 @@ const ast = await openapiTS(JSON.parse(json), {
     return ts.factory.createTypeReferenceNode(jsonName);
   },
 });
+// openapi-typescript models an exploded query object under its parameter name.
+// openapi-fetch takes the wire keys directly. Flatten only this Store parameter.
+function flattenStoreAttributes(nodes) {
+  const route = "/api/v1/store/products";
+  const parameter = document.paths[route].get.parameters.find(p => p.name === "attributes" && p.in === "query");
+  const pattern = "^attr\\.[a-z0-9_]{2,40}$";
+  if (parameter?.schema?.patternProperties?.[pattern]?.type !== "string" || parameter.schema.additionalProperties !== false) {
+    throw new Error("Store attribute query metadata changed");
+  }
+  const member = (node, name) => node?.members?.find(p => ts.isPropertySignature(p) && p.name?.text === name);
+  const paths = nodes.find(node => ts.isInterfaceDeclaration(node) && node.name.text === "paths");
+  const get = member(member(paths, route)?.type, "get");
+  const query = member(member(get?.type, "parameters")?.type, "query")?.type;
+  const attributes = member(query, parameter.name);
+  if (!attributes || !ts.isTypeLiteralNode(query)) throw new Error("Store query type was not generated");
+  const index = ts.factory.createIndexSignature(undefined, [
+    ts.factory.createParameterDeclaration(undefined, undefined, "key", undefined,
+      ts.factory.createTemplateLiteralType(ts.factory.createTemplateHead("attr."), [
+        ts.factory.createTemplateLiteralTypeSpan(ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword), ts.factory.createTemplateTail("")),
+      ])),
+  ], ts.factory.createUnionTypeNode([
+    ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+    ts.factory.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword),
+  ]));
+  const result = ts.transform(nodes, [(context) => (node) => {
+    function visit(child) {
+      return child === query
+        ? ts.factory.updateTypeLiteralNode(query, [...query.members.filter(p => p !== attributes), index])
+        : ts.visitEachChild(child, visit, context);
+    }
+    return ts.visitNode(node, visit);
+  }]);
+  const output = result.transformed;
+  result.dispose();
+  return output;
+}
+
 const types = "// Generated from the actual API by corepack pnpm generate:api. Do not edit.\n"
-  + astToString([...aliases, ...ast]).replaceAll("\r\n", "\n");
+  + astToString([...aliases, ...flattenStoreAttributes(ast)]).replaceAll("\r\n", "\n");
 const targets = [
   [new URL("./openapi.json", import.meta.url), json],
   [new URL("./src/generated/schema.ts", import.meta.url), types],

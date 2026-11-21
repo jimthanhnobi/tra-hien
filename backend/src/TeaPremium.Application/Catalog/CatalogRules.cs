@@ -35,7 +35,7 @@ public sealed class OptionInputValidator : AbstractValidator<OptionInput>
 {
     public OptionInputValidator()
     {
-        RuleFor(x => x.Code).NotNull().WithMessage("Dữ liệu không hợp lệ.").Matches("\\A[a-z0-9_]{1,60}\\z").WithMessage("Dữ liệu không hợp lệ.");
+        RuleFor(x => x.Code).NotNull().WithMessage("Dữ liệu không hợp lệ.").Matches(CatalogRules.OptionCodePattern).WithMessage("Dữ liệu không hợp lệ.");
         RuleFor(x => x.Label).Must(CatalogRules.ValidName).WithMessage("Dữ liệu không hợp lệ.");
     }
 }
@@ -44,6 +44,10 @@ public static partial class CatalogRules
     internal const string ReferenceCodePattern = "\\A[a-z0-9_]{2,40}\\z";
     [GeneratedRegex(ReferenceCodePattern, RegexOptions.CultureInvariant)]
     internal static partial Regex ReferenceCode();
+
+    internal const string OptionCodePattern = "\\A[a-z0-9_]{1,60}\\z";
+    [GeneratedRegex(OptionCodePattern, RegexOptions.CultureInvariant)]
+    internal static partial Regex OptionCode();
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = false };
     // PostgreSQL text cannot represent U+0000. Preserve other Unicode and whitespace as supplied.

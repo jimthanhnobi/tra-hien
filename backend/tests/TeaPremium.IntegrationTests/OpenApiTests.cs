@@ -11,6 +11,44 @@ public sealed class OpenApiTests
     private static readonly string[] JsonTypes = ["array", "boolean", "null", "number", "object", "string"];
 
     [Fact]
+    public async Task StoreCatalogPublishesExactlyNineReadOperations()
+    {
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseEnvironment("CI").UseSetting("ConnectionStrings:Default", ""));
+        using var client = factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
+        var paths = document.RootElement.GetProperty("paths");
+        var store = paths.EnumerateObject().Where(p => p.Name.StartsWith("/api/v1/store/", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(9, store.Length);
+        Assert.All(store, path => Assert.Equal("get", Assert.Single(path.Value.EnumerateObject()).Name));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/inventory", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
+
+        var parameters = paths.GetProperty("/api/v1/store/products").GetProperty("get")
+            .GetProperty("parameters").EnumerateArray().ToDictionary(x => x.GetProperty("name").GetString()!);
+        AssertOpenApiEnum(parameters["sort"].GetProperty("schema"), "newest", "price_asc", "price_desc");
+        var attributes = parameters["attributes"];
+        Assert.Equal("query", attributes.GetProperty("in").GetString());
+        // form and explode=true are the OpenAPI defaults for a query parameter.
+        if (attributes.TryGetProperty("style", out var style)) Assert.Equal("form", style.GetString());
+        if (attributes.TryGetProperty("explode", out var explode)) Assert.True(explode.GetBoolean());
+        var schema = attributes.GetProperty("schema");
+        Assert.Equal("object", schema.GetProperty("type").GetString());
+        Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal("string", schema.GetProperty("patternProperties").GetProperty(@"^attr\.[a-z0-9_]{2,40}$").GetProperty("type").GetString());
+
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        foreach (var name in new[] { "StoreProductCard", "StoreVariant" })
+            AssertOpenApiEnum(schemas.GetProperty(name).GetProperty("properties").GetProperty("availability"), "in_stock", "out_of_stock", "sold");
+    }
+
+    private static void AssertOpenApiEnum(JsonElement schema, params string[] values)
+    {
+        Assert.Equal("string", schema.GetProperty("type").GetString());
+        Assert.Equal(values, schema.GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Fact]
     public async Task NormalApiStartupRetainsCommandLineHostOptions()
     {
         var start = new ProcessStartInfo("dotnet")

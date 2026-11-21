@@ -4004,6 +4004,754 @@
         ],
         "type": "object"
       },
+      "StoreAttributeValue": {
+        "properties": {
+          "boolean": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "dimensions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoreDimensions"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "number": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "optionCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "optionLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "unit",
+          "text",
+          "number",
+          "optionCode",
+          "optionLabel",
+          "boolean",
+          "dimensions"
+        ],
+        "type": "object"
+      },
+      "StoreCategoryNode": {
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/StoreCategoryNode"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "children"
+        ],
+        "type": "object"
+      },
+      "StoreDimensions": {
+        "properties": {
+          "d": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "h": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "l": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "mouth": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "w": {
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "d",
+          "h",
+          "mouth",
+          "l",
+          "w"
+        ],
+        "type": "object"
+      },
+      "StoreFacet": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "productCount": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "label",
+          "productCount"
+        ],
+        "type": "object"
+      },
+      "StoreImage": {
+        "properties": {
+          "alt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "height": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "url",
+          "alt",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "StoreNavigation": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/StoreCategoryNode"
+            },
+            "type": "array"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/StoreReference"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "categories",
+          "collections"
+        ],
+        "type": "object"
+      },
+      "StorePrice": {
+        "properties": {
+          "effectivePriceVnd": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "originalPriceVnd": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "effectivePriceVnd",
+          "originalPriceVnd"
+        ],
+        "type": "object"
+      },
+      "StoreProductCard": {
+        "properties": {
+          "availability": {
+            "enum": [
+              "in_stock",
+              "out_of_stock",
+              "sold"
+            ],
+            "type": "string"
+          },
+          "cover": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoreImage"
+              }
+            ]
+          },
+          "lowStock": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/StorePrice"
+          },
+          "representativeVariantId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "shortDescription": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "subtitle",
+          "shortDescription",
+          "representativeVariantId",
+          "price",
+          "availability",
+          "lowStock",
+          "cover"
+        ],
+        "type": "object"
+      },
+      "StoreProductDetail": {
+        "properties": {
+          "artisan": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoreReference"
+              }
+            ]
+          },
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/StoreAttributeValue"
+            },
+            "type": "array"
+          },
+          "careHtml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/StoreReference"
+            },
+            "type": "array"
+          },
+          "descriptionHtml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/StoreProductImage"
+            },
+            "type": "array"
+          },
+          "material": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoreReference"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "originNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "relatedProducts": {
+            "items": {
+              "$ref": "#/components/schemas/StoreReference"
+            },
+            "type": "array"
+          },
+          "seo": {
+            "$ref": "#/components/schemas/StoreProductSeo"
+          },
+          "shortDescription": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/StoreReference"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/StoreVariant"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "subtitle",
+          "shortDescription",
+          "descriptionHtml",
+          "careHtml",
+          "originNote",
+          "type",
+          "material",
+          "artisan",
+          "categories",
+          "variants",
+          "attributes",
+          "images",
+          "seo",
+          "relatedProducts"
+        ],
+        "type": "object"
+      },
+      "StoreProductImage": {
+        "properties": {
+          "image": {
+            "$ref": "#/components/schemas/StoreImage"
+          },
+          "isCover": {
+            "type": "boolean"
+          },
+          "variantId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "image",
+          "variantId",
+          "isCover"
+        ],
+        "type": "object"
+      },
+      "StoreProductPage": {
+        "properties": {
+          "facets": {
+            "items": {
+              "$ref": "#/components/schemas/StoreFacet"
+            },
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StoreProductCard"
+            },
+            "type": "array"
+          },
+          "page": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "totalItems": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalItems",
+          "facets"
+        ],
+        "type": "object"
+      },
+      "StoreProductSeo": {
+        "properties": {
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionWordCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "indexable": {
+            "type": "boolean"
+          },
+          "manualNoindex": {
+            "type": "boolean"
+          },
+          "ogImage": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoreImage"
+              }
+            ]
+          },
+          "thinDescription": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "indexable",
+          "manualNoindex",
+          "thinDescription",
+          "descriptionWordCount",
+          "ogImage"
+        ],
+        "type": "object"
+      },
+      "StoreReference": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "type": "object"
+      },
+      "StoreSeo": {
+        "properties": {
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "indexable": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "indexable"
+        ],
+        "type": "object"
+      },
+      "StoreTaxonomyDetail": {
+        "properties": {
+          "bodyHtml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionHtml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoreImage"
+              }
+            ]
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "seo": {
+            "$ref": "#/components/schemas/StoreSeo"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "summary",
+          "descriptionHtml",
+          "bodyHtml",
+          "kind",
+          "image",
+          "seo"
+        ],
+        "type": "object"
+      },
+      "StoreTaxonomySummary": {
+        "properties": {
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StoreImage"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "summary",
+          "image"
+        ],
+        "type": "object"
+      },
+      "StoreVariant": {
+        "properties": {
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/StoreAttributeValue"
+            },
+            "type": "array"
+          },
+          "availability": {
+            "enum": [
+              "in_stock",
+              "out_of_stock",
+              "sold"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lowStock": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/StorePrice"
+          },
+          "sku": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sku",
+          "name",
+          "price",
+          "availability",
+          "lowStock",
+          "attributes"
+        ],
+        "type": "object"
+      },
       "TotpRequest": {
         "properties": {
           "code": {
@@ -11360,6 +12108,399 @@
           "SalePrices"
         ]
       }
+    },
+    "/api/v1/store/artisans": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StoreTaxonomySummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/artisans/{slug}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreTaxonomyDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/categories/{slug}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreTaxonomyDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/collections/{slug}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreTaxonomyDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/materials": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StoreTaxonomySummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/materials/{slug}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreTaxonomyDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/navigation": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreNavigation"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/products": {
+      "get": {
+        "description": "Filter attributes with attr.<code>=<optionCode> or attr.<code>=<min>-<max>. Use one value per key. Variant predicates match the same eligible variant. Facets count distinct products before pagination.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "collection",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "material",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "artisan",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priceMin",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priceMax",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "inStock",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "enum": [
+                "newest",
+                "price_asc",
+                "price_desc"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Flat attr.<code> filters. Send for example attr.capacity=240-260.",
+            "in": "query",
+            "name": "attributes",
+            "schema": {
+              "additionalProperties": false,
+              "patternProperties": {
+                "^attr\\.[a-z0-9_]{2,40}$": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreProductPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
+    },
+    "/api/v1/store/products/{slug}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreProductDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "Store catalog"
+        ]
+      }
     }
   },
   "tags": [
@@ -11395,6 +12536,9 @@
     },
     {
       "name": "Stocktakes"
+    },
+    {
+      "name": "Store catalog"
     }
   ]
 }
