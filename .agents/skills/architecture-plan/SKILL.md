@@ -1,14 +1,24 @@
 ---
 name: architecture-plan
-description: Review and reconcile the already-approved architecture and P0-P6 task roadmap of TeaPremium V2; identify implementation risks and propose minimal corrections instead of inventing a second architecture/backlog.
+description: G2 for Trà Hiên V2 — check a task or phase against the already-approved architecture (DEC-*) and the P0–P6 roadmap, identify implementation risks and propose minimal corrections as ADR-PROPOSALs instead of inventing a second architecture or backlog.
 ---
 
-# Architecture conformance review & task sequencing
+# Architecture conformance and task sequencing (G2)
 
-1. Read `AGENTS.md`, applicable DEC decisions and task in `07-roadmap.md`, existing `docs/architecture/` and `docs/analysis/spec-gaps.md`, plus relevant sections of `02-architecture.md`, `03-database.md`, `schema.sql`, `06-infrastructure.md` and related specs. For initial full conformance review or material architectural changes, inspect the complete architecture/spec context; do not re-read unrelated sections for a routine task.
-2. Architecture is **already specified**: DEC-01 modular monolith, .NET 10, PostgreSQL 17, separate Next.js store/admin, same-origin reverse proxy. Do NOT silently replace these or create unrequested options. If evidence reveals a concrete flaw, write an `ADR-PROPOSAL` with impact and alternatives for approval.
-3. The authoritative backlog is `07-roadmap.md` task IDs `P0-01` onwards. Do NOT create TASK-XXX duplicate work or a second unrelated `docs/plans/tasks.md`. Optionally create `docs/plans/task-readiness.md` mapping existing task IDs to dependencies, linked BR/FR/AC and outstanding decisions.
-4. Check risks relevant to the assigned task (e.g., schema/EF parity, concurrency, auth/CSRF, privacy, SEO, operations). For a full architecture baseline, audit cross-cutting risks across phases. Never claim SQL runs, provider permissions, legal validity or performance benchmarks without execution.
-5. For initial phase planning, identify minimum vertical slices and meaningful gates. For a scoped task, inspect its dependencies and affected later tasks; avoid unrelated later-phase decisions blocking current work.
-6. On initial baseline or material architecture change, create/update `docs/architecture/conformance-review.md` and `docs/plans/task-readiness.md` with PROPOSED changes. For an unchanged bounded task, reuse those records and return a concise task-scoped assessment; do not rewrite entire documents without new findings. Never edit `docs/spec/` or generate application code in this skill.
-7. Finish with GO/HOLD recommendation for the requested `P*-*` task, concrete remaining approvals, and one scoped next action.
+Shared by Codex (`$architecture-plan`) and Antigravity (name the skill or its path).
+
+1. Read `AGENTS.md`, the applicable DEC decisions and task in `07-roadmap.md`, `docs/architecture/`, `docs/analysis/spec-gaps.md`, and only the relevant parts of `02-architecture.md`, `03-database.md`, `schema.sql`, `06-infrastructure.md` and related specs. Inspect the complete context only for an initial baseline or a material architecture change.
+2. The architecture is already specified: DEC-01 modular monolith, .NET 10, PostgreSQL 17, separate Next.js store/admin, same-origin reverse proxy. Do not replace these or offer unrequested options. If evidence shows a concrete flaw, write an `ADR-PROPOSAL` in `docs/decisions/` with impact and alternatives for owner approval.
+3. The only backlog is `07-roadmap.md` (`P0-01` onwards). Never create TASK-XXX items or a second tasks file. `docs/plans/task-readiness.md` may map existing IDs to dependencies, linked IDs and open decisions.
+4. Check risks relevant to the task: schema/EF parity, lock order and concurrency, auth/CSRF, privacy, SEO, operations. Never claim SQL ran, provider permissions, legal validity or performance without execution.
+5. Scoped task: check its dependencies and the later tasks it affects; unrelated later-phase decisions must not block it. Phase planning: identify minimum vertical slices and meaningful gates.
+6. Baseline or material change: update `docs/architecture/conformance-review.md` and `docs/plans/task-readiness.md` as PROPOSED. Unchanged bounded task: reuse those records and return only a scoped assessment. Never edit `docs/spec/` or write application code here.
+7. Return:
+
+```text
+TASK: <P*-*>   ARCH BASELINE: <doc + sha> reused | updated
+DEPENDENCIES: <P*-* merged? evidence>
+RISKS: <risk — mitigation / test>
+PROPOSALS: none | ADR-PROPOSAL-<name> (owner approval needed)
+RECOMMENDATION: GO | HOLD — next action: <one scoped step>
+```

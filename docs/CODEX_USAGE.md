@@ -1,60 +1,115 @@
-# Dùng Codex trực tiếp trong Trà Hiên V2
+# Dùng Codex và Antigravity trong Trà Hiên V2
 
-## 1. Đồng bộ repository an toàn
+Tên file giữ nguyên để không gãy các link cũ. Tài liệu này áp dụng cho cả hai tool.
+
+## 1. Mỗi tool đọc gì
+
+| Thành phần | Codex | Antigravity |
+|---|---|---|
+| Luật chung `AGENTS.md` | Có | Có (nạp như rule ở mọi lượt) |
+| Skills `.agents/skills/*/SKILL.md` | Có, gọi bằng `$tên-skill` | Có, gọi bằng tên skill hoặc đường dẫn file |
+| Subagent `.codex/agents/*.toml`, `.codex/config.toml` | Có (tùy chọn, tối đa 3 thread) | **Không đọc**. G4 mở conversation mới |
+| Sandbox | Theo cấu hình Codex | Mặc định chặn mạng/Docker/ghi `.git`: lệnh git fetch/worktree/commit/push và `verify-linux.ps1` cần bypass hoặc approval |
+
+Sáu skill dùng chung: `spec-audit` (G1), `architecture-plan` (G2), `implementation-slice` (G3 và remediation), `review-gate` (G4), `base-integration`, `publish-pr`. Mỗi skill có sẵn block kết quả cố định, nên prompt chỉ cần vài dòng.
+
+## 2. Đồng bộ và tạo worktree
+
 ```powershell
 git status --short
 git fetch origin --prune
-git switch main
-git pull --ff-only origin main
-git log -1 --oneline
+./scripts/new-task-worktree.ps1 -Task p1-10 -Branch feature/p1-10-inventory-alerts
 ```
-Chỉ switch/pull sau khi xử lý an toàn local changes. Không `reset --hard`/`clean -fd`. Mở Codex tại root repo; kiểm project trust và restart Codex nếu không thấy skill/agent.
 
-## 2. Repo đã có gì?
-- `AGENTS.md`: luật scope, spec precedence, G0–G4.
-- `.agents/skills/{spec-audit,architecture-plan,implementation-slice,review-gate}/SKILL.md`: **quy trình**.
-- `.codex/agents/{spec_analyst,planner,implementer,reviewer}.toml`: **subagents tùy chọn**.
-- `.codex/config.toml`: bật agents, tối đa 3 thread đồng thời (trần giới hạn, không phải mục tiêu).
-- `docs/WORKFLOW.md`: G1/G2 evidence reuse và publish gate.
+Lệnh trên tạo `D:\tra-hien-p1-10` từ `origin/main` mới nhất, branch không track `main`. Mở Codex hoặc Antigravity tại thư mục đó. Mỗi worktree chỉ một tool được ghi. Không dùng `reset --hard` hay `clean -fd`.
 
-**Chú ý:** gọi skill không bắt buộc spawn subagent. Subagents kế thừa permission/sandbox của parent; 'read-only' trong instruction không phải giới hạn kỹ thuật. Chọn session/quyền phù hợp khi review.
+## 3. Ghép model (G4 nên khác hãng với G3)
 
-## 3. Cách dùng theo loại công việc
-| Khi nào | Skill | Subagent |
-|---|---|---|
-| Full spec audit hoặc spec đổi lớn | `$spec-audit` | `spec_analyst` nếu cần độc lập |
-| Kiến trúc/phụ thuộc chưa chốt | `$architecture-plan` | `planner` nếu thật sự cần |
-| Một P task đã GO | `$implementation-slice` | Main thread mặc định |
-| G4 trước merge | `$review-gate` trong session mới | `reviewer` tùy chọn, không trùng implementer |
+| Việc | Gợi ý |
+|---|---|
+| G3 tầng A (tiền, kho, đơn, checkout, migration) | Antigravity Claude Opus (High) hoặc Codex với model mạnh nhất đang có |
+| G3 tầng B (UI Admin, CRUD, docs) | Antigravity Gemini Neon (High) hoặc Codex |
+| G4 | Tool hoặc hãng còn lại: code bằng Codex thì review bằng Antigravity, code bằng Claude thì review bằng Gemini hoặc Codex |
+| Việc vặt (format, tra cứu, docs nhỏ) | Model nhanh/rẻ |
 
-Không lặp toàn bộ spec audit/architecture planning trên từng PR; nhưng luôn kiểm spec SHA/diff và scoped G1/G2.
+Đây là gợi ý vận hành, không phải benchmark đã đo trên repo này.
 
-## 4. Prompt ngắn theo local-first gates
-**G3 implement local (ví dụ P0-10):**
+## 4. Prompt mẫu (thay `<...>`)
+
+**G3:**
+
 ```text
-Use $implementation-slice for P0-10 from docs/spec/07-roadmap.md.
-Follow AGENTS.md and docs/WORKFLOW.md.
-Start from latest origin/main on a dedicated local feature branch; preserve local edits.
-Reuse verified G1/G2 after checking spec changes and dependencies.
-Audit code/tests; implement only the task requirements in the main Codex thread.
-Run real build/tests/format; provide exact commands/results and all changed paths.
-DO NOT commit/push/open PR/merge. Return READY_FOR_LOCAL_G4 and STOP.
+Use $implementation-slice (.agents/skills/implementation-slice/SKILL.md) for <P1-10>.
+Worktree: <D:\tra-hien-p1-10> (create with scripts/new-task-worktree.ps1 if missing), branch <feature/p1-10-inventory-alerts>.
+Owner notes: <decisions/constraints or "none">.
+Follow AGENTS.md. Return the skill's handoff block, then STOP (no commit/push/PR).
 ```
-**G4 independent local review (session khác nhưng cùng working tree):**
+
+**G4 (session mới, khác hãng):**
+
 ```text
-Use $review-gate for P0-10.
-Review the same local feature branch against latest origin/main.
-Check git status, diff, staged and UNTRACKED file contents.
-Check correctness, tests, scope and regressions; reproduce P0/P1 if possible.
-Report file:line, impact, minimal fix, VERIFIED / NOT RUN.
-Return PASS / CONDITIONAL / BLOCK. Read-only; no edits/commit/push/merge.
+Use $review-gate (.agents/skills/review-gate/SKILL.md) for <P1-10>, Tier <A>.
+Worktree <D:\tra-hien-p1-10>, branch <feature/p1-10-inventory-alerts>, base latest origin/main.
+Manifest: artifacts/<p1-10>/candidate.manifest sha256 <digest>.
+Fresh independent session, read-only. Return the skill's report block in Vietnamese.
 ```
-**Publish:** chỉ sau G4 PASS và owner cho phép cụ thể: commit/push feature branch, mở PR, xem ba GitHub Actions jobs tại đúng HEAD. CI fail thì fix local và focused G4 trước khi publish bản mới. Owner tự merge, trừ khi ủy quyền rõ cho đúng PR.
 
-Lưu ý: `git diff origin/main` không bao gồm nội dung file **untracked**. Reviewer phải liệt kê bằng `git ls-files --others --exclude-standard` và đọc chúng. Nếu reviewer không đọc được cùng working tree, không khẳng định local G4 đã hoàn tất.
+**Remediation (quay lại phiên G3 hoặc mở phiên mới trên cùng worktree):**
 
-## 5. Khi nào gọi subagent?
-Chỉ khi có workstream độc lập, cần góc nhìn khác hoặc lợi ích vượt chi phí context. Giao file ownership rõ. Không spawn nhiều agent cùng đọc một tập tài liệu. G4 ưu tiên session mới; Codex CLI có thể hỗ trợ `/subagents`.
+```text
+Use $implementation-slice in remediation mode for <P1-10> at <D:\tra-hien-p1-10>.
+Fix only these G4 findings: <paste findings with IDs and file:line>.
+Return the handoff block with FINDINGS status, then STOP.
+```
 
-## 6. Khi spec đổi
-Specs tại `docs/spec/00-README.md`, `01`–`09` và `schema.sql` là authoritative; `08-chatgpt-playbook.md` chỉ hướng dẫn workflow lịch sử. Kiểm diff rồi làm lại G1/G2 tương ứng; không sửa spec để hợp thức hóa code.
+**Focused re-review:**
+
+```text
+Use $review-gate as a focused re-review for <P1-10> at <D:\tra-hien-p1-10>.
+Prior findings: <IDs>. Mark each CLOSED/OPEN with evidence, review only the delta, return the report block.
+```
+
+**Main đổi trước khi publish:**
+
+```text
+Use $base-integration for <P1-13> at <D:\tra-hien-p1-13>: origin/main moved (<PR #NN merged>).
+Return the skill's report block; no commit/push.
+```
+
+**Publish (chỉ dùng sau G4 PASS):**
+
+```text
+Use $publish-pr for <P1-10> at <D:\tra-hien-p1-10>.
+G4 PASS by <tool/model> for manifest sha256 <digest>. Owner authorizes publishing this task.
+Return the skill's block. Do not merge.
+```
+
+Khi task có hợp đồng cần lưu ý, ghi vào dòng `Owner notes`. Không chép lại spec vào prompt.
+
+## 5. Kiểm chứng trên Windows
+Windows Application Control chặn công cụ sinh OpenAPI (`0x800711C7`), nên mọi bước kiểm chứng giống CI chạy qua Docker:
+
+```powershell
+./scripts/verify-linux.ps1                       # job CI backend đầy đủ (~4 phút)
+./scripts/verify-linux.ps1 -Filter "FullyQualifiedName~Inventory"
+./scripts/verify-linux.ps1 -Mode api -WriteBack  # sinh lại openapi.json + schema.ts
+./scripts/verify-linux.ps1 -Mode frontend        # lint, typecheck, test, build frontend
+```
+
+Lần đầu chạy, script tự build image `tra-hien-tools:<12 ký tự đầu SHA-256 của infra/Dockerfile.tools>` rồi chạy bằng image ID. Container chỉ nhận snapshot đã lọc (file tracked và untracked không bị ignore). Tên file giống secret bị từ chối ngay trên host, kể cả khi đã force-add. Docker socket chỉ mount cho mode `backend`/`full`. Log, TRX và `migrations.sql` nằm ở `artifacts/verify-linux/<thời điểm>-<mode>/`.
+
+Manifest nội dung cho cả hai tầng (Git mode + blob ID):
+
+```powershell
+./scripts/candidate-manifest.ps1 -Write -Base origin/main -Out artifacts/p1-10/candidate.manifest   # G3, sau lần sửa cuối
+./scripts/verify-linux.ps1 -Manifest artifacts/p1-10/candidate.manifest                             # G3, lần chạy full cuối
+./scripts/candidate-manifest.ps1 -Verify artifacts/p1-10/candidate.manifest                         # G4 và publish
+./scripts/candidate-manifest.ps1 -Verify artifacts/p1-10/candidate.manifest -Index                  # publish, sau git add
+./scripts/task-integrate.ps1 -Task p1-13 -Action start|finish|drop -Onto origin/main                  # base-integration (không dùng stash)
+```
+
+## 6. Khi nào gọi subagent
+Chỉ gọi khi có workstream độc lập, cần một góc nhìn khác, hoặc lợi ích lớn hơn chi phí context. Giao file ownership rõ ràng, không để hai agent cùng sửa một file. Trong Codex có thể dùng `.codex/agents/*`. Trong Antigravity, G4 nên là conversation mới chứ không dùng subagent của chính phiên G3.
+
+## 7. Khi spec đổi
+Specs tại `docs/spec/00-README.md`, `01`–`09` và `schema.sql` là nguồn có thẩm quyền. `08-chatgpt-playbook.md` chỉ là hướng dẫn lịch sử. Kiểm diff rồi chạy lại G1/G2 tương ứng. Không sửa spec để hợp thức hóa code.

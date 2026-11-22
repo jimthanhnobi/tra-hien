@@ -1,0 +1,26 @@
+# Local Linux verification image (developer/agent tooling only; not used by CI or production).
+# Mirrors the CI toolchain: .NET SDK pinned by global.json, Node 22.22.2 with Corepack/pnpm,
+# ffmpeg/ffprobe for media tests, python3 for the CI scope classifier, the Docker CLI used by
+# scripts/dev-migrate.ps1 tests (talks to the host engine through the mounted socket), pwsh and git
+# from the SDK image.
+# Build and run it only through scripts/verify-linux.ps1. Never COPY repository files or secrets here.
+FROM node:22.22.2-bookworm-slim AS node
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0.403
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg python3 docker.io \
+    && rm -rf /var/lib/apt/lists/* \
+    && node --version && corepack --version && docker --version && ffprobe -version | head -n 1 \
+    && pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+ENV DOTNET_NOLOGO=true \
+    DOTNET_CLI_TELEMETRY_OPTOUT=true \
+    NEXT_TELEMETRY_DISABLED=1 \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    COREPACK_HOME=/cache/corepack \
+    NUGET_PACKAGES=/cache/nuget \
+    PLAYWRIGHT_BROWSERS_PATH=/cache/ms-playwright \
+    PNPM_STORE=/cache/pnpm-store
+WORKDIR /work

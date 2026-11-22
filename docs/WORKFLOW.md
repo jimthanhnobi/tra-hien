@@ -1,70 +1,60 @@
-# Trà Hiên V2 – workflow Codex theo spec đã chốt
+# Trà Hiên V2 – workflow theo spec đã chốt (Codex + Antigravity)
 
-**Nguồn sự thật:** `docs/spec/00-README.md`, `01`–`09` Markdown và `schema.sql`; `docs/spec/07-roadmap.md` giữ duy nhất các ID `P0-01`…`P6-*`. Không tạo `TASK-XXX`/`REQ-###`. DEC-21 xác định ưu tiên SEO.
+**Nguồn sự thật:** `docs/spec/00-README.md`, `01`–`09` Markdown và `schema.sql`. `docs/spec/07-roadmap.md` là nơi duy nhất giữ các ID `P0-01`…`P6-*`. Không tạo `TASK-XXX`/`REQ-###`. Khi có xung đột về SEO thì theo DEC-21. Luật bắt buộc nằm trong `AGENTS.md`, quy trình từng bước nằm trong skill ở `.agents/skills/`. File này mô tả cách các bước nối vào nhau. Prompt mẫu ở [CODEX_USAGE.md](CODEX_USAGE.md).
 
-## 0. Phân công và tối ưu token
-- Owner duyệt scope, cho phép publish và tự merge `main`. Codex không tự merge trừ khi owner ủy quyền rõ cho đúng PR.
-- Mặc định **một main Codex thread + đúng skill** cho một task nhỏ/vừa. Skill không bắt buộc gọi subagent tương ứng.
-- Chỉ gọi `spec_analyst`/`planner` khi có gap cần giải quyết; chỉ spawn `implementer` nếu chia được workstream độc lập, rõ file ownership. Không cho hai agent sửa cùng file.
-- G4 là reviewer độc lập trong session/context mới (skill `$review-gate` hoặc reviewer agent). Implementer không tự chấm G4.
-- Không đọc lại toàn bộ spec/viết lại hồ sơ audit trên mọi PR. Tái sử dụng G1/G2 đã có **sau khi xác minh commit/diff spec và phạm vi ảnh hưởng**; vẫn soát requirement/dependency từng task.
-- Đầu ra ngắn: task ID, base/head SHA, scope, diff, test commands/results, NOT RUN, blocker, next step. Không paste nguyên spec/source.
+## 0. Vai trò và nguyên tắc tiết kiệm
+- Owner duyệt scope, cho phép publish và tự merge `main`. Agent không tự merge, trừ khi owner ủy quyền rõ cho đúng PR đó.
+- Mỗi task chạy một main thread với đúng skill tương ứng. Gọi skill không có nghĩa là phải spawn subagent. Chỉ gọi subagent khi có gap thật sự hoặc có workstream độc lập với file ownership riêng.
+- G4 phải là session mới và độc lập, nên dùng model khác hãng với lúc code. Implementer không tự chấm G4.
+- Tái sử dụng G1/G2 đã có sau khi kiểm diff spec. Chỉ đọc lại toàn bộ spec khi chạy full audit.
+- Handoff dùng block cố định của skill: task ID, SHA, file, lệnh test kèm kết quả, NOT RUN, blocker. Không paste nguyên spec hay source.
 
-## 1. G0: Repo, scope và base
-Trước khi làm: `git status --short`, `git fetch origin --prune`, `git log -1 --oneline`, HEAD của `origin/main`, task trong `07-roadmap.md` và dependency. Không `reset --hard`/`clean -fd` xóa thay đổi local.
+## 1. Luồng một task
 
-## 2. G1: Spec audit
-- **FULL:** chạy `$spec-audit` trên toàn bộ docs/spec (kể cả `00-README.md`, `09-seo.md`, `schema.sql`) khi chưa có baseline hoặc thay đổi diện rộng; lưu SHA, inventory, gaps, traceability.
-- **TARGETED:** xác minh SHA/diff spec so với baseline, đọc phần liên quan, map FR/BR/NFR/AC/DEC và gap mới. Gọi `$spec-audit` targeted khi cần. Không sửa `docs/spec/**` nếu owner chưa yêu cầu.
-- Không biến các vấn đề P3+ hoặc Q1–Q8 không liên quan thành blocker.
+| Bước | Skill | Đầu ra |
+|---|---|---|
+| G0 tạo worktree từ `origin/main` mới | `scripts/new-task-worktree.ps1` | `D:\tra-hien-<task>`, branch riêng, base SHA |
+| G1/G2 scoped (xác minh baseline G1/G2, kiểm diff spec, dependency, hợp đồng) | trong `implementation-slice` §2; thiếu baseline hoặc spec đổi lớn thì chạy `spec-audit` FULL / `architecture-plan` baseline **trước** G3 | `READINESS: GO` hoặc `GAP` kèm phương án |
+| G3 code, test, hồ sơ ngắn, manifest nội dung | `implementation-slice` | `READY_FOR_LOCAL_G4` + `candidate.manifest` |
+| G4 review độc lập, chỉ đọc | `review-gate` | PASS / CONDITIONAL / BLOCK gắn với SHA-256 của manifest |
+| Sửa theo finding | `implementation-slice` (remediation) → `review-gate` (focused) | lặp tới khi không còn P0/P1 |
+| `main` đổi trước khi publish | `base-integration` → focused G4 (cả hai tầng) | delta tích hợp đã kiểm, chưa commit |
+| Publish khi owner cho phép | `publish-pr` | index khớp manifest, rồi commit, push, PR, CI tại published SHA |
+| Merge | owner | — |
 
-## 3. G2: Architecture/readiness
-- Full `$architecture-plan` khi khởi tạo hoặc kiến trúc thay đổi đáng kể; tái sử dụng `docs/architecture/` và `docs/plans/task-readiness.md` nếu vẫn còn phù hợp.
-- Mỗi task cần scoped G2 check: dependency, quyết định đã chốt, migration/security/testability, GO/HOLD và blocker trực tiếp.
-- Không tạo kiến trúc thứ hai hoặc viết lại hàng loạt tài liệu nếu không có finding mới.
+- Có GAP thì dừng lại hỏi owner. Không tự thêm bảng, endpoint, setting hay vendor.
+- G3 không đồng nghĩa với publish. Không nói CI đã chạy khi code chưa push. Chỉ test trên môi trường được phép, không đụng production.
+- G4 bắt buộc rà soát `git diff origin/main`, `git diff --cached`, `git status --short` và `git ls-files --others --exclude-standard`, đồng thời **đọc trực tiếp nội dung file untracked**. Nếu reviewer không đọc được worktree thì báo NOT RUN. Chỉ khi owner cho phép mới publish reviewable snapshot để review remote.
 
-## 4. G3: Implement local, không tự publish
-Trên `main` sạch đã đồng bộ, tạo feature branch local cho **một** roadmap task. Không chạy `git reset --hard`/`clean -fd` để giấu thay đổi. Mẫu prompt:
-```text
-Use $implementation-slice for the approved P*-* task in docs/spec/07-roadmap.md.
-Follow AGENTS.md and verified task-specific G1/G2 evidence.
-Audit code/tests first; implement only the scoped task.
-Work in one Codex main thread; use subagents only when justified.
-Run applicable focused/full checks; report exact PASS/FAIL/NOT RUN.
-Stay on the local feature branch. DO NOT commit, push, open/update PR or merge.
-Report git status --short, diff against origin/main, staged and untracked inventory,
-changed files, tests and risks. Return READY_FOR_LOCAL_G4, then STOP.
-```
-G3 không đồng nghĩa với lệnh publish. Không cam kết CI đã chạy nếu code chưa được push. Chỉ test trên environment được phép, không động vào production.
-
-## 5. G4 local → sửa → Publish → CI → owner merge
-
-**A01 — phân tầng độ sâu, không bỏ gate:**
+## 2. Phân tầng review A01, không bỏ gate
 
 | Tầng | Phạm vi | Review |
 |---|---|---|
-| A | Migration/DDL/grants, tiền, kho, auth/quyền/CSRF/PII, checkout công khai, index/canonical/sitemap | G4 độc lập đầy đủ |
-| B | UI Admin dùng API đã review, CRUD không tiền/kho/PII, tài liệu, refactor không đổi hành vi | G4 độc lập, diff/checklist/test theo scope; hồ sơ ngắn |
+| A | Migration/DDL/grants, tiền, kho, auth/quyền/CSRF/PII, checkout công khai, index/canonical/sitemap | G4 độc lập đầy đủ, hồ sơ ≤ 2 trang |
+| B | UI Admin dùng API đã review, CRUD không tiền/kho/PII, tài liệu, refactor không đổi hành vi | G4 độc lập, checklist theo phạm vi, hồ sơ ≤ 1 trang |
 
-Task chạm cả hai → A. A/B cùng yêu cầu session mới/cùng worktree, toàn change set kể cả untracked, G4 PASS, owner cho publish, CI đúng published SHA và owner merge. Mục tiêu hồ sơ 1–2 trang khi đủ evidence, không cắt acceptance/security/test proof để đạt giới hạn trang. Amendment tài liệu+DDL A01 thuộc A, dừng local để reviewer độc lập kiểm.
+Task chạm cả hai tầng thì tính là A. Cả A và B đều cần: session mới đọc cùng worktree, rà toàn bộ change set kể cả untracked, G4 PASS, owner cho publish, CI tại đúng published SHA và owner merge. Giới hạn trang chỉ là mục tiêu, không được cắt bằng chứng về acceptance, security hay test.
 
-**G4 độc lập, context/session mới**, đọc cùng local worktree với G3. Bắt buộc rà soát `git diff origin/main`, `git diff --cached`, `git status --short` và `git ls-files --others --exclude-standard`; **đọc trực tiếp nội dung file untracked** vì `git diff` không tự hiển thị chúng. Đối chiếu spec, tests và thực tế hệ thống, không chỉ báo cáo implementer.
-```text
-Use $review-gate for the approved P*-* task, in a fresh independent session.
-Review the SAME local feature worktree against latest origin/main.
-Include committed/staged/unstaged changes AND untracked file contents.
-Report P0/P1 findings with file:line, impact, reproduction and minimal fix.
-Distinguish VERIFIED / NOT RUN / NOT APPLICABLE.
-Return PASS / CONDITIONAL / BLOCK. Read-only: no edits/commit/push/merge.
-```
-Nếu reviewer không thấy được local worktree, **không** tự nhận G4 PASS; báo thiếu quyền truy cập. Chỉ khi owner cho phép mới publish reviewable snapshot/PR để reviewer làm G4 remote.
+## 3. Chạy song song Codex và Antigravity
+- **Một tool ghi trên một worktree.** Hai tool có thể chạy cùng lúc nhưng mỗi tool ở một worktree riêng (`scripts/new-task-worktree.ps1`). Reviewer G4 đọc worktree của task với quyền chỉ đọc.
+- **Pipeline gợi ý:** tool X làm G3 task N+1 (chỉ khi dependency của nó đã merge, hoặc phần việc không phụ thuộc task N), trong khi tool Y review G4 task N. Đổi vai giữa hai tool để review luôn chéo hãng.
+- **Task phụ thuộc nhau** (ví dụ P1-13 cần P1-10): làm nối tiếp. Nếu bắt buộc chuẩn bị trước thì chỉ làm phần độc lập, và chạy `base-integration` sau khi task trước merge.
+- **File nóng dùng chung** (`Program.cs`, `AppDbContext`, migration snapshot, `openapi.json`, `schema.ts`): PR merge sau phải chạy `base-integration` và sinh lại contract, không merge tay.
+- **Tài nguyên:** hai lần chạy `verify-linux.ps1` song song dùng chung cache volume `tra-hien-tools-cache` một cách an toàn, mỗi lần tạo PostgreSQL Testcontainers riêng và chạy bằng image ID cố định. Máy yếu thì đừng chạy hai full suite cùng lúc.
 
-- **BLOCK:** G3 sửa đúng finding trên cùng local branch, chạy focused tests; G4 focused re-review thay vì audit lại toàn repo. Lặp tới khi không còn P0/P1.
-- **G4 PASS:** Dừng và chờ owner **cho phép publish rõ ràng**. Sau đó mới commit/push, mở hoặc cập nhật **một PR**, đối chiếu published SHA với bản đã review.
-- **CI:** chạy ở PR target `main`; ba required job backend/API, frontend, Docker phải PASS tại đúng HEAD. Nếu CI lỗi, sửa trên cùng branch, review thay đổi cần thiết, rồi publish lại theo owner approval.
-- **Merge:** owner duyệt và merge thủ công; chỉ ủy quyền merge trong một yêu cầu rõ ràng. Push vào `main` sau merge cũng chạy CI, không push/deploy production tự động.
-- **CI trigger:** `pull_request` vào `main` và `push` lên `main` (không đồng thời push `feature/**`). Tránh một HEAD xuất hiện 3 PASS + 3 CANCELLED do concurrency hủy run trùng.
-- **Handoff tiết kiệm token:** G3 giao file/status/tests ngắn; G4 tập trung diff và failure cases; sau G4 chỉ đọc CI/head SHA thay vì full review lại nếu nội dung không đổi.
+## 4. Kiểm chứng và bằng chứng
+- `./scripts/verify-linux.ps1` chạy các bước giống job CI backend (classifier, restore khóa, build `-warnaserror`, format, toàn bộ backend test trên PG17, kiểm 0 skip, migration SQL, `check:api`). `-Mode api -WriteBack` sinh lại contract và chỉ báo PASS khi ghi đủ cả hai file và hash khớp. `-Mode frontend`/`full` chạy thêm frontend, `-Filter` dùng cho test tập trung. Log lưu ở `artifacts/verify-linux/` (git-ignored).
+- **Cô lập:** container chỉ nhận một snapshot đã lọc trên host, gồm file tracked và file untracked không bị ignore. Vì vậy `infra/.env`, `artifacts/`, `bin/obj`, `node_modules` không bao giờ vào container. Tên file giống secret (`.env*` trừ `*.example`, `*.pem`, `*.key`, `*.pfx`, `*.p12`, `*.secret`, `secrets/`) bị từ chối ngay trên host, kể cả khi đã bị force-add vào index. Docker socket chỉ mount cho mode `backend`/`full` (Testcontainers cần). Image được gắn tag theo SHA-256 của `infra/Dockerfile.tools` và chạy bằng image ID, nên hai worktree chạy song song không tranh nhau tag.
+- Bản candidate cuối luôn chạy full suite một lần với `-Manifest`. Khi đó snapshot được dựng từ git object có ID trùng manifest (base tree + các entry đã review), nên container chạy đúng candidate đã đóng dấu, và log ghi SHA-256 của manifest. Không thay bước này bằng việc tái sử dụng bằng chứng theo hash.
+- Hồ sơ task lập theo [task-template.md](plans/task-template.md). **Manifest nội dung bắt buộc cho cả hai tầng** (`scripts/candidate-manifest.ps1`, ghi Git mode và blob ID của từng path): G3 ghi, G4 xác minh trước khi review, `publish-pr` xác minh lại working tree và index ngay trước khi commit. Sửa bất kỳ byte nào hoặc đổi mode file sau G4 sẽ làm lệch manifest và chặn publish.
+- **Tích hợp base không dùng stash:** các worktree dùng chung `refs/stash`, nên `base-integration` dùng `scripts/task-integrate.ps1`. Script ghim candidate vào ref riêng của task (`refs/task-integration/<task>`), rebase branch chưa publish, rồi trả candidate về trạng thái chưa commit. Ref chỉ bị xóa khi vẫn đúng SHA đã ghi. Không dùng `git stash`.
+- Agent chạy trong sandbox cần bypass/approval cho Docker và cho các lệnh git ghi `.git` hay truy cập mạng (fetch, worktree, commit, push).
 
-## 6. Sau khi spec/architecture đổi
-Kiểm diff từ SHA baseline, đánh giá impact và chạy lại phần G1/G2 bị ảnh hưởng; full audit nếu đổi diện rộng. Không tự sửa `docs/spec/**`. Spec Kit, Superpowers, CodeRabbit chỉ tùy chọn, không thuộc workflow bắt buộc.
+## 5. Publish, CI và merge
+- **G4 PASS:** dừng lại chờ owner **cho phép publish rõ ràng**. Sau đó chạy `publish-pr`: đối chiếu bản đã review với bản publish, rồi commit, push và mở **một PR**.
+- **CI:** chạy trên `pull_request` vào `main` và `push` lên `main`. Cả bốn job `Classify changes and validate docs`, `Backend and API contract`, `Frontend verification`, `Docker regression builds` phải PASS tại đúng HEAD. CI lỗi thì sửa trên cùng branch, chạy focused G4, rồi publish lại khi owner đồng ý. Push lên `main` dùng `cancel-in-progress: false` để không hủy CI của merge.
+- **Merge:** owner duyệt và merge thủ công. Không tự động deploy production.
+- **Sau G4:** nếu nội dung không đổi thì chỉ cần kiểm CI và head SHA, không review lại toàn bộ.
+
+## 6. Khi spec hoặc kiến trúc đổi
+Kiểm diff so với SHA baseline, đánh giá ảnh hưởng và chạy lại phần G1/G2 bị ảnh hưởng. Đổi diện rộng thì chạy full audit. Không tự sửa `docs/spec/**`. Spec Kit, Superpowers, CodeRabbit chỉ là công cụ tùy chọn, không thuộc workflow bắt buộc ([TOOLING.md](TOOLING.md)).
