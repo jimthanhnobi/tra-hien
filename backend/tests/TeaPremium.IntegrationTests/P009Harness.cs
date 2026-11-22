@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -21,73 +22,82 @@ namespace TeaPremium.IntegrationTests;
 
 public sealed class P009Harness : IAsyncDisposable
 {
+    private readonly PlatformDatabaseFixture _fixture;
     public const string Password = "Disposable-Owner-P009!";
     public required string OwnerConnection { get; init; }
     public required string RuntimeConnection { get; init; }
     public required string Database { get; init; }
     public required string CertificatePath { get; init; }
     public required X509Certificate2 Certificate { get; init; }
-    public required WebApplicationFactory<Program> Factory { get; init; }
+    public required TestAppHost Factory { get; init; }
     public required HttpClient Client { get; init; }
     public required IConfigurationRoot Configuration { get; init; }
     public Guid OwnerId { get; private set; }
     public string OwnerStamp { get; private set; } = "";
 
+    private P009Harness(PlatformDatabaseFixture fixture) => _fixture = fixture;
+
     public static async Task<P009Harness> CreateAsync(PlatformDatabaseFixture fixture, Action<IServiceCollection>? configureServices = null)
     {
         var database = "teapremium_test_" + Guid.NewGuid().ToString("N");
-        var owner = await fixture.CreateDatabaseAsync(database);
+        var seeded = await fixture.CreateP009DatabaseAsync(database);
+        var owner = seeded.OwnerConnection;
         var runtime = new NpgsqlConnectionStringBuilder(owner) { Username = "tp_app", Password = "Disposable-Test-Only!" }.ConnectionString;
-        var certPath = Path.Combine(Path.GetTempPath(), database + ".pfx");
-        using (var rsa = RSA.Create(2048))
-        {
-            var request = new CertificateRequest("CN=P009 disposable test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            using var cert = request.CreateSelfSigned(new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), new(2040, 1, 1, 0, 0, 0, TimeSpan.Zero));
-            await File.WriteAllBytesAsync(certPath, cert.Export(X509ContentType.Pfx));
-        }
-        var certificate = X509CertificateLoader.LoadPkcs12FromFile(certPath, null);
+        var certPath = seeded.CertificatePath;
+        var certificate = seeded.Certificate;
         var descriptor = new NpgsqlConnectionStringBuilder(runtime);
         var target = SettingsJson.Serialize(new object[] { descriptor.Host!, descriptor.Port, database, "Test" });
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        var initialConfig = new Dictionary<string, string?>
         {
             ["ConnectionStrings:Default"] = runtime,
             ["Iam:KeyCertificatePath"] = certPath,
             ["AdministrativeImport:AllowedTargets:0"] = target
-        }).Build();
-        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        };
+
+        TestAppHost host;
+        IConfigurationRoot config;
+        if (configureServices is null)
         {
-            builder.UseEnvironment("Test");
-            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddConfiguration(config));
-            builder.ConfigureServices(services =>
+            var sharedHost = await fixture.GetSharedAppHostAsync();
+            var scope = new TestAppScope(runtime, initialConfig);
+            host = sharedHost.Register(scope);
+            config = scope.Configuration;
+        }
+        else
+        {
+            config = new ConfigurationBuilder().AddInMemoryCollection(initialConfig).Build();
+            var owned = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
-                services.RemoveAll<IHostedService>();
-                // Minimal-host test configuration arrives after Program's registrations.
-                // Explicitly share the production key repository/certificate with real CLI processes.
-                services.AddDataProtection().SetApplicationName("teapremium").PersistKeysToDbContext<AppDbContext>()
-                    .ProtectKeysWithCertificate(certificate);
-                configureServices?.Invoke(services);
+                builder.UseEnvironment("Test");
+                builder.ConfigureAppConfiguration((_, configuration) => configuration.AddConfiguration(config));
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IHostedService>();
+                    services.Configure<PasswordHasherOptions>(o => o.IterationCount = 1_000);
+                    services.AddDbContext<AppDbContext>(options => options.UseModel(SharedPostgresServer.SharedModel));
+                    // Minimal-host test configuration arrives after Program's registrations.
+                    // Explicitly share the production key repository/certificate with real CLI processes.
+                    services.AddDataProtection().SetApplicationName("teapremium").PersistKeysToDbContext<AppDbContext>()
+                        .ProtectKeysWithCertificate(certificate);
+                    configureServices(services);
+                });
             });
-        });
-        var result = new P009Harness
+            host = new TestAppHost(owned);
+        }
+
+        return new P009Harness(fixture)
         {
             Database = database,
             OwnerConnection = owner,
             RuntimeConnection = runtime,
             CertificatePath = certPath,
             Certificate = certificate,
-            Factory = factory,
-            Client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new("https://localhost"), AllowAutoRedirect = false }),
-            Configuration = config
+            Factory = host,
+            Client = host.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new("https://localhost"), AllowAutoRedirect = false }),
+            Configuration = config,
+            OwnerId = seeded.OwnerId,
+            OwnerStamp = seeded.OwnerStamp
         };
-        await using var scope = factory.Services.CreateAsyncScope();
-        var bootstrap = await scope.ServiceProvider.GetRequiredService<ICommandHandler<BootstrapOwner, bool>>().Handle(new("owner@example.test", Password + "-Initial"), default);
-        Assert.True(bootstrap.IsSuccess && bootstrap.Value);
-        var staff = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Users.SingleAsync(x => x.Email == "owner@example.test");
-        result.OwnerId = staff.Id;
-        var changed = await scope.ServiceProvider.GetRequiredService<ICommandHandler<ChangeStaffPassword, bool>>().Handle(new(staff.Id, Password + "-Initial", Password), default);
-        Assert.True(changed.IsSuccess);
-        result.OwnerStamp = (await scope.ServiceProvider.GetRequiredService<IStaffIdentity>().SessionAsync(staff.Id, default))!.SecurityStamp;
-        return result;
     }
     public async Task LoginAsync(string email = "owner@example.test", string password = Password)
     {
@@ -136,6 +146,9 @@ public sealed class P009Harness : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {
-        Client.Dispose(); await Factory.DisposeAsync(); Certificate.Dispose(); File.Delete(CertificatePath); (Configuration as IDisposable)?.Dispose();
+        Client.Dispose();
+        await Factory.DisposeAsync();
+        (Configuration as IDisposable)?.Dispose();
+        await _fixture.DropDatabaseAsync(Database);
     }
 }

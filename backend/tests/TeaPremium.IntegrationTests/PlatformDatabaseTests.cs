@@ -17,28 +17,29 @@ namespace TeaPremium.IntegrationTests;
 
 public sealed class PlatformDatabaseFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = DatabaseProvisioning.Builder().Build();
-    public string ConnectionString => DatabaseProvisioning.Login(_container.GetConnectionString(), "tp_owner", "teapremium_test");
+    private SharedPostgresServer _server = null!;
+    private string _database = "";
+    public string ConnectionString { get; private set; } = "";
     public string RuntimeConnection => DatabaseProvisioning.Login(ConnectionString, "tp_app");
+    internal string CertificatePath => _server.CertificatePath;
 
     // Test instrumentation only: observing another role's pg_stat_activity must
     // not grant pg_read_all_stats or administrator privileges to production roles.
-    public async Task<bool> ObserveSleepingAsync(string database)
-    {
-        var admin = new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = database };
-        await using var connection = new NpgsqlConnection(admin.ConnectionString);
-        await connection.OpenAsync();
-        await using var command = new NpgsqlCommand("SELECT EXISTS(SELECT FROM pg_stat_activity WHERE datname=current_database() AND wait_event='PgSleep')", connection);
-        return (bool)(await command.ExecuteScalarAsync())!;
-    }
+    public Task<bool> ObserveSleepingAsync(string database) => _server.ObserveSleepingAsync(database);
 
-    public async Task<string> CreateDatabaseAsync(string database)
-    {
-        await DatabaseProvisioning.ProvisionAsync(_container, database);
-        var owner = DatabaseProvisioning.Login(ConnectionString, "tp_owner", database);
-        await DatabaseProvisioning.MigrateAsync(owner);
-        return owner;
-    }
+    public Task<string> CreateDatabaseAsync(string database) =>
+        _server.CloneAsync(SharedPostgresServer.LatestKey, database);
+
+    internal Task<string> CreateEmptyDatabaseAsync(string database) =>
+        _server.CloneAsync(SharedPostgresServer.EmptyKey, database);
+
+    internal Task<SeededP009Database> CreateP009DatabaseAsync(string database) =>
+        _server.CloneP009Async(database);
+
+    internal Task<SharedTestAppHost> GetSharedAppHostAsync() =>
+        _server.GetSharedAppHostAsync();
+
+    internal Task DropDatabaseAsync(string database) => _server.DropDatabaseAsync(database);
 
     public AppDbContext CreateContext(IInterceptor? interceptor = null)
     {
@@ -49,13 +50,16 @@ public sealed class PlatformDatabaseFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await _container.StartAsync();
-        await DatabaseProvisioning.ProvisionAsync(_container, "teapremium_test");
-        await using var db = CreateContext();
-        await db.Database.MigrateAsync();
+        _server = await SharedPostgresServer.GetAsync();
+        _database = "teapremium_test_cls_" + Guid.NewGuid().ToString("N");
+        ConnectionString = await _server.CloneAsync(SharedPostgresServer.LatestKey, _database);
     }
 
-    public Task DisposeAsync() => _container.DisposeAsync().AsTask();
+    public async Task DisposeAsync()
+    {
+        if (!string.IsNullOrEmpty(_database))
+            await _server.DropDatabaseAsync(_database);
+    }
 
     public async Task<object?> ScalarAsync(string sql)
     {
@@ -455,24 +459,29 @@ public sealed class PlatformDatabaseTests(PlatformDatabaseFixture fixture) : ICl
     [Fact]
     public async Task IdempotentScriptCanRunTwiceOnEmptyDisposableDatabase()
     {
-        await using var disposable = DatabaseProvisioning.Builder().Build();
-        await disposable.StartAsync();
-        await DatabaseProvisioning.ProvisionAsync(disposable, "teapremium_test");
-        var owner = DatabaseProvisioning.Login(disposable.GetConnectionString(), "tp_owner", "teapremium_test");
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(owner).Options;
-        await using var db = new AppDbContext(options);
-        var script = db.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
-        Assert.Contains("__EFMigrationsHistory", script, StringComparison.Ordinal);
-        await using (var connection = new NpgsqlConnection(owner))
+        var database = "teapremium_test_empty_" + Guid.NewGuid().ToString("N");
+        var owner = await fixture.CreateEmptyDatabaseAsync(database);
+        try
         {
-            await connection.OpenAsync();
-            await using var command = new NpgsqlCommand(script, connection);
-            await command.ExecuteNonQueryAsync();
-            await command.ExecuteNonQueryAsync();
+            var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(owner).Options;
+            await using var db = new AppDbContext(options);
+            var script = db.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
+            Assert.Contains("__EFMigrationsHistory", script, StringComparison.Ordinal);
+            await using (var connection = new NpgsqlConnection(owner))
+            {
+                await connection.OpenAsync();
+                await using var command = new NpgsqlCommand(script, connection);
+                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync();
+            }
+            Assert.Equal(10, await db.Database.SqlQueryRaw<int>("SELECT count(*)::integer AS \"Value\" FROM information_schema.tables WHERE table_schema='platform' AND table_type='BASE TABLE'").SingleAsync());
+            await db.GetService<IMigrator>().MigrateAsync("0");
+            Assert.Equal(0, await db.Database.SqlQueryRaw<int>("SELECT count(*)::integer AS \"Value\" FROM information_schema.tables WHERE table_schema='platform' AND table_type='BASE TABLE'").SingleAsync());
         }
-        Assert.Equal(10, await db.Database.SqlQueryRaw<int>("SELECT count(*)::integer AS \"Value\" FROM information_schema.tables WHERE table_schema='platform' AND table_type='BASE TABLE'").SingleAsync());
-        await db.GetService<IMigrator>().MigrateAsync("0");
-        Assert.Equal(0, await db.Database.SqlQueryRaw<int>("SELECT count(*)::integer AS \"Value\" FROM information_schema.tables WHERE table_schema='platform' AND table_type='BASE TABLE'").SingleAsync());
+        finally
+        {
+            await fixture.DropDatabaseAsync(database);
+        }
     }
 
     private static async Task<Result<int>> ThrowAfterSaveAsync(

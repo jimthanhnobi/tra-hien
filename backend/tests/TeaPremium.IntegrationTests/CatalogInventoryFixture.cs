@@ -1,34 +1,36 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
-using Testcontainers.PostgreSql;
 using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.IntegrationTests;
 
 public sealed class CatalogInventoryFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer container = DatabaseProvisioning.Builder().Build();
+    private SharedPostgresServer _server = null!;
+    private readonly ConcurrentBag<string> _databases = [];
     public const string P0 = "202611180710_ReconcileRuntimeGrants";
 
-    public async Task InitializeAsync() => await container.StartAsync();
-    public Task DisposeAsync() => container.DisposeAsync().AsTask();
+    public async Task InitializeAsync() => _server = await SharedPostgresServer.GetAsync();
+
+    public async Task DisposeAsync()
+    {
+        foreach (var database in _databases)
+            await _server.DropDatabaseAsync(database);
+    }
 
     public async Task<string> DatabaseAsync(bool migrate = true, string? target = null)
     {
         var name = "teapremium_test_p101_" + Guid.NewGuid().ToString("N");
-        await DatabaseProvisioning.ProvisionAsync(container, name);
-        var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", name);
-        if (migrate)
-        {
-            await using var db = Context(owner);
-            await db.GetService<IMigrator>().MigrateAsync(target);
-        }
+        var templateKey = !migrate
+            ? SharedPostgresServer.EmptyKey
+            : target ?? SharedPostgresServer.LatestKey;
+        var owner = await _server.CloneAsync(templateKey, name);
+        _databases.Add(name);
         return owner;
     }
 
-    public string Admin(string owner) => new NpgsqlConnectionStringBuilder(container.GetConnectionString())
+    public string Admin(string owner) => new NpgsqlConnectionStringBuilder(_server.AdminConnection)
     {
         Database = new NpgsqlConnectionStringBuilder(owner).Database
     }.ConnectionString;

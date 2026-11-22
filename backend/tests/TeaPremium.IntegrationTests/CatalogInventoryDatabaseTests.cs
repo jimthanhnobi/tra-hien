@@ -314,8 +314,14 @@ INSERT INTO content.redirects(source_path,target_path) VALUES ('/fake-source','/
     [Fact]
     public async Task MissingRolePreflightFailsBeforeNewObjectsAndCanRecover()
     {
-        var c = await fixture.DatabaseAsync(target: P0);
-        var admin = fixture.Admin(c);
+        // Mutates cluster-level role tp_readonly; must run on its own disposable server.
+        await using var container = DatabaseProvisioning.FastBuilder().Build();
+        await container.StartAsync();
+        await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
+        var c = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
+        await using (var init = Context(c))
+            await init.GetService<IMigrator>().MigrateAsync(P0);
+        var admin = new Npgsql.NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = "teapremium_test" }.ConnectionString;
         await ExecuteAsync(admin, "ALTER ROLE tp_readonly RENAME TO p101_missing_backup");
         try
         {

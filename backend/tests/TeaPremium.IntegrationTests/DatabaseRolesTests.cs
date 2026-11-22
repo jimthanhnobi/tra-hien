@@ -135,142 +135,9 @@ SELECT NOT has_table_privilege('tp_app','platform.closure_default_probe','INSERT
     }
 
     [Fact]
-    public async Task FreshVolumeInitHookUsesRealWrapper()
-    {
-        await using var container = DatabaseProvisioning.Builder()
-            .WithResourceMapping(new FileInfo(Path.Combine(DatabaseProvisioning.Artifacts, "init-roles.sh")), "/docker-entrypoint-initdb.d/")
-            .Build();
-        await container.StartAsync();
-        var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
-        await DatabaseProvisioning.MigrateAsync(owner);
-        await using var connection = new NpgsqlConnection(DatabaseProvisioning.Login(owner, "tp_app"));
-        await connection.OpenAsync();
-        Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
-    }
-
-    [Fact]
-    public async Task PasswordPunctuationWorksWithoutEchoingCredentials()
-    {
-        var secret = Guid.NewGuid().ToString("N") + "';$\\\"!";
-        await using var container = DatabaseProvisioning.Builder()
-            .WithEnvironment("TP_OWNER_PASSWORD", secret)
-            .WithEnvironment("TP_APP_PASSWORD", secret)
-            .WithEnvironment("TP_READONLY_PASSWORD", secret)
-            .WithCommand("-c", "log_statement=all", "-c", "log_min_error_statement=error")
-            .Build();
-        await container.StartAsync();
-        var result = await container.ExecAsync(["sh", "/opt/teapremium/init-roles.sh"]);
-        Assert.Equal(0, result.ExitCode);
-        foreach (var role in new[] { "tp_owner", "tp_app", "tp_readonly" })
-        {
-            var login = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
-            { Database = "teapremium_test", Username = role, Password = secret };
-            await using var connection = new NpgsqlConnection(login.ConnectionString);
-            await connection.OpenAsync();
-        }
-        var logs = await container.GetLogsAsync();
-        Assert.True(!(result.Stdout + result.Stderr + logs.Stdout + logs.Stderr).Contains(secret, StringComparison.Ordinal),
-            "Provisioning must not expose a credential in console/server logs.");
-    }
-
-    [Theory]
-    [InlineData("repeat")]
-    [InlineData("shell_trace")]
-    [InlineData("read_only")]
-    [InlineData("unprivileged")]
-    [InlineData("verification")]
-    public async Task CredentialProtectionFailsClosedAndSurvivesAggressiveLogging(string scenario)
-    {
-        // The unique marker detects raw AND SQL-escaped passwords without ever
-        // including a credential in assertion output/evidence on failure.
-        var marker = Guid.NewGuid().ToString("N");
-        var passwords = new[] { marker + "-owner-';$\"!", marker + "-app-';$\"!", marker + "-backup-';$\"!" };
-        await using var container = DatabaseProvisioning.Builder()
-            .WithEnvironment("TP_OWNER_PASSWORD", passwords[0])
-            .WithEnvironment("TP_APP_PASSWORD", passwords[1])
-            .WithEnvironment("TP_READONLY_PASSWORD", passwords[2])
-            .WithCommand("-c", "log_statement=all", "-c", "log_duration=on",
-                "-c", "log_min_duration_statement=0", "-c", "log_min_duration_sample=0",
-                "-c", "log_statement_sample_rate=1", "-c", "log_transaction_sample_rate=1",
-                "-c", "log_min_error_statement=error")
-            .Build();
-        await container.StartAsync();
-        if (scenario is not ("repeat" or "shell_trace"))
-        {
-            string[] command;
-            if (scenario == "unprivileged")
-            {
-                await ExecuteAsync(container.GetConnectionString(), "CREATE ROLE closure_no_config LOGIN NOINHERIT");
-                command = ["env", "PGUSER=closure_no_config", "sh", "/opt/teapremium/init-roles.sh"];
-            }
-            else if (scenario == "verification")
-            {
-                // Fixture-only fault: SET succeeds but leaves an unsafe effective
-                // setting. The real guard must reject it before credential SQL.
-                command = ["sh", "-c", """
-cp -R /opt/teapremium /tmp/blocked
-sed -i "s/SET log_statement = 'none';/SET log_statement = 'all';/" /tmp/blocked/protect-credentials.sql
-export PGUSER="$POSTGRES_USER" PGDATABASE=postgres PGPASSWORD="$POSTGRES_PASSWORD"
-exec psql -X -q -v ON_ERROR_STOP=1 -f /tmp/blocked/init-roles.sql
-"""];
-            }
-            else
-            {
-                command = ["env", "PGOPTIONS=-c default_transaction_read_only=on", "sh", "/opt/teapremium/init-roles.sh"];
-            }
-            var failure = await container.ExecAsync(command);
-            Assert.True(failure.ExitCode != 0, "Unsafe/failed provisioning must fail closed.");
-            if (scenario == "verification")
-                Assert.Contains("Credential logging protection could not be verified", failure.Stderr, StringComparison.Ordinal);
-            AssertCredentialOutputIsSafe(marker, failure.Stdout + failure.Stderr);
-            await using var admin = new NpgsqlConnection(container.GetConnectionString());
-            await admin.OpenAsync();
-            Assert.Equal(0L, await ScalarAsync(admin, "SELECT count(*) FROM pg_roles WHERE rolname IN ('tp_owner','tp_app','tp_readonly')"));
-        }
-        var first = await container.ExecAsync(scenario == "shell_trace"
-            ? ["sh", "-x", "/opt/teapremium/init-roles.sh"] : ["sh", "/opt/teapremium/init-roles.sh"]);
-        Assert.True(first.ExitCode == 0, "Protected provisioning must succeed.");
-        var before = await PasswordFingerprintAsync(container);
-        var repeat = await container.ExecAsync(["sh", "-c", """
-export TP_OWNER_PASSWORD="$TP_OWNER_PASSWORD-changed" TP_APP_PASSWORD="$TP_APP_PASSWORD-changed" TP_READONLY_PASSWORD="$TP_READONLY_PASSWORD-changed"
-exec sh /opt/teapremium/init-roles.sh
-"""]);
-        Assert.True(repeat.ExitCode == 0, "Protected existing-database provisioning must succeed.");
-        Assert.Equal(before, await PasswordFingerprintAsync(container));
-        var roles = new[] { "tp_owner", "tp_app", "tp_readonly" };
-        for (var index = 0; index < roles.Length; index++)
-        {
-            var login = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
-            { Database = "teapremium_test", Username = roles[index], Password = passwords[index] };
-            await using var connection = new NpgsqlConnection(login.ConnectionString);
-            await connection.OpenAsync();
-        }
-        await using (var admin = new NpgsqlConnection(container.GetConnectionString()))
-        {
-            await admin.OpenAsync();
-            Assert.Equal(true, await ScalarAsync(admin, """
-SELECT current_setting('log_statement')='all' AND current_setting('log_duration')='on'
- AND current_setting('log_min_duration_statement')='0' AND current_setting('log_min_duration_sample')='0'
- AND current_setting('log_statement_sample_rate')='1' AND current_setting('log_transaction_sample_rate')='1'
- AND current_setting('log_min_error_statement')='error'
-"""));
-        }
-        var logs = await container.GetLogsAsync();
-        AssertCredentialOutputIsSafe(marker, first.Stdout + first.Stderr + repeat.Stdout + repeat.Stderr + logs.Stdout + logs.Stderr);
-    }
-
-    private static void AssertCredentialOutputIsSafe(string marker, string output)
-    {
-        Assert.True(!output.Contains(marker, StringComparison.Ordinal), "Credential marker must never appear in client/server logs.");
-        Assert.True(!output.Contains("AS desired(name,password)", StringComparison.Ordinal)
-            && !output.Contains("CREATE ROLE tp_", StringComparison.Ordinal)
-            && !output.Contains("CREATE ROLE \"tp_", StringComparison.Ordinal), "Credential-bearing SQL must never appear in logs.");
-    }
-
-    [Fact]
     public async Task ExistingP0DataPasswordsAndSequenceSurviveProvisionMigrationAndRepeat()
     {
-        await using var container = DatabaseProvisioning.Builder().Build();
+        await using var container = DatabaseProvisioning.FastBuilder().Build();
         await container.StartAsync();
         await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
         var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
@@ -313,56 +180,10 @@ VALUES ('00000000-0000-7000-8000-000000000097','fake',1,'2026-01-01','import','{
         }
     }
 
-    [Theory]
-    [InlineData("ALTER ROLE tp_readonly RENAME TO missing_backup", "Missing role")]
-    [InlineData("ALTER DATABASE teapremium_test OWNER TO postgres; GRANT CONNECT ON DATABASE teapremium_test TO tp_owner", "Unexpected database owner")]
-    [InlineData("CREATE SCHEMA unexpected AUTHORIZATION postgres", "Unexpected schema owner")]
-    [InlineData("CREATE TABLE public.unexpected(id int)", "Unexpected object owner")]
-    [InlineData("CREATE EXTENSION hstore", "Unexpected extension owner")]
-    [InlineData("ALTER ROLE tp_app CREATEDB", "Unexpected attributes")]
-    [InlineData("GRANT tp_readonly TO tp_app", "Unexpected role membership")]
-    [InlineData("GRANT CREATE ON SCHEMA public TO tp_app", "unexpected CREATE")]
-    [InlineData("GRANT USAGE ON SCHEMA public TO tp_app WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
-    [InlineData("GRANT USAGE ON SCHEMA public TO tp_readonly WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
-    [InlineData("SET ROLE tp_owner; CREATE SCHEMA platform; GRANT USAGE ON SCHEMA platform TO tp_app WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
-    [InlineData("SET ROLE tp_owner; CREATE SCHEMA iam; GRANT USAGE ON SCHEMA iam TO tp_readonly WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
-    [InlineData("CREATE ROLE closure_delegate; GRANT USAGE ON SCHEMA public TO closure_delegate WITH GRANT OPTION; GRANT closure_delegate TO tp_app", "Unexpected role membership")]
-    [InlineData("SET ROLE tp_owner; CREATE TABLE platform_placeholder(id int); GRANT TRUNCATE ON platform_placeholder TO tp_app", "Unexpected runtime/backup")]
-    [InlineData("SET ROLE tp_owner; CREATE TABLE platform_placeholder(id int); GRANT UPDATE(id) ON platform_placeholder TO tp_app", "Unexpected column grants")]
-    [InlineData("ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner GRANT INSERT ON TABLES TO tp_app", "Unexpected default privileges")]
-    [InlineData("GRANT TEMP ON DATABASE teapremium_test TO tp_app", "unexpected CREATE")]
-    [InlineData("SET ROLE tp_owner; CREATE SEQUENCE public.unexpected_seq; GRANT UPDATE ON SEQUENCE public.unexpected_seq TO tp_app", "Unexpected runtime/backup object")]
-    [InlineData("SET ROLE tp_owner; CREATE FUNCTION public.unexpected_function() RETURNS int LANGUAGE sql AS 'SELECT 1'; GRANT EXECUTE ON FUNCTION public.unexpected_function() TO tp_app WITH GRANT OPTION", "Unexpected runtime/backup function")]
-    public async Task PreflightFailsBeforeAnyMigrationDdl(string mutation, string expected)
-    {
-        await using var container = DatabaseProvisioning.Builder().Build();
-        await container.StartAsync();
-        await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
-        var admin = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = "teapremium_test" }.ConnectionString;
-        await using (var connection = new NpgsqlConnection(admin))
-        {
-            await connection.OpenAsync();
-            await using var command = new NpgsqlCommand(mutation, connection);
-            await command.ExecuteNonQueryAsync();
-        }
-        var result = await RunToolAsync(container, preflightOnly: false);
-        Assert.NotEqual(0, result.Code);
-        Assert.Contains(expected, result.Output, StringComparison.Ordinal);
-        await using var verify = new NpgsqlConnection(admin);
-        await verify.OpenAsync();
-        Assert.Equal(DBNull.Value, await ScalarAsync(verify, "SELECT to_regclass('public.\"__EFMigrationsHistory\"')::text"));
-        // Missing role is a supported provisioning repair; other drift must stop.
-        if (!mutation.Contains("RENAME", StringComparison.Ordinal))
-        {
-            var provision = await container.ExecAsync(["sh", "/opt/teapremium/init-roles.sh"]);
-            Assert.NotEqual(0, provision.ExitCode);
-        }
-    }
-
     [Fact]
     public async Task DevMigrateEntryPointWorksOnFreshDatabaseAndRerun()
     {
-        await using var container = DatabaseProvisioning.Builder().Build();
+        await using var container = DatabaseProvisioning.FastBuilder().Build();
         await container.StartAsync();
         await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
         var first = await RunToolAsync(container, preflightOnly: false);
@@ -375,110 +196,42 @@ VALUES ('00000000-0000-7000-8000-000000000097','fake',1,'2026-01-01','import','{
         Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
     }
 
-    [Theory]
-    [InlineData("platform", "tp_app")]
-    [InlineData("platform", "tp_readonly")]
-    [InlineData("iam", "tp_app")]
-    [InlineData("iam", "tp_readonly")]
-    [InlineData("public", "tp_app")]
-    [InlineData("public", "tp_readonly")]
-    public async Task ExistingDatabaseSchemaDelegationDriftStopsWithoutRepair(string schema, string role)
+    [Fact]
+    public async Task ControlledBackupCredentialsDoNotGrantInvestigationSensitiveColumns()
     {
-        await using var container = DatabaseProvisioning.Builder().Build();
+        await using var container = DatabaseProvisioning.FastBuilder().Build();
         await container.StartAsync();
         await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
         var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
         await DatabaseProvisioning.MigrateAsync(owner);
-        // Schema/role values are only this fixed theory's identifiers.
-        await ExecuteAsync(owner, $"GRANT USAGE ON SCHEMA {schema} TO {role} WITH GRANT OPTION");
-        var before = await FingerprintAsync(owner);
-        var provisioning = await container.ExecAsync(["sh", "/opt/teapremium/init-roles.sh"]);
-        Assert.NotEqual(0, provisioning.ExitCode);
-        var migration = await RunToolAsync(container, preflightOnly: false);
-        Assert.NotEqual(0, migration.Code);
-        Assert.Contains("Unexpected runtime/backup schema grant option", migration.Output, StringComparison.Ordinal);
-        Assert.Equal(before, await FingerprintAsync(owner));
-        await using var connection = new NpgsqlConnection(owner);
-        await connection.OpenAsync();
-        Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
-        Assert.Equal(true, await ScalarAsync(connection, $"""
-SELECT a.is_grantable FROM pg_namespace n CROSS JOIN LATERAL aclexplode(n.nspacl) a
-JOIN pg_roles gr ON gr.oid=a.grantee WHERE n.nspname='{schema}' AND gr.rolname='{role}' AND a.privilege_type='USAGE'
-"""));
-    }
-
-    public static IEnumerable<object[]> ObjectDelegationCases()
-    {
-        // DEC-30/A01 D11: allowed privileges must never imply delegation.
-        var cases = new (string Object, string Role, string Privilege, bool Sequence)[]
-        {
-            ("platform.data_protection_keys", "tp_readonly", "SELECT", false),
-            ("iam.staff_users", "tp_readonly", "SELECT", false),
-            ("public.\"__EFMigrationsHistory\"", "tp_readonly", "SELECT", false),
-            ("platform.data_protection_keys_id_seq", "tp_readonly", "SELECT", true),
-            ("platform.settings", "tp_app", "SELECT", false),
-            ("platform.settings", "tp_app", "UPDATE", false),
-            ("platform.settings", "tp_app", "DELETE", false),
-            ("platform.audit_logs", "tp_app", "INSERT", false),
-            ("platform.administrative_data_imports", "tp_app", "INSERT", false),
-            ("platform.data_protection_keys_id_seq", "tp_app", "USAGE", true)
-        };
-        foreach (var item in cases)
-            foreach (var closurePending in new[] { false, true })
-                yield return [item.Object, item.Role, item.Privilege, item.Sequence, closurePending];
-    }
-
-    [Theory]
-    [MemberData(nameof(ObjectDelegationCases))]
-    public async Task ObjectGrantOptionDriftStopsBeforeMigrationWithoutRepair(
-        string relation, string role, string privilege, bool sequence, bool closurePending)
-    {
-        await using var container = DatabaseProvisioning.Builder().Build();
-        var owner = await PrepareDelegationDatabaseAsync(container, closurePending);
-        await using var connection = new NpgsqlConnection(owner);
-        await connection.OpenAsync();
-        var privilegeFunction = sequence ? "has_sequence_privilege" : "has_table_privilege";
-        // These are fixed theory values, never identifiers from external input.
-        if (!closurePending)
-        {
-            Assert.Equal(true, await ScalarAsync(connection, $"SELECT {privilegeFunction}('{role}','{relation}','{privilege}')"));
-            Assert.Equal(false, await ScalarAsync(connection, $"SELECT {privilegeFunction}('{role}','{relation}','{privilege} WITH GRANT OPTION')"));
-        }
-        await ExecuteAsync(owner, $"GRANT {privilege} ON {(sequence ? "SEQUENCE" : "TABLE")} {relation} TO {role} WITH GRANT OPTION");
-        Assert.Equal(true, await ScalarAsync(connection, $"""
-SELECT a.is_grantable FROM pg_class c CROSS JOIN LATERAL aclexplode(c.relacl) a
-WHERE c.oid='{relation}'::regclass AND a.grantee='{role}'::regrole AND a.privilege_type='{privilege}'
-"""));
-        Assert.Equal(true, await ScalarAsync(connection, $"SELECT {privilegeFunction}('{role}','{relation}','{privilege} WITH GRANT OPTION')"));
-        await AssertDelegationRejectedWithoutRepairAsync(container, owner, closurePending, "Unexpected runtime/backup object privileges");
-    }
-
-    [Theory]
-    [InlineData("tp_app", false)]
-    [InlineData("tp_app", true)]
-    [InlineData("tp_readonly", false)]
-    [InlineData("tp_readonly", true)]
-    public async Task InheritedObjectDelegationIsRejectedBeforeMigration(string role, bool closurePending)
-    {
-        await using var container = DatabaseProvisioning.Builder().Build();
-        var owner = await PrepareDelegationDatabaseAsync(container, closurePending);
         var admin = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = "teapremium_test" }.ConnectionString;
-        await ExecuteAsync(admin, $"""
-CREATE ROLE closure_delegate NOLOGIN;
-GRANT SELECT ON platform.data_protection_keys TO closure_delegate WITH GRANT OPTION;
-GRANT closure_delegate TO {role} WITH INHERIT TRUE;
+        // Fixture-only case identity, never provisioned by application artifacts.
+        // It receives selected non-sensitive audit columns, no backup membership.
+        await ExecuteAsync(admin, """
+CREATE ROLE closure_investigator LOGIN NOINHERIT PASSWORD 'Disposable-Test-Only!';
+GRANT CONNECT ON DATABASE teapremium_test TO closure_investigator;
+GRANT USAGE ON SCHEMA platform,iam TO closure_investigator;
+GRANT SELECT(id,occurred_at,entity_type,action) ON platform.audit_logs TO closure_investigator;
 """);
-        await using var connection = new NpgsqlConnection(owner);
-        await connection.OpenAsync();
-        Assert.Equal(0L, await ScalarAsync(connection, $"""
-SELECT count(*) FROM pg_class c CROSS JOIN LATERAL aclexplode(c.relacl) a
-WHERE c.oid='platform.data_protection_keys'::regclass AND a.grantee='{role}'::regrole AND a.is_grantable
-"""));
-        Assert.Equal(true, await ScalarAsync(connection, $"SELECT has_table_privilege('{role}','platform.data_protection_keys','SELECT WITH GRANT OPTION')"));
-        await AssertDelegationRejectedWithoutRepairAsync(container, owner, closurePending, "Unexpected role membership");
+        await using var investigation = new NpgsqlConnection(DatabaseProvisioning.Login(owner, "closure_investigator"));
+        await investigation.OpenAsync();
+        await ScalarAsync(investigation, "SELECT count(id) FROM platform.audit_logs");
+        foreach (var sql in new[] {
+            "SELECT password_hash,security_stamp,concurrency_stamp FROM iam.staff_users",
+            "SELECT value FROM iam.user_tokens", "SELECT xml FROM platform.data_protection_keys",
+            "SELECT changes FROM platform.audit_logs", "SET ROLE tp_readonly", "SET ROLE tp_owner" })
+        {
+            await using var command = new NpgsqlCommand(sql, investigation);
+            var error = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync());
+            Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, error.SqlState);
+        }
+        await using var backup = new NpgsqlConnection(DatabaseProvisioning.Login(owner, "tp_readonly"));
+        await backup.OpenAsync();
+        await ScalarAsync(backup, "SELECT count(password_hash) FROM iam.staff_users");
+        await ScalarAsync(backup, "SELECT count(xml) FROM platform.data_protection_keys");
     }
 
-    private static async Task<string> PrepareDelegationDatabaseAsync(PostgreSqlContainer container, bool closurePending)
+    internal static async Task<string> PrepareDelegationDatabaseAsync(PostgreSqlContainer container, bool closurePending)
     {
         await container.StartAsync();
         await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
@@ -488,7 +241,7 @@ WHERE c.oid='platform.data_protection_keys'::regclass AND a.grantee='{role}'::re
         return owner;
     }
 
-    private static async Task AssertDelegationRejectedWithoutRepairAsync(
+    internal static async Task AssertDelegationRejectedWithoutRepairAsync(
         PostgreSqlContainer container, string owner, bool closurePending, string diagnostic)
     {
         await using var connection = new NpgsqlConnection(owner);
@@ -531,110 +284,7 @@ CROSS JOIN LATERAL aclexplode(c.relacl) a WHERE n.nspname IN ('platform','iam','
         Assert.Equal(0L, await ScalarAsync(connection, publicGrants));
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task DevMigrateRestoresCleanCheckoutAndStopsOnLockedRestoreFailure(bool brokenLock)
-    {
-        await using var container = DatabaseProvisioning.Builder().Build();
-        await container.StartAsync();
-        await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
-        var source = RepositoryRoot();
-        var tempRoot = Path.GetFullPath(Path.GetTempPath());
-        var checkout = Path.GetFullPath(Path.Combine(tempRoot, "closure-clean-" + Guid.NewGuid().ToString("N")));
-        Assert.StartsWith(tempRoot, checkout, StringComparison.Ordinal);
-        Directory.CreateDirectory(checkout);
-        try
-        {
-            foreach (var path in new[] { "backend", ".config", "infra/postgres" })
-                CopySourceDirectory(Path.Combine(source, path), Path.Combine(checkout, path));
-            Directory.CreateDirectory(Path.Combine(checkout, "scripts"));
-            File.Copy(Path.Combine(source, "scripts", "dev-migrate.ps1"), Path.Combine(checkout, "scripts", "dev-migrate.ps1"));
-            File.Copy(Path.Combine(source, "global.json"), Path.Combine(checkout, "global.json"));
-            File.Copy(Path.Combine(source, ".editorconfig"), Path.Combine(checkout, ".editorconfig"));
-            Assert.Empty(Directory.EnumerateDirectories(checkout, "bin", SearchOption.AllDirectories));
-            Assert.Empty(Directory.EnumerateDirectories(checkout, "obj", SearchOption.AllDirectories));
-            var preflight = await RunToolAsync(container, preflightOnly: true, checkout);
-            Assert.True(preflight.Code == 0, preflight.Output);
-            Assert.Empty(Directory.EnumerateFiles(checkout, "project.assets.json", SearchOption.AllDirectories));
-            if (brokenLock)
-            {
-                // Change a requested locked dependency, leaving the project unchanged.
-                var lockPath = Path.Combine(checkout, "backend", "src", "TeaPremium.Infrastructure", "packages.lock.json");
-                var content = await File.ReadAllTextAsync(lockPath);
-                Assert.Contains("[10.0.15, )", content, StringComparison.Ordinal);
-                await File.WriteAllTextAsync(lockPath, content.Replace("[10.0.15, )", "[10.0.14, )", StringComparison.Ordinal));
-            }
-            var first = await RunToolAsync(container, preflightOnly: false, checkout);
-            var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
-            await using var connection = new NpgsqlConnection(owner);
-            await connection.OpenAsync();
-            if (brokenLock)
-            {
-                Assert.NotEqual(0, first.Code);
-                Assert.Contains("Infrastructure locked restore failed", first.Output, StringComparison.Ordinal);
-                Assert.Equal(DBNull.Value, await ScalarAsync(connection, "SELECT to_regclass('public.\"__EFMigrationsHistory\"')::text"));
-            }
-            else
-            {
-                Assert.True(first.Code == 0, first.Output);
-                var second = await RunToolAsync(container, preflightOnly: false, checkout);
-                Assert.True(second.Code == 0, second.Output);
-                Assert.Equal(6L, await ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
-            }
-        }
-        finally
-        {
-            // Only the unique test-owned temporary checkout, never the source tree.
-            Directory.Delete(checkout, recursive: true);
-        }
-    }
-
-    private static void CopySourceDirectory(string source, string target)
-    {
-        Directory.CreateDirectory(target);
-        foreach (var file in Directory.EnumerateFiles(source)) File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
-        foreach (var directory in Directory.EnumerateDirectories(source))
-            if (Path.GetFileName(directory) is not ("bin" or "obj"))
-                CopySourceDirectory(directory, Path.Combine(target, Path.GetFileName(directory)));
-    }
-
-    [Fact]
-    public async Task ControlledBackupCredentialsDoNotGrantInvestigationSensitiveColumns()
-    {
-        await using var container = DatabaseProvisioning.Builder().Build();
-        await container.StartAsync();
-        await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
-        var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
-        await DatabaseProvisioning.MigrateAsync(owner);
-        var admin = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = "teapremium_test" }.ConnectionString;
-        // Fixture-only case identity, never provisioned by application artifacts.
-        // It receives selected non-sensitive audit columns, no backup membership.
-        await ExecuteAsync(admin, """
-CREATE ROLE closure_investigator LOGIN NOINHERIT PASSWORD 'Disposable-Test-Only!';
-GRANT CONNECT ON DATABASE teapremium_test TO closure_investigator;
-GRANT USAGE ON SCHEMA platform,iam TO closure_investigator;
-GRANT SELECT(id,occurred_at,entity_type,action) ON platform.audit_logs TO closure_investigator;
-""");
-        await using var investigation = new NpgsqlConnection(DatabaseProvisioning.Login(owner, "closure_investigator"));
-        await investigation.OpenAsync();
-        await ScalarAsync(investigation, "SELECT count(id) FROM platform.audit_logs");
-        foreach (var sql in new[] {
-            "SELECT password_hash,security_stamp,concurrency_stamp FROM iam.staff_users",
-            "SELECT value FROM iam.user_tokens", "SELECT xml FROM platform.data_protection_keys",
-            "SELECT changes FROM platform.audit_logs", "SET ROLE tp_readonly", "SET ROLE tp_owner" })
-        {
-            await using var command = new NpgsqlCommand(sql, investigation);
-            var error = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync());
-            Assert.Equal(PostgresErrorCodes.InsufficientPrivilege, error.SqlState);
-        }
-        await using var backup = new NpgsqlConnection(DatabaseProvisioning.Login(owner, "tp_readonly"));
-        await backup.OpenAsync();
-        await ScalarAsync(backup, "SELECT count(password_hash) FROM iam.staff_users");
-        await ScalarAsync(backup, "SELECT count(xml) FROM platform.data_protection_keys");
-    }
-
-    private static string RepositoryRoot()
+    internal static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "scripts", "dev-migrate.ps1"))) directory = directory.Parent;
@@ -642,7 +292,7 @@ GRANT SELECT(id,occurred_at,entity_type,action) ON platform.audit_logs TO closur
         return directory.FullName;
     }
 
-    private static async Task<(int Code, string Output)> RunToolAsync(PostgreSqlContainer container, bool preflightOnly, string? checkout = null)
+    internal static async Task<(int Code, string Output)> RunToolAsync(PostgreSqlContainer container, bool preflightOnly, string? checkout = null)
     {
         var start = new ProcessStartInfo(OperatingSystem.IsWindows() ? "powershell" : "pwsh")
         {
@@ -661,13 +311,13 @@ GRANT SELECT(id,occurred_at,entity_type,action) ON platform.audit_logs TO closur
         return (process.ExitCode, await output + await error);
     }
 
-    private static async Task<object?> ScalarAsync(NpgsqlConnection connection, string sql)
+    internal static async Task<object?> ScalarAsync(NpgsqlConnection connection, string sql)
     {
         await using var command = new NpgsqlCommand(sql, connection);
         return await command.ExecuteScalarAsync();
     }
 
-    private static async Task ExecuteAsync(string connectionString, string sql)
+    internal static async Task ExecuteAsync(string connectionString, string sql)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -675,7 +325,7 @@ GRANT SELECT(id,occurred_at,entity_type,action) ON platform.audit_logs TO closur
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<object?> FingerprintAsync(string owner)
+    internal static async Task<object?> FingerprintAsync(string owner)
     {
         await using var connection = new NpgsqlConnection(owner);
         await connection.OpenAsync();
@@ -696,10 +346,498 @@ SELECT md5(concat(
 """);
     }
 
-    private static async Task<object?> PasswordFingerprintAsync(PostgreSqlContainer container)
+    internal static async Task<object?> PasswordFingerprintAsync(PostgreSqlContainer container)
     {
         await using var connection = new NpgsqlConnection(container.GetConnectionString());
         await connection.OpenAsync();
         return await ScalarAsync(connection, "SELECT md5(string_agg(rolname||rolpassword,',' ORDER BY rolname)) FROM pg_authid WHERE rolname IN ('tp_owner','tp_app','tp_readonly')");
+    }
+}
+
+public sealed class DatabaseRoleTemplateFixture : IAsyncLifetime
+{
+    public const string EmptyTemplate = "tp_roles_tpl_empty";
+    public const string PreClosureTemplate = "tp_roles_tpl_preclosure";
+    public const string LatestTemplate = "tp_roles_tpl_latest";
+
+    private readonly PostgreSqlContainer _container = DatabaseProvisioning.FastBuilder().Build();
+    private string _adminMaintenance = "";
+
+    public PostgreSqlContainer Container => _container;
+
+    public async Task InitializeAsync()
+    {
+        await _container.StartAsync();
+        _adminMaintenance = new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = "postgres" }.ConnectionString;
+        await DatabaseProvisioning.ProvisionAsync(_container, EmptyTemplate);
+        await DetachAsync(EmptyTemplate);
+
+        var preClosureOwner = await CloneTemplateAsync(EmptyTemplate, PreClosureTemplate);
+        await using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(preClosureOwner).Options))
+            await db.GetService<IMigrator>().MigrateAsync("202611180001_SettingsAdministrativeData");
+        await DetachAsync(PreClosureTemplate);
+
+        var latestOwner = await CloneTemplateAsync(EmptyTemplate, LatestTemplate);
+        await DatabaseProvisioning.MigrateAsync(latestOwner);
+        await DetachAsync(LatestTemplate);
+    }
+
+    public Task DisposeAsync() => _container.DisposeAsync().AsTask();
+
+    public async Task<(string Owner, string Admin)> ResetTargetFromTemplateAsync(string templateName)
+    {
+        await DropTargetAsync();
+        var owner = await CloneTemplateAsync(templateName, "teapremium_test");
+        var admin = new NpgsqlConnectionStringBuilder(_adminMaintenance) { Database = "teapremium_test" }.ConnectionString;
+        return (owner, admin);
+    }
+
+    public async Task DropTargetAsync()
+    {
+        ClearPools("teapremium_test");
+        await using var connection = new NpgsqlConnection(_adminMaintenance);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("DROP DATABASE IF EXISTS teapremium_test WITH (FORCE)", connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<string> CloneTemplateAsync(string templateName, string targetName)
+    {
+        await using var connection = new NpgsqlConnection(_adminMaintenance);
+        await connection.OpenAsync();
+        await using (var create = new NpgsqlCommand($"CREATE DATABASE \"{targetName}\" TEMPLATE \"{templateName}\" STRATEGY = FILE_COPY OWNER tp_owner", connection))
+            await create.ExecuteNonQueryAsync();
+        await using (var grants = new NpgsqlCommand(
+            $"REVOKE ALL ON DATABASE \"{targetName}\" FROM PUBLIC; GRANT CONNECT ON DATABASE \"{targetName}\" TO tp_app, tp_readonly;",
+            connection))
+            await grants.ExecuteNonQueryAsync();
+        return DatabaseProvisioning.Login(_adminMaintenance, "tp_owner", targetName);
+    }
+
+    private async Task DetachAsync(string database)
+    {
+        ClearPools(database);
+        await using var connection = new NpgsqlConnection(_adminMaintenance);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = @name AND pid <> pg_backend_pid()",
+            connection);
+        command.Parameters.AddWithValue("name", database);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private void ClearPools(string database)
+    {
+        foreach (var role in new[] { "tp_owner", "tp_app", "tp_readonly" })
+        {
+            using var conn = new NpgsqlConnection(DatabaseProvisioning.Login(_adminMaintenance, role, database));
+            NpgsqlConnection.ClearPool(conn);
+        }
+        using var admin = new NpgsqlConnection(new NpgsqlConnectionStringBuilder(_adminMaintenance) { Database = database }.ConnectionString);
+        NpgsqlConnection.ClearPool(admin);
+    }
+}
+
+public sealed class DatabaseRolesObjectDelegationTests(DatabaseRoleTemplateFixture fixture) : IClassFixture<DatabaseRoleTemplateFixture>
+{
+    public static IEnumerable<object[]> ObjectDelegationCases()
+    {
+        // DEC-30/A01 D11: allowed privileges must never imply delegation.
+        var cases = new (string Object, string Role, string Privilege, bool Sequence)[]
+        {
+            ("platform.data_protection_keys", "tp_readonly", "SELECT", false),
+            ("iam.staff_users", "tp_readonly", "SELECT", false),
+            ("public.\"__EFMigrationsHistory\"", "tp_readonly", "SELECT", false),
+            ("platform.data_protection_keys_id_seq", "tp_readonly", "SELECT", true),
+            ("platform.settings", "tp_app", "SELECT", false),
+            ("platform.settings", "tp_app", "UPDATE", false),
+            ("platform.settings", "tp_app", "DELETE", false),
+            ("platform.audit_logs", "tp_app", "INSERT", false),
+            ("platform.administrative_data_imports", "tp_app", "INSERT", false),
+            ("platform.data_protection_keys_id_seq", "tp_app", "USAGE", true)
+        };
+        foreach (var item in cases)
+            foreach (var closurePending in new[] { false, true })
+                yield return [item.Object, item.Role, item.Privilege, item.Sequence, closurePending];
+    }
+
+    [Theory]
+    [MemberData(nameof(ObjectDelegationCases))]
+    public async Task ObjectGrantOptionDriftStopsBeforeMigrationWithoutRepair(
+        string relation, string role, string privilege, bool sequence, bool closurePending)
+    {
+        var (owner, _) = await fixture.ResetTargetFromTemplateAsync(
+            closurePending ? DatabaseRoleTemplateFixture.PreClosureTemplate : DatabaseRoleTemplateFixture.LatestTemplate);
+        try
+        {
+            await using var connection = new NpgsqlConnection(owner);
+            await connection.OpenAsync();
+            var privilegeFunction = sequence ? "has_sequence_privilege" : "has_table_privilege";
+            // These are fixed theory values, never identifiers from external input.
+            if (!closurePending)
+            {
+                Assert.Equal(true, await DatabaseRolesTests.ScalarAsync(connection, $"SELECT {privilegeFunction}('{role}','{relation}','{privilege}')"));
+                Assert.Equal(false, await DatabaseRolesTests.ScalarAsync(connection, $"SELECT {privilegeFunction}('{role}','{relation}','{privilege} WITH GRANT OPTION')"));
+            }
+            await DatabaseRolesTests.ExecuteAsync(owner, $"GRANT {privilege} ON {(sequence ? "SEQUENCE" : "TABLE")} {relation} TO {role} WITH GRANT OPTION");
+            Assert.Equal(true, await DatabaseRolesTests.ScalarAsync(connection, $"""
+SELECT a.is_grantable FROM pg_class c CROSS JOIN LATERAL aclexplode(c.relacl) a
+WHERE c.oid='{relation}'::regclass AND a.grantee='{role}'::regrole AND a.privilege_type='{privilege}'
+"""));
+            Assert.Equal(true, await DatabaseRolesTests.ScalarAsync(connection, $"SELECT {privilegeFunction}('{role}','{relation}','{privilege} WITH GRANT OPTION')"));
+            await DatabaseRolesTests.AssertDelegationRejectedWithoutRepairAsync(fixture.Container, owner, closurePending, "Unexpected runtime/backup object privileges");
+        }
+        finally
+        {
+            await fixture.DropTargetAsync();
+        }
+    }
+}
+
+public sealed class DatabaseRolesDatabaseDriftTests(DatabaseRoleTemplateFixture fixture) : IClassFixture<DatabaseRoleTemplateFixture>
+{
+    [Theory]
+    [InlineData("ALTER DATABASE teapremium_test OWNER TO postgres; GRANT CONNECT ON DATABASE teapremium_test TO tp_owner", "Unexpected database owner")]
+    [InlineData("CREATE SCHEMA unexpected AUTHORIZATION postgres", "Unexpected schema owner")]
+    [InlineData("CREATE TABLE public.unexpected(id int)", "Unexpected object owner")]
+    [InlineData("CREATE EXTENSION hstore", "Unexpected extension owner")]
+    [InlineData("GRANT CREATE ON SCHEMA public TO tp_app", "unexpected CREATE")]
+    [InlineData("GRANT USAGE ON SCHEMA public TO tp_app WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
+    [InlineData("GRANT USAGE ON SCHEMA public TO tp_readonly WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
+    [InlineData("SET ROLE tp_owner; CREATE SCHEMA platform; GRANT USAGE ON SCHEMA platform TO tp_app WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
+    [InlineData("SET ROLE tp_owner; CREATE SCHEMA iam; GRANT USAGE ON SCHEMA iam TO tp_readonly WITH GRANT OPTION", "Unexpected runtime/backup schema grant option")]
+    [InlineData("SET ROLE tp_owner; CREATE TABLE platform_placeholder(id int); GRANT TRUNCATE ON platform_placeholder TO tp_app", "Unexpected runtime/backup")]
+    [InlineData("SET ROLE tp_owner; CREATE TABLE platform_placeholder(id int); GRANT UPDATE(id) ON platform_placeholder TO tp_app", "Unexpected column grants")]
+    [InlineData("ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner GRANT INSERT ON TABLES TO tp_app", "Unexpected default privileges")]
+    [InlineData("GRANT TEMP ON DATABASE teapremium_test TO tp_app", "unexpected CREATE")]
+    [InlineData("SET ROLE tp_owner; CREATE SEQUENCE public.unexpected_seq; GRANT UPDATE ON SEQUENCE public.unexpected_seq TO tp_app", "Unexpected runtime/backup object")]
+    [InlineData("SET ROLE tp_owner; CREATE FUNCTION public.unexpected_function() RETURNS int LANGUAGE sql AS 'SELECT 1'; GRANT EXECUTE ON FUNCTION public.unexpected_function() TO tp_app WITH GRANT OPTION", "Unexpected runtime/backup function")]
+    public async Task PreflightFailsBeforeAnyMigrationDdl(string mutation, string expected)
+    {
+        var (_, admin) = await fixture.ResetTargetFromTemplateAsync(DatabaseRoleTemplateFixture.EmptyTemplate);
+        try
+        {
+            await using (var connection = new NpgsqlConnection(admin))
+            {
+                await connection.OpenAsync();
+                await using var command = new NpgsqlCommand(mutation, connection);
+                await command.ExecuteNonQueryAsync();
+            }
+            var result = await DatabaseRolesTests.RunToolAsync(fixture.Container, preflightOnly: false);
+            Assert.NotEqual(0, result.Code);
+            Assert.Contains(expected, result.Output, StringComparison.Ordinal);
+            await using var verify = new NpgsqlConnection(admin);
+            await verify.OpenAsync();
+            Assert.Equal(DBNull.Value, await DatabaseRolesTests.ScalarAsync(verify, "SELECT to_regclass('public.\"__EFMigrationsHistory\"')::text"));
+            var provision = await fixture.Container.ExecAsync(["sh", "/opt/teapremium/init-roles.sh"]);
+            Assert.NotEqual(0, provision.ExitCode);
+        }
+        finally
+        {
+            await fixture.DropTargetAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData("platform", "tp_app")]
+    [InlineData("platform", "tp_readonly")]
+    [InlineData("iam", "tp_app")]
+    [InlineData("iam", "tp_readonly")]
+    [InlineData("public", "tp_app")]
+    [InlineData("public", "tp_readonly")]
+    public async Task ExistingDatabaseSchemaDelegationDriftStopsWithoutRepair(string schema, string role)
+    {
+        var (owner, _) = await fixture.ResetTargetFromTemplateAsync(DatabaseRoleTemplateFixture.LatestTemplate);
+        try
+        {
+            // Schema/role values are only this fixed theory's identifiers.
+            await DatabaseRolesTests.ExecuteAsync(owner, $"GRANT USAGE ON SCHEMA {schema} TO {role} WITH GRANT OPTION");
+            var before = await DatabaseRolesTests.FingerprintAsync(owner);
+            var provisioning = await fixture.Container.ExecAsync(["sh", "/opt/teapremium/init-roles.sh"]);
+            Assert.NotEqual(0, provisioning.ExitCode);
+            var migration = await DatabaseRolesTests.RunToolAsync(fixture.Container, preflightOnly: false);
+            Assert.NotEqual(0, migration.Code);
+            Assert.Contains("Unexpected runtime/backup schema grant option", migration.Output, StringComparison.Ordinal);
+            Assert.Equal(before, await DatabaseRolesTests.FingerprintAsync(owner));
+            await using var connection = new NpgsqlConnection(owner);
+            await connection.OpenAsync();
+            Assert.Equal(6L, await DatabaseRolesTests.ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+            Assert.Equal(true, await DatabaseRolesTests.ScalarAsync(connection, $"""
+SELECT a.is_grantable FROM pg_namespace n CROSS JOIN LATERAL aclexplode(n.nspacl) a
+JOIN pg_roles gr ON gr.oid=a.grantee WHERE n.nspname='{schema}' AND gr.rolname='{role}' AND a.privilege_type='USAGE'
+"""));
+        }
+        finally
+        {
+            await fixture.DropTargetAsync();
+        }
+    }
+}
+
+public sealed class DatabaseRolesClusterPreflightTests
+{
+    [Theory]
+    [InlineData("ALTER ROLE tp_readonly RENAME TO missing_backup", "Missing role")]
+    [InlineData("ALTER ROLE tp_app CREATEDB", "Unexpected attributes")]
+    [InlineData("GRANT tp_readonly TO tp_app", "Unexpected role membership")]
+    [InlineData("CREATE ROLE closure_delegate; GRANT USAGE ON SCHEMA public TO closure_delegate WITH GRANT OPTION; GRANT closure_delegate TO tp_app", "Unexpected role membership")]
+    public async Task ClusterRolePreflightFailsBeforeAnyMigrationDdl(string mutation, string expected)
+    {
+        await using var container = DatabaseProvisioning.FastBuilder().Build();
+        await container.StartAsync();
+        await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
+        var admin = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = "teapremium_test" }.ConnectionString;
+        await using (var connection = new NpgsqlConnection(admin))
+        {
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand(mutation, connection);
+            await command.ExecuteNonQueryAsync();
+        }
+        var result = await DatabaseRolesTests.RunToolAsync(container, preflightOnly: false);
+        Assert.NotEqual(0, result.Code);
+        Assert.Contains(expected, result.Output, StringComparison.Ordinal);
+        await using var verify = new NpgsqlConnection(admin);
+        await verify.OpenAsync();
+        Assert.Equal(DBNull.Value, await DatabaseRolesTests.ScalarAsync(verify, "SELECT to_regclass('public.\"__EFMigrationsHistory\"')::text"));
+        // Missing role is a supported provisioning repair; other drift must stop.
+        if (!mutation.Contains("RENAME", StringComparison.Ordinal))
+        {
+            var provision = await container.ExecAsync(["sh", "/opt/teapremium/init-roles.sh"]);
+            Assert.NotEqual(0, provision.ExitCode);
+        }
+    }
+
+    [Theory]
+    [InlineData("tp_app", false)]
+    [InlineData("tp_app", true)]
+    [InlineData("tp_readonly", false)]
+    [InlineData("tp_readonly", true)]
+    public async Task InheritedObjectDelegationIsRejectedBeforeMigration(string role, bool closurePending)
+    {
+        await using var container = DatabaseProvisioning.FastBuilder().Build();
+        var owner = await DatabaseRolesTests.PrepareDelegationDatabaseAsync(container, closurePending);
+        var admin = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = "teapremium_test" }.ConnectionString;
+        await DatabaseRolesTests.ExecuteAsync(admin, $"""
+CREATE ROLE closure_delegate NOLOGIN;
+GRANT SELECT ON platform.data_protection_keys TO closure_delegate WITH GRANT OPTION;
+GRANT closure_delegate TO {role} WITH INHERIT TRUE;
+""");
+        await using var connection = new NpgsqlConnection(owner);
+        await connection.OpenAsync();
+        Assert.Equal(0L, await DatabaseRolesTests.ScalarAsync(connection, $"""
+SELECT count(*) FROM pg_class c CROSS JOIN LATERAL aclexplode(c.relacl) a
+WHERE c.oid='platform.data_protection_keys'::regclass AND a.grantee='{role}'::regrole AND a.is_grantable
+"""));
+        Assert.Equal(true, await DatabaseRolesTests.ScalarAsync(connection, $"SELECT has_table_privilege('{role}','platform.data_protection_keys','SELECT WITH GRANT OPTION')"));
+        await DatabaseRolesTests.AssertDelegationRejectedWithoutRepairAsync(container, owner, closurePending, "Unexpected role membership");
+    }
+}
+
+public sealed class DatabaseRolesCredentialProtectionTests
+{
+    [Fact]
+    public async Task FreshVolumeInitHookUsesRealWrapper()
+    {
+        await using var container = DatabaseProvisioning.FastBuilder()
+            .WithResourceMapping(new FileInfo(Path.Combine(DatabaseProvisioning.Artifacts, "init-roles.sh")), "/docker-entrypoint-initdb.d/")
+            .Build();
+        await container.StartAsync();
+        var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
+        await DatabaseProvisioning.MigrateAsync(owner);
+        await using var connection = new NpgsqlConnection(DatabaseProvisioning.Login(owner, "tp_app"));
+        await connection.OpenAsync();
+        Assert.Equal(6L, await DatabaseRolesTests.ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+    }
+
+    [Fact]
+    public async Task PasswordPunctuationWorksWithoutEchoingCredentials()
+    {
+        var secret = Guid.NewGuid().ToString("N") + "';$\\\"!";
+        await using var container = DatabaseProvisioning.Builder()
+            .WithEnvironment("TP_OWNER_PASSWORD", secret)
+            .WithEnvironment("TP_APP_PASSWORD", secret)
+            .WithEnvironment("TP_READONLY_PASSWORD", secret)
+            .WithCommand("-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off",
+                "-c", "log_statement=all", "-c", "log_min_error_statement=error")
+            .Build();
+        await container.StartAsync();
+        var result = await container.ExecAsync(["sh", "/opt/teapremium/init-roles.sh"]);
+        Assert.Equal(0, result.ExitCode);
+        foreach (var role in new[] { "tp_owner", "tp_app", "tp_readonly" })
+        {
+            var login = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
+            { Database = "teapremium_test", Username = role, Password = secret };
+            await using var connection = new NpgsqlConnection(login.ConnectionString);
+            await connection.OpenAsync();
+        }
+        var logs = await container.GetLogsAsync();
+        Assert.True(!(result.Stdout + result.Stderr + logs.Stdout + logs.Stderr).Contains(secret, StringComparison.Ordinal),
+            "Provisioning must not expose a credential in console/server logs.");
+    }
+
+    [Theory]
+    [InlineData("repeat")]
+    [InlineData("shell_trace")]
+    [InlineData("read_only")]
+    [InlineData("unprivileged")]
+    [InlineData("verification")]
+    public async Task CredentialProtectionFailsClosedAndSurvivesAggressiveLogging(string scenario)
+    {
+        // The unique marker detects raw AND SQL-escaped passwords without ever
+        // including a credential in assertion output/evidence on failure.
+        var marker = Guid.NewGuid().ToString("N");
+        var passwords = new[] { marker + "-owner-';$\"!", marker + "-app-';$\"!", marker + "-backup-';$\"!" };
+        await using var container = DatabaseProvisioning.Builder()
+            .WithEnvironment("TP_OWNER_PASSWORD", passwords[0])
+            .WithEnvironment("TP_APP_PASSWORD", passwords[1])
+            .WithEnvironment("TP_READONLY_PASSWORD", passwords[2])
+            .WithCommand("-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off",
+                "-c", "log_statement=all", "-c", "log_duration=on",
+                "-c", "log_min_duration_statement=0", "-c", "log_min_duration_sample=0",
+                "-c", "log_statement_sample_rate=1", "-c", "log_transaction_sample_rate=1",
+                "-c", "log_min_error_statement=error")
+            .Build();
+        await container.StartAsync();
+        if (scenario is not ("repeat" or "shell_trace"))
+        {
+            string[] command;
+            if (scenario == "unprivileged")
+            {
+                await DatabaseRolesTests.ExecuteAsync(container.GetConnectionString(), "CREATE ROLE closure_no_config LOGIN NOINHERIT");
+                command = ["env", "PGUSER=closure_no_config", "sh", "/opt/teapremium/init-roles.sh"];
+            }
+            else if (scenario == "verification")
+            {
+                // Fixture-only fault: SET succeeds but leaves an unsafe effective
+                // setting. The real guard must reject it before credential SQL.
+                command = ["sh", "-c", """
+cp -R /opt/teapremium /tmp/blocked
+sed -i "s/SET log_statement = 'none';/SET log_statement = 'all';/" /tmp/blocked/protect-credentials.sql
+export PGUSER="$POSTGRES_USER" PGDATABASE=postgres PGPASSWORD="$POSTGRES_PASSWORD"
+exec psql -X -q -v ON_ERROR_STOP=1 -f /tmp/blocked/init-roles.sql
+"""];
+            }
+            else
+            {
+                command = ["env", "PGOPTIONS=-c default_transaction_read_only=on", "sh", "/opt/teapremium/init-roles.sh"];
+            }
+            var failure = await container.ExecAsync(command);
+            Assert.True(failure.ExitCode != 0, "Unsafe/failed provisioning must fail closed.");
+            if (scenario == "verification")
+                Assert.Contains("Credential logging protection could not be verified", failure.Stderr, StringComparison.Ordinal);
+            AssertCredentialOutputIsSafe(marker, failure.Stdout + failure.Stderr);
+            await using var admin = new NpgsqlConnection(container.GetConnectionString());
+            await admin.OpenAsync();
+            Assert.Equal(0L, await DatabaseRolesTests.ScalarAsync(admin, "SELECT count(*) FROM pg_roles WHERE rolname IN ('tp_owner','tp_app','tp_readonly')"));
+        }
+        var first = await container.ExecAsync(scenario == "shell_trace"
+            ? ["sh", "-x", "/opt/teapremium/init-roles.sh"] : ["sh", "/opt/teapremium/init-roles.sh"]);
+        Assert.True(first.ExitCode == 0, "Protected provisioning must succeed.");
+        var before = await DatabaseRolesTests.PasswordFingerprintAsync(container);
+        var repeat = await container.ExecAsync(["sh", "-c", """
+export TP_OWNER_PASSWORD="$TP_OWNER_PASSWORD-changed" TP_APP_PASSWORD="$TP_APP_PASSWORD-changed" TP_READONLY_PASSWORD="$TP_READONLY_PASSWORD-changed"
+exec sh /opt/teapremium/init-roles.sh
+"""]);
+        Assert.True(repeat.ExitCode == 0, "Protected existing-database provisioning must succeed.");
+        Assert.Equal(before, await DatabaseRolesTests.PasswordFingerprintAsync(container));
+        var roles = new[] { "tp_owner", "tp_app", "tp_readonly" };
+        for (var index = 0; index < roles.Length; index++)
+        {
+            var login = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
+            { Database = "teapremium_test", Username = roles[index], Password = passwords[index] };
+            await using var connection = new NpgsqlConnection(login.ConnectionString);
+            await connection.OpenAsync();
+        }
+        await using (var admin = new NpgsqlConnection(container.GetConnectionString()))
+        {
+            await admin.OpenAsync();
+            Assert.Equal(true, await DatabaseRolesTests.ScalarAsync(admin, """
+SELECT current_setting('log_statement')='all' AND current_setting('log_duration')='on'
+ AND current_setting('log_min_duration_statement')='0' AND current_setting('log_min_duration_sample')='0'
+ AND current_setting('log_statement_sample_rate')='1' AND current_setting('log_transaction_sample_rate')='1'
+ AND current_setting('log_min_error_statement')='error'
+"""));
+        }
+        var logs = await container.GetLogsAsync();
+        AssertCredentialOutputIsSafe(marker, first.Stdout + first.Stderr + repeat.Stdout + repeat.Stderr + logs.Stdout + logs.Stderr);
+    }
+
+    private static void AssertCredentialOutputIsSafe(string marker, string output)
+    {
+        Assert.True(!output.Contains(marker, StringComparison.Ordinal), "Credential marker must never appear in client/server logs.");
+        Assert.True(!output.Contains("AS desired(name,password)", StringComparison.Ordinal)
+            && !output.Contains("CREATE ROLE tp_", StringComparison.Ordinal)
+            && !output.Contains("CREATE ROLE \"tp_", StringComparison.Ordinal), "Credential-bearing SQL must never appear in logs.");
+    }
+}
+
+public sealed class DatabaseRolesDevMigrateCheckoutTests
+{
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DevMigrateRestoresCleanCheckoutAndStopsOnLockedRestoreFailure(bool brokenLock)
+    {
+        await using var container = DatabaseProvisioning.FastBuilder().Build();
+        await container.StartAsync();
+        await DatabaseProvisioning.ProvisionAsync(container, "teapremium_test");
+        var source = DatabaseRolesTests.RepositoryRoot();
+        var tempRoot = Path.GetFullPath(Path.GetTempPath());
+        var checkout = Path.GetFullPath(Path.Combine(tempRoot, "closure-clean-" + Guid.NewGuid().ToString("N")));
+        Assert.StartsWith(tempRoot, checkout, StringComparison.Ordinal);
+        Directory.CreateDirectory(checkout);
+        try
+        {
+            foreach (var path in new[] { "backend", ".config", "infra/postgres" })
+                CopySourceDirectory(Path.Combine(source, path), Path.Combine(checkout, path));
+            Directory.CreateDirectory(Path.Combine(checkout, "scripts"));
+            File.Copy(Path.Combine(source, "scripts", "dev-migrate.ps1"), Path.Combine(checkout, "scripts", "dev-migrate.ps1"));
+            File.Copy(Path.Combine(source, "global.json"), Path.Combine(checkout, "global.json"));
+            File.Copy(Path.Combine(source, ".editorconfig"), Path.Combine(checkout, ".editorconfig"));
+            Assert.Empty(Directory.EnumerateDirectories(checkout, "bin", SearchOption.AllDirectories));
+            Assert.Empty(Directory.EnumerateDirectories(checkout, "obj", SearchOption.AllDirectories));
+            var preflight = await DatabaseRolesTests.RunToolAsync(container, preflightOnly: true, checkout);
+            Assert.True(preflight.Code == 0, preflight.Output);
+            Assert.Empty(Directory.EnumerateFiles(checkout, "project.assets.json", SearchOption.AllDirectories));
+            if (brokenLock)
+            {
+                // Change a requested locked dependency, leaving the project unchanged.
+                var lockPath = Path.Combine(checkout, "backend", "src", "TeaPremium.Infrastructure", "packages.lock.json");
+                var content = await File.ReadAllTextAsync(lockPath);
+                Assert.Contains("[10.0.15, )", content, StringComparison.Ordinal);
+                await File.WriteAllTextAsync(lockPath, content.Replace("[10.0.15, )", "[10.0.14, )", StringComparison.Ordinal));
+            }
+            var first = await DatabaseRolesTests.RunToolAsync(container, preflightOnly: false, checkout);
+            var owner = DatabaseProvisioning.Login(container.GetConnectionString(), "tp_owner", "teapremium_test");
+            await using var connection = new NpgsqlConnection(owner);
+            await connection.OpenAsync();
+            if (brokenLock)
+            {
+                Assert.NotEqual(0, first.Code);
+                Assert.Contains("Infrastructure locked restore failed", first.Output, StringComparison.Ordinal);
+                Assert.Equal(DBNull.Value, await DatabaseRolesTests.ScalarAsync(connection, "SELECT to_regclass('public.\"__EFMigrationsHistory\"')::text"));
+            }
+            else
+            {
+                Assert.True(first.Code == 0, first.Output);
+                var second = await DatabaseRolesTests.RunToolAsync(container, preflightOnly: false, checkout);
+                Assert.True(second.Code == 0, second.Output);
+                Assert.Equal(6L, await DatabaseRolesTests.ScalarAsync(connection, "SELECT count(*) FROM public.\"__EFMigrationsHistory\""));
+            }
+        }
+        finally
+        {
+            // Only the unique test-owned temporary checkout, never the source tree.
+            Directory.Delete(checkout, recursive: true);
+        }
+    }
+
+    private static void CopySourceDirectory(string source, string target)
+    {
+        Directory.CreateDirectory(target);
+        foreach (var file in Directory.EnumerateFiles(source)) File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
+        foreach (var directory in Directory.EnumerateDirectories(source))
+            if (Path.GetFileName(directory) is not ("bin" or "obj"))
+                CopySourceDirectory(directory, Path.Combine(target, Path.GetFileName(directory)));
     }
 }
