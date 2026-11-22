@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -32,7 +33,7 @@ namespace TeaPremium.IntegrationTests;
 // T01–T27 are the owner's LOCAL test plan labels, not new acceptance criteria.
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1861", Justification = "Test-local input and expected arrays are intentionally independent.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707", Justification = "Preserve required BR-IAM identifiers in test names.")]
-public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixture<PlatformDatabaseFixture>
+public sealed class StaffIamTests(StaffIamHostFixture fixture) : IClassFixture<StaffIamHostFixture>
 {
     private const string Password = "Test-Only-Password-29!";
     private const string NewPassword = "Changed-Only-Password-47!";
@@ -42,7 +43,7 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
     [Fact]
     public async Task T01T02MigrationAndExactSeedsAreRepeatableAndRollbackPreservesPlatform()
     {
-        await using var h = await Harness.CreateAsync(fixture);
+        await using var h = await Harness.CreateAsync(fixture, designTimeModel: true);
         await using var scope = h.Factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.False(db.Database.HasPendingModelChanges());
@@ -627,50 +628,63 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
     private sealed class Harness : IAsyncDisposable
     {
         public const string OwnerEmail = "owner@example.test";
+        private readonly StaffIamHostFixture _fixture;
+        private readonly string _database;
+        private readonly bool _ownsFactory;
         public required WebApplicationFactory<Program> Factory { get; init; }
         public required HttpClient Client { get; init; }
         public required ManualTime Time { get; init; }
         public required SafeLogs Logs { get; init; }
         public required string CertificatePath { get; init; }
         public required string OwnerConnection { get; init; }
+        private Harness(StaffIamHostFixture fixture, string database, bool ownsFactory)
+        {
+            _fixture = fixture;
+            _database = database;
+            _ownsFactory = ownsFactory;
+        }
         public HttpClient NewClient() => Factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
 
-        public static async Task<Harness> CreateAsync(PlatformDatabaseFixture fixture, bool production = false, bool trustedProxy = false)
+        public static async Task<Harness> CreateAsync(StaffIamHostFixture fixture, bool production = false, bool trustedProxy = false, bool designTimeModel = false)
         {
             var database = "teapremium_test_iam_" + Guid.NewGuid().ToString("N");
-            var owner = await fixture.CreateDatabaseAsync(database);
+            var owner = await fixture.Database.CreateDatabaseAsync(database);
             var connection = DatabaseProvisioning.Login(owner, "tp_app");
             var time = new ManualTime();
             var logs = new SafeLogs();
-            var certificatePath = Path.Combine(Path.GetTempPath(), database + ".pfx");
-            using (var rsa = RSA.Create(2048))
+            var certificatePath = fixture.Database.CertificatePath;
+            WebApplicationFactory<Program> factory;
+            var ownsFactory = designTimeModel;
+            if (designTimeModel)
             {
-                var request = new CertificateRequest("CN=IAM test only", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                using var cert = request.CreateSelfSigned(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2040, 1, 1, 0, 0, 0, TimeSpan.Zero));
-                await File.WriteAllBytesAsync(certificatePath, cert.Export(X509ContentType.Pfx));
+                factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+                {
+                    builder.UseEnvironment(production ? "Production" : "Development");
+                    builder.ConfigureAppConfiguration((_, config) =>
+                    {
+                        var values = new Dictionary<string, string?>
+                        { ["ConnectionStrings:Default"] = connection, ["Iam:KeyCertificatePath"] = certificatePath, ["Iam:AdminHost"] = "localhost" };
+                        if (trustedProxy) values["Iam:TrustedProxies:0"] = "10.0.0.1";
+                        config.AddInMemoryCollection(values);
+                    });
+                    builder.ConfigureServices(services =>
+                    {
+                        services.RemoveAll<IHostedService>();
+                        services.Configure<PasswordHasherOptions>(o => o.IterationCount = 1_000);
+                        services.AddSingleton<TimeProvider>(time);
+                        services.AddSingleton<IClock>(time);
+                        services.AddSingleton<ILoggerProvider>(logs);
+                        services.AddAuthentication().AddCookie("CustomerCookie");
+                        if (trustedProxy) services.AddSingleton<IStartupFilter, TrustedProxyTransport>();
+                        services.AddSingleton<IStartupFilter, PermissionProbes>();
+                    });
+                });
             }
-            var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            else
             {
-                builder.UseEnvironment(production ? "Production" : "Development");
-                builder.ConfigureAppConfiguration((_, config) =>
-                {
-                    var values = new Dictionary<string, string?>
-                    { ["ConnectionStrings:Default"] = connection, ["Iam:KeyCertificatePath"] = certificatePath, ["Iam:AdminHost"] = "localhost" };
-                    if (trustedProxy) values["Iam:TrustedProxies:0"] = "10.0.0.1";
-                    config.AddInMemoryCollection(values);
-                });
-                builder.ConfigureServices(services =>
-                {
-                    services.RemoveAll<IHostedService>();
-                    services.AddSingleton<TimeProvider>(time);
-                    services.AddSingleton<IClock>(time);
-                    services.AddSingleton<ILoggerProvider>(logs);
-                    services.AddAuthentication().AddCookie("CustomerCookie");
-                    if (trustedProxy) services.AddSingleton<IStartupFilter, TrustedProxyTransport>();
-                    services.AddSingleton<IStartupFilter, PermissionProbes>();
-                });
-            });
-            return new Harness { Factory = factory, Client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false }), Time = time, Logs = logs, CertificatePath = certificatePath, OwnerConnection = owner };
+                factory = fixture.Acquire(production, trustedProxy, connection, time, logs);
+            }
+            return new Harness(fixture, database, ownsFactory) { Factory = factory, Client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false }), Time = time, Logs = logs, CertificatePath = certificatePath, OwnerConnection = owner };
         }
 
         public async Task<bool> BootstrapAsync(string email = OwnerEmail, string password = Password)
@@ -692,12 +706,12 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
         public async ValueTask DisposeAsync()
         {
             Client.Dispose();
-            await Factory.DisposeAsync();
-            File.Delete(CertificatePath);
+            if (_ownsFactory) await Factory.DisposeAsync();
+            await _fixture.Database.DropDatabaseAsync(_database);
         }
     }
 
-    private sealed class PermissionProbes : IStartupFilter
+    internal sealed class PermissionProbes : IStartupFilter
     {
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
         {
@@ -719,7 +733,7 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
         };
     }
 
-    private sealed class TrustedProxyTransport : IStartupFilter
+    internal sealed class TrustedProxyTransport : IStartupFilter
     {
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
         {
@@ -732,7 +746,7 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
         };
     }
 
-    private sealed class SafeLogs : ILoggerProvider
+    internal sealed class SafeLogs : ILoggerProvider
     {
         private readonly ConcurrentQueue<string> _lines = new();
         public string Text => string.Join('\n', _lines);
@@ -744,5 +758,119 @@ public sealed class StaffIamTests(PlatformDatabaseFixture fixture) : IClassFixtu
             public bool IsEnabled(LogLevel logLevel) => true;
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) => lines.Enqueue(formatter(state, exception));
         }
+    }
+}
+
+public sealed class StaffIamHostFixture : IAsyncLifetime
+{
+    private readonly Dictionary<(bool Production, bool TrustedProxy), CachedHost> _hosts = [];
+    private int _ipSequence;
+
+    public PlatformDatabaseFixture Database { get; } = new();
+
+    public Task InitializeAsync() => Database.InitializeAsync();
+
+    public async Task DisposeAsync()
+    {
+        foreach (var cached in _hosts.Values)
+            await cached.Factory.DisposeAsync();
+        await Database.DisposeAsync();
+    }
+
+    internal WebApplicationFactory<Program> Acquire(
+        bool production, bool trustedProxy, string connectionString, TimeProvider time, ILoggerProvider logs)
+    {
+        var seq = Interlocked.Increment(ref _ipSequence) - 1;
+        var last = (seq % 254) + 1;
+        var high = seq / 254;
+        var syntheticIp = new IPAddress([10, 200, (byte)(high & 0xFF), (byte)last]);
+        var key = (production, trustedProxy);
+        if (!_hosts.TryGetValue(key, out var cached))
+        {
+            var slot = new Slot(connectionString, time, logs, syntheticIp);
+            var certificatePath = Database.CertificatePath;
+            var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment(production ? "Production" : "Development");
+                builder.ConfigureAppConfiguration((_, config) =>
+                {
+                    var values = new Dictionary<string, string?>
+                    { ["ConnectionStrings:Default"] = connectionString, ["Iam:KeyCertificatePath"] = certificatePath, ["Iam:AdminHost"] = "localhost" };
+                    if (trustedProxy) values["Iam:TrustedProxies:0"] = "10.0.0.1";
+                    config.AddInMemoryCollection(values);
+                });
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IHostedService>();
+                    services.Configure<PasswordHasherOptions>(o => o.IterationCount = 1_000);
+                    services.AddDbContext<AppDbContext>(options =>
+                    {
+                        options.UseNpgsql(slot.ConnectionString);
+                        options.UseModel(SharedPostgresServer.SharedModel);
+                    });
+                    var clock = new DelegatingTime(slot);
+                    services.AddSingleton<TimeProvider>(clock);
+                    services.AddSingleton<IClock>(clock);
+                    services.AddSingleton<ILoggerProvider>(new DelegatingLogs(slot));
+                    services.AddAuthentication().AddCookie("CustomerCookie");
+                    if (trustedProxy) services.AddSingleton<IStartupFilter, StaffIamTests.TrustedProxyTransport>();
+                    else services.AddSingleton<IStartupFilter>(new SyntheticIpTransport(slot));
+                    services.AddSingleton<IStartupFilter, StaffIamTests.PermissionProbes>();
+                });
+            });
+            _ = factory.Server;
+            cached = new CachedHost(factory, slot);
+            _hosts[key] = cached;
+        }
+        else
+        {
+            cached.Slot.ConnectionString = connectionString;
+            cached.Slot.Time = time;
+            cached.Slot.Logs = logs;
+            cached.Slot.SyntheticIp = syntheticIp;
+        }
+        return cached.Factory;
+    }
+
+    private sealed record CachedHost(WebApplicationFactory<Program> Factory, Slot Slot);
+
+    private sealed class Slot(string connectionString, TimeProvider time, ILoggerProvider logs, IPAddress syntheticIp)
+    {
+        public string ConnectionString { get; set; } = connectionString;
+        public TimeProvider Time { get; set; } = time;
+        public ILoggerProvider Logs { get; set; } = logs;
+        public IPAddress SyntheticIp { get; set; } = syntheticIp;
+    }
+
+    private sealed class DelegatingTime(Slot slot) : TimeProvider, IClock
+    {
+        public override DateTimeOffset GetUtcNow() => slot.Time.GetUtcNow();
+        public DateTimeOffset UtcNow => slot.Time.GetUtcNow();
+    }
+
+    private sealed class DelegatingLogs(Slot slot) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new DelegatingLogger(slot, categoryName);
+        public void Dispose() { }
+        private sealed class DelegatingLogger(Slot slot, string categoryName) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => slot.Logs.CreateLogger(categoryName).BeginScope(state);
+            public bool IsEnabled(LogLevel logLevel) => slot.Logs.CreateLogger(categoryName).IsEnabled(logLevel);
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                => slot.Logs.CreateLogger(categoryName).Log(logLevel, eventId, state, exception, formatter);
+        }
+    }
+
+    private sealed class SyntheticIpTransport(Slot slot) : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, continuation) =>
+            {
+                context.Connection.RemoteIpAddress = slot.SyntheticIp;
+                return continuation(context);
+            });
+            next(app);
+        };
     }
 }

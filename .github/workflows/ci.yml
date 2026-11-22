@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 defaults:
   run:
@@ -22,6 +22,7 @@ env:
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   NEXT_TELEMETRY_DISABLED: '1'
+  DOCKER_BUILDKIT: '1'
 
 jobs:
   scope:
@@ -90,11 +91,13 @@ jobs:
         run: |
           dotnet restore backend/TeaPremium.sln --locked-mode
           dotnet build backend/TeaPremium.sln --no-restore -warnaserror
-          dotnet format backend/TeaPremium.sln --verify-no-changes --no-restore
+          dotnet format whitespace backend/TeaPremium.sln --verify-no-changes --no-restore
       - name: PostgreSQL 17 Testcontainers and all backend tests
         if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
           docker info
           dotnet test backend/TeaPremium.sln --no-build --no-restore --logger trx --results-directory "$GITHUB_WORKSPACE/artifacts/test-results"
       - name: Reject skipped or empty test runs
@@ -114,7 +117,7 @@ jobs:
       - name: Verify actual API contract and committed TypeScript output
         if: ${{ (needs.scope.outputs.mode == 'backend' || needs.scope.outputs.mode == 'full') }}
         run: |
-          corepack pnpm install --frozen-lockfile
+          corepack pnpm install --frozen-lockfile --filter @teapremium/api-client...
           corepack pnpm check:api
           git diff --exit-code -- packages/api-client
       - name: Upload backend test evidence

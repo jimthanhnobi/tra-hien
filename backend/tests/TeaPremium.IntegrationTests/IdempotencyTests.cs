@@ -31,8 +31,9 @@ using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.IntegrationTests;
 
-public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFixture<PlatformDatabaseFixture>
+public sealed class IdempotencyTests(IdempotencyHostFixture hostFixture) : IClassFixture<IdempotencyHostFixture>
 {
+    private readonly PlatformDatabaseFixture fixture = hostFixture.Database;
     [Fact]
     public async Task T01T02FirstAndReplayHaveIdenticalCommittedBytesAndAtomicAuditOutbox()
     {
@@ -106,8 +107,8 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
     public async Task T06TwoHostsTwentyConcurrentIdenticalRequestsHaveOneSideEffect()
     {
         var probe = new Probe { Pause = true };
-        using var factory1 = Factory(probe);
-        using var factory2 = Factory(probe);
+        using var factory1 = CreateDedicatedFactory(probe);
+        using var factory2 = CreateDedicatedFactory(probe);
         using var client1 = factory1.CreateClient();
         using var client2 = factory2.CreateClient();
         var key = Guid.NewGuid();
@@ -458,29 +459,19 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
         Assert.Equal(HttpStatusCode.NotFound, absent.StatusCode);
     }
 
-    private WebApplicationFactory<Program> Factory(Probe probe) => new WebApplicationFactory<Program>()
-        .WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["ConnectionStrings:Default"] = fixture.ConnectionString }));
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IHostedService>();
-                services.AddSingleton(probe);
-                services.AddSingleton<IClock>(probe.Clock);
-                services.AddSingleton<ILoggerProvider>(probe.Logs);
-                services.AddDbContext<AppDbContext>(options => options.AddInterceptors(new CommitFault(probe, fixture.ConnectionString)));
-                services.AddAuthentication("test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("test", _ => { });
-                services.AddAuthorization(options => options.AddPolicy("allowed", policy => policy.RequireAuthenticatedUser().RequireClaim("allowed", "yes")));
-                services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
-                services.AddSingleton<IStartupFilter, TestEndpoints>();
-            });
-        });
+    private IdempotencyHostFixture.HostHandle Factory(Probe probe) => hostFixture.Use(probe);
+
+    private WebApplicationFactory<Program> CreateDedicatedFactory(Probe probe) => IdempotencyHostFixture.BuildFactory(
+        fixture.ConnectionString,
+        () => probe,
+        new DelegatingClock(() => probe.Clock),
+        new DelegatingLoggerProvider(() => probe.Logs),
+        new CommitFault(() => probe, fixture.ConnectionString));
 
     private async Task WaitForLockWaiter()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        while (Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_stat_activity WHERE wait_event = 'advisory'"), CultureInfo.InvariantCulture) == 0)
+        while (Convert.ToInt32(await fixture.ScalarAsync("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'"), CultureInfo.InvariantCulture) == 0)
             await Task.Delay(20, timeout.Token);
     }
 
@@ -632,7 +623,7 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
         }
     }
 
-    private sealed class Probe
+    internal sealed class Probe
     {
         public string Prefix { get; } = "idem." + Guid.NewGuid().ToString("N") + ".";
         public int Executions;
@@ -652,17 +643,37 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
-    private sealed class TestClock : IClock
+    internal sealed class TestClock : IClock
     {
         public DateTimeOffset UtcNow { get; private set; } = new(2026, 11, 17, 9, 0, 0, TimeSpan.Zero);
         public void Advance(TimeSpan duration) => UtcNow += duration;
     }
 
-    private sealed class CommitFault(Probe probe, string connectionString) : DbTransactionInterceptor
+    internal sealed class DelegatingClock(Func<IClock> current) : IClock
+    {
+        public DateTimeOffset UtcNow => current().UtcNow;
+    }
+
+    internal sealed class DelegatingLoggerProvider(Func<ILoggerProvider> current) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new DelegatingLogger(current, categoryName);
+        public void Dispose() { }
+
+        private sealed class DelegatingLogger(Func<ILoggerProvider> current, string categoryName) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => current().CreateLogger(categoryName).BeginScope(state);
+            public bool IsEnabled(LogLevel logLevel) => current().CreateLogger(categoryName).IsEnabled(logLevel);
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+                => current().CreateLogger(categoryName).Log(logLevel, eventId, state, exception, formatter);
+        }
+    }
+
+    internal sealed class CommitFault(Func<Probe> getProbe, string connectionString) : DbTransactionInterceptor
     {
         public override async ValueTask<InterceptionResult> TransactionCommittingAsync(DbTransaction transaction,
             TransactionEventData eventData, InterceptionResult result, CancellationToken cancellationToken = default)
         {
+            var probe = getProbe();
             if (probe.CommitFailure == "before" && Interlocked.Exchange(ref probe.CommitFaultUsed, 1) == 0)
                 throw new InvalidOperationException("injected pre-commit failure");
             if (probe.CommitFailure == "disconnect" && Interlocked.Exchange(ref probe.CommitFaultUsed, 1) == 0)
@@ -679,13 +690,14 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
         public override Task TransactionCommittedAsync(DbTransaction transaction, TransactionEndEventData eventData,
             CancellationToken cancellationToken = default)
         {
+            var probe = getProbe();
             if (probe.CommitFailure == "after" && Interlocked.Exchange(ref probe.CommitFaultUsed, 1) == 0)
                 throw new InvalidOperationException("injected lost commit acknowledgement");
             return Task.CompletedTask;
         }
     }
 
-    private sealed class TestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> options,
+    internal sealed class TestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger, System.Text.Encodings.Web.UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
@@ -699,7 +711,7 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
         }
     }
 
-    private sealed class LogCapture : ILoggerProvider
+    internal sealed class LogCapture : ILoggerProvider
     {
         public System.Collections.Concurrent.ConcurrentQueue<string> Messages { get; } = new();
         public ILogger CreateLogger(string categoryName) => new Capture(Messages);
@@ -711,5 +723,74 @@ public sealed class IdempotencyTests(PlatformDatabaseFixture fixture) : IClassFi
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
                 => messages.Enqueue(formatter(state, exception) + exception?.ToString());
         }
+    }
+
+    internal static IStartupFilter CreateTestEndpoints() => new TestEndpoints();
+}
+
+public sealed class IdempotencyHostFixture : IAsyncLifetime
+{
+    private WebApplicationFactory<Program> _factory = null!;
+    private IdempotencyTests.Probe _current = new();
+
+    public PlatformDatabaseFixture Database { get; } = new();
+
+    public async Task InitializeAsync()
+    {
+        await Database.InitializeAsync();
+        _factory = BuildFactory(
+            Database.ConnectionString,
+            () => _current,
+            new IdempotencyTests.DelegatingClock(() => _current.Clock),
+            new IdempotencyTests.DelegatingLoggerProvider(() => _current.Logs),
+            new IdempotencyTests.CommitFault(() => _current, Database.ConnectionString));
+        _ = _factory.Server;
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _factory.DisposeAsync();
+        await Database.DisposeAsync();
+    }
+
+    internal HostHandle Use(IdempotencyTests.Probe probe)
+    {
+        _current = probe;
+        return new HostHandle(_factory);
+    }
+
+    internal static WebApplicationFactory<Program> BuildFactory(
+        string connectionString,
+        Func<IdempotencyTests.Probe> getProbe,
+        IClock clock,
+        ILoggerProvider loggerProvider,
+        DbTransactionInterceptor interceptor) => new WebApplicationFactory<Program>()
+        .WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Test");
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["ConnectionStrings:Default"] = connectionString }));
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IHostedService>();
+                services.AddScoped(_ => getProbe());
+                services.AddSingleton(clock);
+                services.AddSingleton(loggerProvider);
+                services.AddDbContext<AppDbContext>(options => options
+                    .UseModel(SharedPostgresServer.SharedModel)
+                    .AddInterceptors(interceptor));
+                services.AddAuthentication("test").AddScheme<AuthenticationSchemeOptions, IdempotencyTests.TestAuthentication>("test", _ => { });
+                services.AddAuthorization(options => options.AddPolicy("allowed", policy => policy.RequireAuthenticatedUser().RequireClaim("allowed", "yes")));
+                services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+                services.AddSingleton(IdempotencyTests.CreateTestEndpoints());
+            });
+        });
+
+    internal sealed class HostHandle(WebApplicationFactory<Program> factory) : IDisposable
+    {
+        public IServiceProvider Services => factory.Services;
+        public HttpClient CreateClient() => factory.CreateClient();
+        public HttpClient CreateClient(WebApplicationFactoryClientOptions options) => factory.CreateClient(options);
+        public void Dispose() { }
     }
 }

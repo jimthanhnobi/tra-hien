@@ -19,6 +19,12 @@ internal static class DatabaseProvisioning
         .WithEnvironment("TP_READONLY_PASSWORD", Password)
         .WithResourceMapping(Artifacts + "/", "/opt/teapremium/");
 
+    internal static PostgreSqlBuilder FastBuilder() => Builder()
+        .WithCommand(
+            "-c", "fsync=off",
+            "-c", "synchronous_commit=off",
+            "-c", "full_page_writes=off");
+
     internal static async Task ProvisionAsync(PostgreSqlContainer container, string database)
     {
         var result = await container.ExecAsync(["env", "TP_DATABASE=" + database, "sh", "/opt/teapremium/init-roles.sh"]);
