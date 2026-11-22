@@ -1,63 +1,40 @@
-# Trà Hiên V2 - Instructions for Codex and other coding agents
+# Trà Hiên V2 — rules for coding agents (Codex and Antigravity)
 
-## Mission
-Rebuild Trà Hiên V2 based on user-provided Markdown specifications. The old implementations are NOT a source of requirements. Work as a careful engineer: inspect, plan, implement, prove, and review.
+Rebuild Trà Hiên V2 (TeaPremium) strictly from the committed specs. Old Trà Hiên code is context, never a requirement. Work as a careful engineer: inspect, plan, implement, prove, get independent review. Write working reports and issue comments in Vietnamese; keep identifiers and code idioms in their normal technical language.
 
 ## Sources and precedence
-1. The committed **TeaPremium v2** specification set under `docs/spec/` is the source of truth: `00-README.md`, `01`–`09` Markdown, and `schema.sql`. Read `00-README.md` for terminology, spec IDs, and `DEC-*` decisions.
-2. For SEO, `09-seo.md` takes precedence over conflicting SEO guidance elsewhere (DEC-21). For schema shape, `schema.sql` is the DDL target; reconcile its meaning with `03-database.md` and domain rules.
-3. Existing spec IDs `FR-*`, `BR-*`, `NFR-*`, `AC-*`, `DEC-*` and task IDs `P0-01`…`P6-*` must be reused. Do NOT invent a parallel `REQ-###` scheme or new roadmap.
-4. `docs/analysis/`, `docs/architecture/`, `docs/plans/`, and `docs/decisions/` contain audit notes, review proposals or separately approved amendments; they do not silently override `docs/spec/`.
-5. Existing code and old Trà Hiên implementations are context only, never source requirements.
+1. `docs/spec/` is the only authority: `00-README.md` (terms, IDs, `DEC-*`), `01`–`09` Markdown and `schema.sql`. SEO: `09-seo.md` wins (DEC-21). DB shape: `schema.sql`, reconciled with `03-database.md` and the business rules.
+2. Reuse `FR-*`, `BR-*`, `NFR-*`, `AC-*`, `DEC-*` and roadmap IDs `P0-01`…`P6-*`. Never invent `REQ-###`, `TASK-XXX` or a second roadmap.
+3. `docs/analysis/`, `docs/architecture/`, `docs/plans/`, `docs/decisions/` and `docs/reviews/` hold audits, evidence, proposals and separately approved amendments; they never silently override `docs/spec/`.
+4. When specs disagree, never choose silently: record exact file, heading and statements in a gap entry and ask. A need that cannot be tied to a spec is an `ASSUMPTION` needing a decision, not a feature.
+5. Never edit `docs/spec/` without explicit owner direction; propose corrections as gap entries with file/line and options. `08-chatgpt-playbook.md` is legacy collaboration guidance.
 
-If two specifications disagree, DO NOT choose one silently. Report the exact file, heading, and conflicting statements in a gap register. Do not treat this README or older Trà Hiên code as authority for new features.
+## Gates (procedures live in the skills and `docs/WORKFLOW.md`)
+- **G0** Verify repo state, base (`origin/main`), spec version and task scope. Do not assume claims in generated specs were executed or legally verified.
+- **G1** `spec-audit`: FULL at baseline or broad spec change (keep inventory/gaps/traceability with the audited SHA); otherwise TARGETED against the audited SHA for the task; rerun FULL if the baseline is missing or the impact is broad. **G2** `architecture-plan`: full at baseline or material design change; otherwise a scoped check against approved records. Before the first implementation task, and whenever G1/G2 evidence is missing, establish the baselines first. Never skip silently, never build an alternate roadmap, never let unrelated later-phase questions block current work; flag evidence-backed architecture changes for owner approval.
+- **G3** `implementation-slice`: ONE owner-approved `P*-*` task per dedicated worktree and branch, with tests and migration/rollback where applicable. Stop at `READY_FOR_LOCAL_G4`. No commit, push or PR before G4 PASS and explicit owner permission.
+- **G4** `review-gate`: a fresh, independent session (preferably another model vendor) reads the SAME worktree — committed, staged, unstaged and untracked — against `origin/main`, FR/BR/AC, specs and tests, and distinguishes VERIFIED from NOT RUN. Read-only (no edits, commits, push, approval or merge); verdict PASS / CONDITIONAL / BLOCK, bound to the candidate's content manifest. Implementer self-review never counts. If the worktree is not readable, report NOT RUN and request an owner-authorized reviewable snapshot.
+- **Tiers (A01):** A = migration/DDL/grants, money, inventory, auth/permissions/CSRF/PII, public checkout, index/canonical/sitemap; mixed scope is A. B = Admin UI on reviewed APIs, CRUD without money/stock/PII, documentation, behavior-preserving refactors. Both need independent G4, full change-set review, owner publish permission and CI at the published HEAD; B only shortens reporting. Never omit evidence to meet a page target.
+- **Publish** `publish-pr`: only after G4 PASS and the owner's explicit instruction; one PR per task; verify GitHub Actions at the published SHA; fix CI failures with focused re-review. The owner merges unless they delegate that specific merge. If `origin/main` moved: `base-integration`, then focused G4.
 
-## Hard gates
-- G0: V2 spec is present. Verify version, scope, and input commit; do not assume all external claims in generated specs have been executed or legally verified.
-- G1: At initial baseline or material spec changes, run a full `$spec-audit` of all specs (including `00-README.md` and `schema.sql`) and retain inventory/gaps/traceability with audited SHA. For later tasks, verify current spec revision/diff against that baseline and audit the task-relevant requirements, dependencies and gaps; rerun full audit if baseline is missing or changes have broad impact. Never silently skip G1 or change authoritative specs automatically.
-- G2: Establish architecture conformance using `$architecture-plan` at baseline or after a material design change. For each later task, validate scoped feasibility, decisions and dependencies against the approved architecture and existing G2 evidence; do not repeat whole-project planning when unchanged. Never create an alternate roadmap or treat unrelated Q1–Q8 decisions as blockers. Flag evidence-backed architecture changes for owner approval.
-- G3: Execute ONE user-approved `P*-*` task at a time with `$implementation-slice` on a local feature branch; include tests and migrations where applicable. By default stop with a local handoff: **do not commit, push, or open a PR** before independent G4 and explicit owner publish permission. The main Codex thread may implement directly; a subagent is optional, not a default requirement.
-- G4: Review independently using `$review-gate` in a fresh reviewer context/session separate from implementation. Inspect the full local change set against `origin/main` (committed, staged, unstaged **and untracked** files); compare with FR/BR/AC and tests, distinguish verified from not run. A fresh session must read the **same worktree**; otherwise request an owner-authorized reviewable snapshot instead of claiming local review. Read-only: no edits, commits, push, approval, or merge.
-- Review depth A/B (A01 owner-approved): A = migration/DDL/grants, money, inventory, auth/permissions/CSRF/PII, public checkout, index/canonical/sitemap. B = Admin UI on reviewed APIs, CRUD without money/stock/PII, documentation, behavior-preserving refactors. Mixed scope is A. Both require the same independent G4, full committed/staged/unstaged/untracked review, owner publish permission and CI at published HEAD; B only shortens reporting. Target 1–2 pages when sufficient, never omit evidence to meet a page limit.
-- Publish: only after G4 PASS and the owner's explicit instruction, commit/push to the feature branch and open/update its PR. Verify GitHub Actions at the **published head SHA**. Fix CI failures with focused re-review when needed. The owner merges manually unless they expressly delegate that specific merge.
-
-## Codex orchestration and token discipline
-- Default to one Codex main thread executing the appropriate project skill. Invoking a skill does not require spawning its namesake subagent.
-- Spawn `spec_analyst` or `planner` only for a real unresolved task-relevant gap, and `implementer` only for a bounded independent workstream. One agent owns each writable file; do not let agents edit the same files concurrently.
-- For G4, use a fresh review session or genuinely independent reviewer; do not accept an implementer's self-review as independent approval.
-- Reuse verified G1/G2 records and read affected spec sections, existing code and diffs. Reread the whole specification only when doing a full audit or when changes require it; report the audited SHA and coverage.
-- Keep handoffs concise: task ID, base/head SHA, scoped paths, acceptance/tests, exact commands and results, blockers. G3 hands off `READY_FOR_LOCAL_G4` (not `READY_FOR_PUSH`); G4 reports PASS/BLOCK; publishing requires owner authorization. Avoid repetitive copied source/spec text.
-- The configured agent concurrency limit is a maximum, not a target. Do not launch parallel agents merely to use available slots.
-
-## Coding rules
-- Before edits: read specs applicable to the task, existing decisions, and relevant code/tests.
-- In every task record: existing `P*-*` ID; linked FR/BR/NFR/AC/DEC IDs; scope; source paths/lines; dependencies; failure cases; tests; migration and rollback.
-- If a requirement cannot be tied to a spec, label it `ASSUMPTION` and request a decision; do not add it as a product feature.
-- Prefer minimal changes; no speculative framework, microservice, queue, CMS, vendor, or data model.
-- Protect secrets and PII. Never commit .env, tokens, real customer datasets, credentials, DB backups.
-- Validate untrusted input; least privilege; protect admin operations; sanitize rich content when relevant; raise applicable Vietnamese privacy/e-commerce/legal questions for professional verification, do not invent compliance conclusions.
-- When specs require SEO, check crawlability, canonical URL, metadata, redirects, sitemap, structured data, indexability, and SSR behavior in tests.
-- DB changes require forward migration and rollback or recovery plan; never execute destructive changes against real data.
-- Avoid breaking external APIs, auth flows, and analytics measurement.
-- Use tests before claiming behavior works. Never fabricate logs, performance, review approval, or coverage.
-- No changes to `docs/spec/` without explicit user direction. Propose corrections as issue/gap entries with exact file/line and options. Treat `08-chatgpt-playbook.md` as legacy AI collaboration guidance: in Codex edit files directly; do not paste full file bodies into chat unless requested.
-- On task completion report changed files, tests with exact command/result, known gaps, risk, next safe step.
-
-## Skill routing
-- Read / audit a batch of requirements: `.agents/skills/spec-audit/SKILL.md`
-- Evaluate architecture and write phased tasks: `.agents/skills/architecture-plan/SKILL.md`
-- Write a scoped feature with tests: `.agents/skills/implementation-slice/SKILL.md`
-- Audit implementation and PR evidence: `.agents/skills/review-gate/SKILL.md`
+## Engineering rules
+- Before edits, read the task's specs, decisions, code and tests. Each task record (`docs/plans/task-template.md`) lists the `P*-*` ID, linked FR/BR/NFR/AC/DEC, scope, source paths/lines, dependencies, failure cases, tests, migration and rollback.
+- Minimal changes; no speculative framework, microservice, queue, CMS, vendor or data model.
+- Validate untrusted input, least privilege, protect admin operations, sanitize rich content. Raise Vietnamese privacy/e-commerce/legal questions for professional verification; never invent compliance conclusions.
+- SEO work: test crawlability, canonical URL, metadata, redirects, sitemap, structured data, indexability and SSR.
+- DB changes: forward migration plus rollback or recovery plan; never destructive changes against real data; never run against production.
+- Do not break external APIs, auth flows or analytics measurement.
+- Protect secrets and PII everywhere: code, logs, audit, fixtures, test data, artifacts, prompts and chat. Never commit `.env`, tokens, credentials, real customer datasets or DB backups. Never fabricate logs, test results, coverage, performance or review approval; claim behavior only with tests.
+- Edit repository files directly with the tool; do not paste full file bodies into chat unless asked.
+- On completion report changed files, exact commands and results, NOT RUN items, known gaps, risk and the next safe step.
 
 ## Review severity
-- P0: data loss, secret exposure, privilege bypass, clearly unsafe operation.
-- P1: broken required business behavior, schema integrity, security defects, missing critical tests.
-- P2: maintainability, edge case, test quality, observability, performance, accessibility.
-- P3: cosmetic or optional improvement.
-Findings must cite paths/lines, reproduction, consequence, and practical fix. Do not bury blockers under praise.
+P0 data loss, secret exposure, privilege bypass, clearly unsafe operation · P1 broken required behavior, schema integrity, security defect, missing critical test · P2 maintainability, edge case, test quality, observability, performance, accessibility · P3 cosmetic or optional. Findings cite path:line, reproduction, consequence and a practical fix; never bury blockers under praise.
 
-## Operating language
-Use Vietnamese in working reports and issue comments. Keep identifiers and code idioms in their normal technical language.
-
-## First-run and continuing workflow
-Read `docs/WORKFLOW.md` and `docs/CODEX_USAGE.md`. Before the first implementation task, establish G1/G2 baselines. For later tasks, verify those baselines against current specs and perform a task-scoped readiness check. Keep unrelated later-phase decisions from stalling current work.
+## Tools, orchestration and tokens
+- Skills in `.agents/skills/` are shared by Codex (`$name`) and Antigravity (skill name or path): `spec-audit`, `architecture-plan`, `implementation-slice`, `review-gate`, `base-integration`, `publish-pr`.
+- One main thread per task; invoking a skill does not require a subagent. Use subagents only for a real task-relevant gap or an independent workstream with exclusive file ownership; concurrency limits are ceilings, not targets.
+- Codex and Antigravity may run in parallel only in different worktrees (`scripts/new-task-worktree.ps1`): one writer tool per worktree; G4 reads it read-only.
+- Verification and API generation run through `scripts/verify-linux.ps1` (Windows blocks the OpenAPI generator); candidate content is fingerprinted with `scripts/candidate-manifest.ps1` for both tiers.
+- Reuse verified G1/G2 records after checking the spec diff; reread the whole spec only for a full audit. Handoffs stay short (task ID, SHAs, paths, tests, blockers); never paste whole spec or source files unless asked.
+- First run and every new session: read `docs/WORKFLOW.md` and `docs/CODEX_USAGE.md` (process and prompts for Codex and Antigravity) before starting a gate.

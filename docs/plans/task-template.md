@@ -1,17 +1,17 @@
 # Task record template — authoritative roadmap IDs only
 
-> Supporting task record, not a new backlog. Use existing `P*-*` IDs in `docs/spec/07-roadmap.md` and original FR/BR/NFR/AC/DEC IDs. Never create `TASK-XXX` or `REQ-###`.
+> Supporting record, not a new backlog. Use existing `P*-*` IDs from `docs/spec/07-roadmap.md` and original FR/BR/NFR/AC/DEC IDs. Never create `TASK-XXX` or `REQ-###`. Target length: Tier A ≤ 2 pages, Tier B ≤ 1 page. Link logs under `artifacts/verify-linux/` instead of pasting output; never cut acceptance, security or test evidence to fit.
 
-## P*-*: <Existing title from 07-roadmap>
-- **Gate/status:** PROPOSED | G1/G2 GO | G3 IN PROGRESS | G4 PASS/CONDITIONAL/BLOCK.
-- **Baseline:** `origin/main` SHA; audited spec SHA/diff.
-- **Source/traceability:** relevant `docs/spec/...` headings and `FR-*`, `BR-*`, `NFR-*`, `AC-*`, `DEC-*`.
-- **Dependencies:** existing P task IDs and verification evidence.
-- **Current coverage:** source/tests to reuse and precise gaps.
-- **Scope / out of scope:** affected files and excluded work.
-- **Acceptance criteria:** Given/When/Then mapped to official specs; local IDs clearly non-authoritative.
-- **Cases:** happy, bad, boundary, abuse, permission, concurrency as applicable.
-- **Tests/evidence:** commands, PASS/FAIL/NOT RUN, environment, proof.
-- **Migration/recovery:** impacts, rollback and operational safety.
-- **Observability/security/privacy:** task-relevant risks.
-- **Publish gate:** changed files, commit/PR, G4 verdict/findings, owner merge.
+## P*-*: <existing title from 07-roadmap>
+
+- **Gate/status:** G3 IN PROGRESS | READY_FOR_LOCAL_G4 | G4 PASS/CONDITIONAL/BLOCK | PUBLISHED.
+- **Tier:** A | B, with reason.
+- **Worktree/base:** path, branch, `origin/main` SHA.
+- **Readiness (scoped G1/G2):** audited spec SHA and approved G2 record used (or the baseline gate that was run first), spec diff since that SHA, dependencies merged, contracts confirmed, or GAP with file:line and the owner decision.
+- **Traceability:** `docs/spec/...` paths/lines and headings, and `FR-*`, `BR-*`, `NFR-*`, `AC-*`, `DEC-*` → files/tests.
+- **Scope / out of scope:** what changed and what belongs to later tasks.
+- **Cases:** happy, bad, boundary, permission, concurrency, abuse (as applicable) → test names.
+- **Migration/recovery:** none, or migration ID, Down/recovery, grants, data impact.
+- **Verification:** exact commands → PASS/FAIL counts, 0 skipped, log paths; NOT RUN with reason.
+- **Risks/follow-ups:** residual risk, hand-offs to later `P*-*` tasks.
+- **Review/publish:** candidate manifest SHA-256 (both tiers); G4 reviewer tool/model + verdict + findings closed; PR/commit and CI at the published SHA (filled by `publish-pr`).

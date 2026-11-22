@@ -24,7 +24,7 @@ For the P0-02 four-service local development setup, see [infra/README.md](infra/
 - `docs/architecture/`: architecture proposals and decisions
 - `docs/plans/`: phased implementation plans and tasks
 - `docs/reviews/`: review findings and proof of verification
-- `.agents/skills/`: Trà Hiên-specific Codex skills
+- `.agents/skills/`: Trà Hiên-specific agent skills shared by Codex and Antigravity
 - `.github/`: optional PR/issue templates (no repository-guard Actions job)
 
 ## External tooling
@@ -44,9 +44,12 @@ See [docs/WORKFLOW.md](docs/WORKFLOW.md) for exact operating steps.
 
 ## CI và sinh hợp đồng API (P0-11)
 
-CI chạy trên PR vào `main`, push `main` và `feature/**`. Ba status check là
-`Backend and API contract`, `Frontend verification`, `Docker regression builds`.
+CI chạy trên PR vào `main` và push `main`. Job `Classify changes and validate docs`
+quyết định phạm vi; ba status check bắt buộc là `Backend and API contract`,
+`Frontend verification`, `Docker regression builds`.
 Docker phải hoạt động để chạy fixture Testcontainers PostgreSQL 17 hiện có.
+Trên Windows, chạy kiểm chứng giống CI và sinh contract qua `./scripts/verify-linux.ps1`
+(xem [docs/CODEX_USAGE.md](docs/CODEX_USAGE.md) §5).
 
 Từ root, dùng SDK trong `global.json`, Node 22.22.2 và pnpm trong `packageManager`:
 

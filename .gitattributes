@@ -15,5 +15,6 @@
 /docs/plans/p0-01-implementation.md text eol=lf
 /.dockerignore text eol=lf
 /infra/** text=auto eol=lf
+/scripts/*.sh text eol=lf
 /docs/plans/p0-02-implementation.md text eol=lf
 /backend/tests/TeaPremium.IntegrationTests/Fixtures/v5.2.0/*.gz binary
