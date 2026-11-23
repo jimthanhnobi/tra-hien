@@ -643,7 +643,11 @@ VALUES ('{{Guid.CreateVersion7()}}','InventoryAlert','{"kind":"low_stock","varia
             .OrderBy(x => x.Id)
             .Select(x => x.Payload)
             .ToArrayAsync();
-        return payloads.Select(p => { Assert.True(InventoryAlert.TryParse(p, out var parsed)); return parsed; }).ToArray();
+        return payloads
+            .Select(p => { Assert.True(InventoryAlert.TryParse(p, out var parsed)); return parsed; })
+            .OrderBy(x => x.VariantId)
+            .ThenBy(x => x.Kind, StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static async Task<Guid[]> PendingAlertIds(ProductHarness h)
