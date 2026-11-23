@@ -18,15 +18,38 @@ public sealed record InventoryMovementView(Guid Id, string MovementType, int Qua
     string? RefType, Guid? RefId, string? Reason, string ActorType, Guid? ActorId, DateTime OccurredAt, DateTime CreatedAt,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? UnitCostVnd = null);
 
+[JsonNumberHandling(JsonNumberHandling.Strict)]
+public sealed record LowStockAlertItem(Guid VariantId, Guid ProductId, string ProductName,
+    string? VariantName, string Sku, int OnHand, int Reserved, int Available, int LowStockThreshold);
+
+[JsonNumberHandling(JsonNumberHandling.Strict)]
+public sealed record InventoryMismatchItem(Guid VariantId, Guid ProductId, string ProductName,
+    string? VariantName, string Sku, bool HasStockLevel, int OnHand, long LedgerQuantity, long Delta);
+
+[JsonNumberHandling(JsonNumberHandling.Strict)]
+public sealed record InventoryAlertsView(DateTime CheckedAt, long DeadAlertOutboxCount,
+    long LowStockTotal, IReadOnlyList<LowStockAlertItem> LowStockItems,
+    long MismatchTotal, IReadOnlyList<InventoryMismatchItem> Mismatches);
+
 public sealed record ListInventory(int Page, int PageSize, string? Q, string? Status, Guid? Type, bool Detailed, bool Costs)
     : IQuery<CatalogPage<InventoryStockView>>;
 public sealed record ListMovements(Guid VariantId, int Page, int PageSize, string? Type, DateTime? From, DateTime? To, bool Costs)
     : IQuery<CatalogPage<InventoryMovementView>>;
+public sealed record GetInventoryAlerts(int Limit) : IQuery<InventoryAlertsView>;
 
 public interface IInventoryQueries
 {
     Task<CatalogPage<InventoryStockView>> ListAsync(ListInventory query, CancellationToken ct);
     Task<CatalogPage<InventoryMovementView>?> MovementsAsync(ListMovements query, CancellationToken ct);
+    Task<InventoryAlertsView> AlertsAsync(GetInventoryAlerts query, CancellationToken ct);
+}
+
+public sealed class GetInventoryAlertsValidator : AbstractValidator<GetInventoryAlerts>
+{
+    public GetInventoryAlertsValidator()
+    {
+        RuleFor(x => x.Limit).InclusiveBetween(1, 100);
+    }
 }
 
 public sealed class ListInventoryValidator : AbstractValidator<ListInventory>
@@ -70,4 +93,10 @@ public sealed class ListMovementsHandler(IInventoryQueries queries) : IQueryHand
             ? Result.Failure<CatalogPage<InventoryMovementView>>(new("not_found", "Không tìm thấy biến thể.", ErrorType.NotFound))
             : Result.Success(page);
     }
+}
+
+public sealed class GetInventoryAlertsHandler(IInventoryQueries queries) : IQueryHandler<GetInventoryAlerts, InventoryAlertsView>
+{
+    public async Task<Result<InventoryAlertsView>> Handle(GetInventoryAlerts query, CancellationToken cancellationToken) =>
+        Result.Success(await queries.AlertsAsync(query, cancellationToken));
 }

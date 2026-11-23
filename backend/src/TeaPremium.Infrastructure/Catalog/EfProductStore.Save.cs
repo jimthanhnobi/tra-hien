@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using TeaPremium.Application.Catalog;
+using TeaPremium.Application.Inventory;
 using TeaPremium.Application.Results;
 using TeaPremium.Domain.Catalog;
+using TeaPremium.Domain.Inventory;
 using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.Infrastructure.Catalog;
@@ -45,9 +47,11 @@ public sealed partial class EfProductStore
         if (create) db.Add(row); else db.Entry(row).Property(x => x.UpdatedAt).IsModified = true;
         await Flush(ct); // parent must exist before a default variant can be allocated
         var variants = create ? p.Variants.AsEnumerable() : p.Variants.OrderBy(x => x.Id);
+        var touchedVariants = new List<VariantData>();
         foreach (var v in variants)
         {
             var existing = await db.Set<Variant>().SingleOrDefaultAsync(x => x.Id == v.Id && x.ProductId == p.Id, ct);
+            var isNewVariant = existing is null;
             if (existing is null)
             {
                 existing = new Variant { Id = v.Id, ProductId = p.Id, CreatedAt = p.UpdatedAt };
@@ -74,8 +78,11 @@ public sealed partial class EfProductStore
             { Copy(v, existing); }
             await Values(p.Id, v, ct);
             db.ChangeTracker.DetectChanges();
-            if (db.Entry(existing).State == EntityState.Modified || db.ChangeTracker.Entries<VariantAttributeValue>().Any(x => x.Entity.VariantId == v.Id && x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            var variantModified = db.Entry(existing).State == EntityState.Modified || db.ChangeTracker.Entries<VariantAttributeValue>().Any(x => x.Entity.VariantId == v.Id && x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
+            if (variantModified)
             { existing.UpdatedAt = p.UpdatedAt; db.Entry(existing).Property(x => x.UpdatedAt).IsModified = true; }
+            if (isNewVariant || variantModified)
+                touchedVariants.Add(v);
         }
         await Values(p.Id, null, ct, p.Attributes);
         var categories = await db.Set<ProductCategory>().Where(x => x.ProductId == p.Id).ToArrayAsync(ct);
@@ -100,6 +107,18 @@ public sealed partial class EfProductStore
         }
         audit.Record(before, p, noindexReason);
         ProductInvalidation.Enqueue(outbox, p.Slug, categorySlugs, before?.Slug);
+        if (touchedVariants.Count > 0)
+        {
+            var availableByVariant = await inventory.AvailableAsync(touchedVariants.Select(x => x.Id).ToArray(), ct);
+            foreach (var v in touchedVariants.OrderBy(x => x.Id))
+            {
+                var key = InventoryAlert.LowStockDeduplicationKey(v.Id);
+                if (StockRules.IsLowStock(availableByVariant.GetValueOrDefault(v.Id, 0), v.LowStockThreshold))
+                    outbox.Enqueue(InventoryAlert.Message, InventoryAlert.Serialize(new(InventoryAlert.LowStock, v.Id)), key);
+                else
+                    outbox.ClearDeduplicated(key);
+            }
+        }
         await Flush(ct);
         // Reuse exactly the canonical consumer's SQL, synchronously in the write UoW. Rename producers remain outbox based.
         await RebuildProductSearchTextHandler.RebuildAsync(db, [p.Id], ct);

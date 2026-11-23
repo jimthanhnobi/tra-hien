@@ -25,6 +25,9 @@ public static class InventoryEndpoints
         group.MapGet("", ListAsync).RequireAuthorization("inventory.read")
             .WithDescription("Restricted readers receive only binary availability and cannot use status=low. Cost fields require costs.read.")
             .Produces<CatalogPage<InventoryStockView>>().ProducesProblem(400).ProducesProblem(401).ProducesProblem(403);
+        group.MapGet("/alerts", AlertsAsync).RequireAuthorization("inventory.read", "inventory.write")
+            .WithDescription("Current low-stock variants, ledger reconciliation mismatches, and dead InventoryAlert outbox count. Never includes cost fields.")
+            .Produces<InventoryAlertsView>().ProducesProblem(400).ProducesProblem(401).ProducesProblem(403);
         group.MapGet("/{variantId:guid}/movements", MovementsAsync).RequireAuthorization("inventory.read", "inventory.write")
             .WithDescription("Filter occurredAt from (inclusive) to (exclusive), using offset timestamps or Vietnam dates (yyyy-MM-dd).")
             .Produces<CatalogPage<InventoryMovementView>>().ProducesProblem(400).ProducesProblem(401).ProducesProblem(403).ProducesProblem(404);
@@ -69,6 +72,13 @@ public static class InventoryEndpoints
         CancellationToken ct, int page = 1, int pageSize = 20, string? q = null, string? status = null, Guid? type = null)
     {
         var result = await handler.Handle(new(page, pageSize, q, status, type, Has(http, "inventory.write"), Has(http, "costs.read")), ct);
+        return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem(http);
+    }
+
+    private static async Task<IResult> AlertsAsync(HttpContext http, IQueryHandler<GetInventoryAlerts, InventoryAlertsView> handler,
+        CancellationToken ct, int limit = 50)
+    {
+        var result = await handler.Handle(new(limit), ct);
         return result.IsSuccess ? Results.Ok(result.Value) : result.Error.ToProblem(http);
     }
 

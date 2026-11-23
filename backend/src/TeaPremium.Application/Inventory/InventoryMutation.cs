@@ -5,7 +5,7 @@ using TeaPremium.Domain.Inventory;
 
 namespace TeaPremium.Application.Inventory;
 
-public sealed record InventoryVariant(Guid Id, Guid ProductId, string Sku, string ProductSlug, bool IsUniquePiece);
+public sealed record InventoryVariant(Guid Id, Guid ProductId, string Sku, string ProductSlug, bool IsUniquePiece, int LowStockThreshold = 0);
 public sealed record InventoryPosition(InventoryVariant Variant, StockBalance Balance, bool HasMovements);
 public sealed class StockPosting
 {
@@ -51,5 +51,15 @@ public sealed class InventoryMutation(IInventoryStockStore store, IOutboxWriter 
         // Existing handler accepts at most 200 tags, including "catalog".
         foreach (var batch in tags.Chunk(199))
             outbox.Enqueue(StorefrontInvalidate.Message, JsonSerializer.Serialize(new StorefrontInvalidate([.. batch, "catalog"])));
+
+        foreach (var final in postings.GroupBy(x => x.Position.Variant.Id).OrderBy(x => x.Key).Select(x => x.Last()))
+        {
+            var variant = final.Position.Variant;
+            var key = InventoryAlert.LowStockDeduplicationKey(variant.Id);
+            if (StockRules.IsLowStock(final.BalanceAfter.Available, variant.LowStockThreshold))
+                outbox.Enqueue(InventoryAlert.Message, InventoryAlert.Serialize(new(InventoryAlert.LowStock, variant.Id)), key);
+            else
+                outbox.ClearDeduplicated(key);
+        }
     }
 }

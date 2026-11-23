@@ -10,6 +10,9 @@ public sealed record StockChange(string Type, int Quantity, long? UnitCostVnd, s
 
 public static class StockRules
 {
+    public static bool IsLowStock(int available, int lowStockThreshold) =>
+        lowStockThreshold > 0 && available <= lowStockThreshold;
+
     public static bool IsMovementType(string type) => type is "opening" or "receipt" or "sale" or "return_restock"
         or "adjustment" or "stocktake" or "damage" or "replacement_out";
 
