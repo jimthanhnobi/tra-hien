@@ -8,10 +8,12 @@ public sealed class CatalogInventoryParityTests(CatalogInventoryFixture fixture)
 {
     private const string Scope = "('media','catalog','inventory','pricing','content')";
 
+    private const string P1Head = "202611191437_P1_04_TaxonomyPublicationHistory";
+
     [Fact]
     public async Task EveryColumnConstraintIndexForeignKeyAndSequenceMatchesApprovedDdl()
     {
-        var actual = await fixture.DatabaseAsync();
+        var actual = await fixture.DatabaseAsync(target: P1Head);
         var reference = await ReferenceAsync();
         var (expected, names) = await ExpectedAsync(actual, reference);
         Assert.Equal(expected, await CatalogAsync(actual));
@@ -29,7 +31,7 @@ public sealed class CatalogInventoryParityTests(CatalogInventoryFixture fixture)
     [InlineData("ALTER TABLE pricing.sale_prices DROP CONSTRAINT ex_sale_prices_no_overlap; ALTER TABLE pricing.sale_prices ADD CONSTRAINT ex_sale_prices_no_overlap EXCLUDE USING gist (variant_id WITH =,tstzrange(starts_at,ends_at,'[]') WITH &&)")]
     public async Task ParityDetectsSameNamedSemanticDrift(string mutation)
     {
-        var actual = await fixture.DatabaseAsync();
+        var actual = await fixture.DatabaseAsync(target: P1Head);
         var reference = await ReferenceAsync();
         var (expected, _) = await ExpectedAsync(actual, reference);
         Assert.Equal(expected, await CatalogAsync(actual));

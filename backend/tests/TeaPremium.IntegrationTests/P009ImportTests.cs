@@ -56,10 +56,10 @@ public sealed class P009ImportTests(PlatformDatabaseFixture fixture) : IClassFix
     {
         await using var h = await P009Harness.CreateAsync(fixture);
         var first = await Apply(h, Bundle(1, Header + "01,Tỉnh,,\n01,Tỉnh,00001,Xã cũ\n"));
-        await h.ExecuteAsync("CREATE SCHEMA crm; CREATE TABLE crm.customer_addresses(id uuid PRIMARY KEY,province_code text,ward_code text); GRANT USAGE ON SCHEMA crm TO tp_app; GRANT SELECT,UPDATE ON crm.customer_addresses TO tp_app");
+        await h.ExecuteAsync("INSERT INTO crm.customers(id,code,full_name,phone_e164,origin) VALUES ('11111111-1111-1111-1111-111111111110','KH009001','P009 Fixture','+84900009001','admin')");
         var bundle = Bundle(2, Header + "01,Tỉnh,,\n01,Tỉnh,00001,Xã mới\n", first);
         var execution = h.Approve(bundle, await h.PlanAsync(bundle));
-        await h.ExecuteAsync("INSERT INTO crm.customer_addresses VALUES('11111111-1111-1111-1111-111111111111','01','00001')");
+        await h.ExecuteAsync("INSERT INTO crm.customer_addresses(id,customer_id,receiver_name,receiver_phone,province_code,ward_code,address_line) VALUES('11111111-1111-1111-1111-111111111111','11111111-1111-1111-1111-111111111110','Receiver','+84900009002','01','00001','1 St')");
         var result = await h.ApplyAsync(bundle, execution);
         Assert.False(result.IsSuccess);
         Assert.Equal("stale_plan", result.Error.Code);
@@ -355,8 +355,15 @@ public sealed class P009ImportTests(PlatformDatabaseFixture fixture) : IClassFix
     {
         await using var h = await P009Harness.CreateAsync(fixture);
         var e1 = await Apply(h, Bundle(1, Header + "01,Tỉnh A,,\n01,Tỉnh A,00001,Xã\n02,Tỉnh B,,\n"));
-        // Minimal future-phase reference fixtures, no CRM/checkout implementation.
-        await h.ExecuteAsync("CREATE SCHEMA crm; CREATE SCHEMA sales; CREATE TABLE crm.customer_addresses(id uuid PRIMARY KEY,province_code text REFERENCES platform.provinces(code),ward_code text REFERENCES platform.wards(code)); CREATE TABLE sales.orders(id uuid PRIMARY KEY,province_code text,ward_code text,province_name text,ward_name text); GRANT SELECT,UPDATE ON ALL TABLES IN SCHEMA crm,sales TO tp_app; GRANT USAGE ON SCHEMA crm,sales TO tp_app; INSERT INTO crm.customer_addresses VALUES('11111111-1111-1111-1111-111111111111','01','00001'); INSERT INTO sales.orders VALUES('11111111-1111-1111-1111-111111111111','01','00001','snapshot province','snapshot ward')");
+        // Real P2-01 CRM/Sales reference fixtures (no CRM/checkout workflow implementation).
+        await h.ExecuteAsync("""
+INSERT INTO crm.customers(id,code,full_name,phone_e164,origin)
+ VALUES ('11111111-1111-1111-1111-111111111110','KH009002','P009 Fixture','+84900009001','admin');
+INSERT INTO crm.customer_addresses(id,customer_id,receiver_name,receiver_phone,province_code,ward_code,address_line)
+ VALUES ('11111111-1111-1111-1111-111111111111','11111111-1111-1111-1111-111111111110','Receiver','+84900009002','01','00001','1 St');
+INSERT INTO sales.orders(id,code,origin,sales_channel,customer_id,status,payment_method,contact_name,contact_phone,receiver_name,receiver_phone,province_code,province_name,ward_code,ward_name,address_line,subtotal_vnd,total_vnd,acquisition_source,is_first_purchase,placed_at)
+ VALUES ('11111111-1111-1111-1111-111111111111','TP261123P009','admin','phone','11111111-1111-1111-1111-111111111110','pending','cod','P009 Fixture','+84900009001','Receiver','+84900009002','01','snapshot province','00001','snapshot ward','1 St',1000,1000,'direct',true,now());
+""");
         var delta = Bundle(2, Header + "02,Tỉnh B,,\n02,Tỉnh B,00001,Phường mới\n", e1, "delta");
         var plan = await h.PlanAsync(delta); Assert.Equal(2, plan.ReferenceCount); Assert.Contains(plan.Changes, x => x.Action == "reparent");
         var e2 = await Apply(h, delta);
