@@ -65,7 +65,7 @@ SELECT md5(string_agg(value::text,E'\n' ORDER BY value::text)) FROM (
     [Fact]
     public async Task DownRefusesToDiscardKnownPublicationHistory()
     {
-        var connection = await fixture.DatabaseAsync();
+        var connection = await fixture.DatabaseAsync(target: "202611191437_P1_04_TaxonomyPublicationHistory");
         await ExecuteAsync(connection, "INSERT INTO catalog.materials(id,name,slug,kind,first_published_at) VALUES(gen_random_uuid(),'Known public','known-public','metal','2026-01-01T00:00:00Z')");
         await using var db = Context(connection);
         var error = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(Foundation));

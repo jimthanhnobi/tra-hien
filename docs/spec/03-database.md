@@ -150,12 +150,14 @@ Quyền object do migration bổ sung cấp, qua helper `backend/src/TeaPremium.
 
 Điều tra dùng danh tính/session riêng được owner phê duyệt theo vụ việc, quyền read tối thiểu theo bảng/cột/view đã che dữ liệu, có audit/thời hạn/thu hồi; không kế thừa tp_readonly/tp_owner hoặc quyền đọc chung IAM credentials, token/security stamp/authenticator secret và platform.data_protection_keys.xml. Không SELECT * các bảng nhạy cảm. Chỉ sự cố cần dữ liệu nhạy cảm mới có ủy quyền riêng; không ngầm cấp qua “readonly”. Test kiểm deny sensitive columns và tách credential backup/điều tra; restore drill dùng môi trường cô lập, output không chứa secret.
 
-Ngoại lệ thu hồi quyền của `tp_app`:
+Ngoại lệ thu hồi quyền của `tp_app` (mọi bảng đều `REVOKE TRUNCATE` khỏi `tp_app`):
 ```sql
 REVOKE UPDATE, DELETE, TRUNCATE ON platform.audit_logs, inventory.stock_movements FROM tp_app;
-REVOKE DELETE, TRUNCATE ON sales.orders, sales.order_lines, sales.payments, sales.refunds,
+REVOKE DELETE, TRUNCATE ON sales.orders, sales.payments, sales.refunds,
                          sales.order_status_history, crm.customers FROM tp_app;
 ```
+
+`sales.order_lines` không thu hồi `DELETE` để cho phép xóa dòng khi sửa đơn `pending`/`confirmed` (`BR-ORD-08`, `BR-INV-04`); ở `P2-05`, `inventory.reservations.order_line_id` sẽ cho phép `NULL` khi `status = 'released'` kèm `CHECK (status = 'released' OR order_line_id IS NOT NULL)` và `fk_reservations_line` `ON DELETE SET NULL`.
 
 F-02/P0-09: `platform.administrative_data_imports` là ledger append-only, `tp_app` chỉ có SELECT/INSERT, `tp_readonly` chỉ SELECT. Grants/revoke và EXECUTE cho `pg_catalog.pg_try_advisory_xact_lock(integer, integer)` đúng khối F-02 trong `schema.sql`; không cấp UPDATE/DELETE/TRUNCATE/MAINTAIN cho ledger, không dùng tp_owner làm runtime để né thiếu quyền. Role phải tồn tại trước khi áp grants; test P0-09 đăng nhập thật bằng restricted tp_app và kiểm quyền âm. Các quyền này là DDL đích, chưa phải bằng chứng môi trường đã cấu hình/chạy thành công.
 

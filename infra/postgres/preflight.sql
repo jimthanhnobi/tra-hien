@@ -72,20 +72,22 @@ BEGIN
   LOOP RAISE EXCEPTION 'Unexpected function owner: %', obj.name; END LOOP;
   IF EXISTS (SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     CROSS JOIN LATERAL aclexplode(c.relacl) a
-    WHERE n.nspname IN ('platform','iam','public') AND a.grantee=0) THEN
+    WHERE n.nspname IN ('platform','iam','public','media','catalog','inventory','pricing','content','crm','sales','finance') AND a.grantee=0) THEN
     RAISE EXCEPTION 'Unexpected PUBLIC object privileges';
   END IF;
   IF EXISTS (SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     CROSS JOIN LATERAL aclexplode(c.relacl) a JOIN pg_roles gr ON gr.oid=a.grantee
-    WHERE n.nspname IN ('platform','iam','public') AND
+    WHERE n.nspname IN ('platform','iam','public','media','catalog','inventory','pricing','content','crm','sales','finance') AND
       ((gr.rolname='tp_readonly' AND (a.privilege_type <> 'SELECT' OR a.is_grantable)) OR
        (gr.rolname='tp_app' AND (a.is_grantable OR a.privilege_type IN ('TRUNCATE','TRIGGER','REFERENCES','MAINTAIN')
-         OR (c.relkind='S' AND a.privilege_type='UPDATE'))))) THEN
+         OR (c.relkind='S' AND a.privilege_type='UPDATE')
+         OR ((n.nspname,c.relname) IN (('sales','orders'),('sales','payments'),('sales','refunds'),('sales','order_status_history'),('crm','customers')) AND a.privilege_type='DELETE')
+         OR ((n.nspname,c.relname) IN (('platform','audit_logs'),('platform','administrative_data_imports'),('inventory','stock_movements')) AND a.privilege_type IN ('UPDATE','DELETE')))))) THEN
     RAISE EXCEPTION 'Unexpected runtime/backup object privileges';
   END IF;
   IF EXISTS (SELECT FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid
     JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL aclexplode(a.attacl) acl
-    WHERE n.nspname IN ('platform','iam','public') AND
+    WHERE n.nspname IN ('platform','iam','public','media','catalog','inventory','pricing','content','crm','sales','finance') AND
       (acl.grantee=0 OR acl.grantee IN (SELECT oid FROM pg_roles WHERE rolname IN ('tp_app','tp_readonly')))) THEN
     RAISE EXCEPTION 'Unexpected column grants; explicit migration table ACLs cannot revoke them';
   END IF;

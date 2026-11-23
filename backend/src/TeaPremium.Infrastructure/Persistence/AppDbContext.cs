@@ -33,6 +33,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         base.OnModelCreating(builder);
         IamModel.Configure(builder);
         CatalogInventoryModel.Configure(builder);
+        CrmSalesFinanceModel.Configure(builder);
         TeaPremium.Infrastructure.AdministrativeData.AdministrativeImportModel.Configure(builder);
         builder.HasPostgresExtension("unaccent");
         builder.HasPostgresExtension("pg_trgm");
@@ -143,6 +144,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
                     var t when t == typeof(Guid) || t == typeof(Guid?) => "uuid",
                     var t when t == typeof(DateTime) || t == typeof(DateTime?) => "timestamp with time zone",
                     var t when t == typeof(DateTimeOffset) || t == typeof(DateTimeOffset?) => "timestamp with time zone",
+                    var t when t == typeof(DateOnly) || t == typeof(DateOnly?) => "date",
                     var t when t == typeof(int) || t == typeof(int?) => "integer",
                     var t when t == typeof(long) || t == typeof(long?) => "bigint",
                     var t when t == typeof(bool) || t == typeof(bool?) => "boolean",

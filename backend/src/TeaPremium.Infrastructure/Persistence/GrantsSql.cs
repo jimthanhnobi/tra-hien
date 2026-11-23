@@ -19,6 +19,24 @@ public static class GrantsSql
 
     public static string CatalogAndInventory() => PlatformAndIam() + "\n" + CatalogAndInventoryGrants;
 
+    public static string CrmSalesFinance() => CatalogAndInventory() + "\n" + CrmSalesFinanceGrants + "\n" + Preflight;
+
+    private const string CrmSalesFinanceGrants = """
+REVOKE ALL ON SCHEMA crm,sales,finance FROM PUBLIC,tp_app,tp_readonly;
+GRANT USAGE ON SCHEMA crm,sales,finance TO tp_app,tp_readonly;
+REVOKE ALL ON crm.customers,crm.tags,crm.customer_tags,crm.customer_addresses,crm.customer_accounts,crm.customer_logins,crm.interactions,crm.customer_interests,crm.consents,crm.data_requests,pricing.vouchers,pricing.voucher_redemptions,sales.carts,sales.cart_items,sales.orders,sales.order_lines,sales.order_status_history,sales.cod_settlements,sales.payments,sales.return_requests,sales.return_lines,sales.return_evidence,sales.refunds,sales.shipments,sales.shipment_events,finance.expenses FROM PUBLIC,tp_app,tp_readonly;
+GRANT SELECT,INSERT,UPDATE,DELETE ON crm.tags,crm.customer_tags,crm.customer_addresses,crm.customer_accounts,crm.customer_logins,crm.interactions,crm.customer_interests,crm.consents,crm.data_requests,pricing.vouchers,pricing.voucher_redemptions,sales.carts,sales.cart_items,sales.order_lines,sales.cod_settlements,sales.return_requests,sales.return_lines,sales.return_evidence,sales.shipments,sales.shipment_events,finance.expenses TO tp_app;
+GRANT SELECT,INSERT,UPDATE ON crm.customers,sales.orders,sales.order_status_history,sales.payments,sales.refunds TO tp_app;
+REVOKE DELETE,TRUNCATE,MAINTAIN ON crm.customers,sales.orders,sales.order_status_history,sales.payments,sales.refunds FROM tp_app;
+GRANT SELECT ON crm.customers,crm.tags,crm.customer_tags,crm.customer_addresses,crm.customer_accounts,crm.customer_logins,crm.interactions,crm.customer_interests,crm.consents,crm.data_requests,pricing.vouchers,pricing.voucher_redemptions,sales.carts,sales.cart_items,sales.orders,sales.order_lines,sales.order_status_history,sales.cod_settlements,sales.payments,sales.return_requests,sales.return_lines,sales.return_evidence,sales.refunds,sales.shipments,sales.shipment_events,finance.expenses TO tp_readonly;
+REVOKE ALL ON SEQUENCE crm.customer_code_seq FROM PUBLIC,tp_app,tp_readonly;
+GRANT USAGE ON SEQUENCE crm.customer_code_seq TO tp_app;
+GRANT SELECT ON SEQUENCE crm.customer_code_seq TO tp_readonly;
+ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner IN SCHEMA crm,sales,finance GRANT SELECT ON TABLES TO tp_readonly;
+ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner IN SCHEMA crm,sales,finance GRANT USAGE ON SEQUENCES TO tp_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE tp_owner IN SCHEMA crm,sales,finance GRANT SELECT ON SEQUENCES TO tp_readonly;
+""";
+
     private const string CatalogAndInventoryGrants = """
 REVOKE ALL ON SCHEMA media,catalog,inventory,pricing,content FROM PUBLIC,tp_app,tp_readonly;
 GRANT USAGE ON SCHEMA media,catalog,inventory,pricing,content TO tp_app,tp_readonly;

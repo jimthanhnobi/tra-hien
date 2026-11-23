@@ -499,13 +499,14 @@ CREATE TABLE inventory.stocktake_lines (
 CREATE TABLE inventory.reservations (
   id             uuid PRIMARY KEY,
   variant_id     uuid NOT NULL REFERENCES catalog.variants(id),
-  order_line_id  uuid NOT NULL,                 -- FK thêm sau khi tạo sales.order_lines
+  order_line_id  uuid,                          -- FK thêm sau khi tạo sales.order_lines; NULL khi released và dòng đơn bị xóa
   quantity       int NOT NULL CHECK (quantity > 0),
   status         text NOT NULL DEFAULT 'active' CHECK (status IN ('active','consumed','released')),
   created_at     timestamptz NOT NULL DEFAULT now(),
   closed_at      timestamptz,
   close_reason   text,
-  CHECK ((status = 'active') = (closed_at IS NULL))
+  CHECK ((status = 'active') = (closed_at IS NULL)),
+  CHECK (status = 'released' OR order_line_id IS NOT NULL)
 );
 CREATE UNIQUE INDEX ux_reservation_active_line ON inventory.reservations(order_line_id) WHERE status = 'active';
 CREATE INDEX ix_reservation_variant_active ON inventory.reservations(variant_id) WHERE status = 'active';
@@ -582,7 +583,7 @@ CREATE TABLE crm.customers (
   created_by     uuid,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT ck_customer_contact CHECK (contact_status = 'erased' OR phone_e164 IS NOT NULL OR zalo_name IS NOT NULL),
+  CONSTRAINT ck_customer_contact CHECK (contact_status = 'erased' OR merged_into_customer_id IS NOT NULL OR phone_e164 IS NOT NULL OR zalo_name IS NOT NULL),
   CONSTRAINT ck_customer_not_self_ref CHECK (referred_by_customer_id IS NULL OR referred_by_customer_id <> id)
 );
 CREATE UNIQUE INDEX ux_customers_phone ON crm.customers(phone_e164)
@@ -906,7 +907,7 @@ CREATE INDEX ix_order_lines_variant ON sales.order_lines(variant_id);
 CREATE INDEX ix_order_lines_product ON sales.order_lines(product_id);
 
 ALTER TABLE inventory.reservations
-  ADD CONSTRAINT fk_reservations_line FOREIGN KEY (order_line_id) REFERENCES sales.order_lines(id) ON DELETE RESTRICT;
+  ADD CONSTRAINT fk_reservations_line FOREIGN KEY (order_line_id) REFERENCES sales.order_lines(id) ON DELETE SET NULL;
 
 CREATE TABLE sales.order_status_history (
   id             uuid PRIMARY KEY,
