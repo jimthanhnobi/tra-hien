@@ -61,7 +61,11 @@ builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSec
 builder.Services.AddHostedService<OutboxDispatcher>();
 // Scaffold/OpenAPI generation can start without a DB. Production supplies this setting.
 if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default")))
+{
     builder.Services.AddHostedService<PurgeIdempotencyKeys>();
+    builder.Services.AddSingleton<ReconcileInventory>();
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<ReconcileInventory>());
+}
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditContext, HttpAuditContext>();
 var app = builder.Build();

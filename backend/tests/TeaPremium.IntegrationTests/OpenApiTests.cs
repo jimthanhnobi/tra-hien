@@ -22,7 +22,15 @@ public sealed class OpenApiTests
         Assert.Equal(9, store.Length);
         Assert.All(store, path => Assert.Equal("get", Assert.Single(path.Value.EnumerateObject()).Name));
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/alerts", out var alertsPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
+        var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
+            .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
+        Assert.Equal(95, totalOperations);
+        var alertsGet = Assert.Single(alertsPath.EnumerateObject());
+        Assert.Equal("get", alertsGet.Name);
+        Assert.Contains(alertsGet.Value.GetProperty("parameters").EnumerateArray(),
+            x => x.GetProperty("name").GetString() == "limit" && x.GetProperty("in").GetString() == "query");
 
         var parameters = paths.GetProperty("/api/v1/store/products").GetProperty("get")
             .GetProperty("parameters").EnumerateArray().ToDictionary(x => x.GetProperty("name").GetString()!);
@@ -40,6 +48,12 @@ public sealed class OpenApiTests
         var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
         foreach (var name in new[] { "StoreProductCard", "StoreVariant" })
             AssertOpenApiEnum(schemas.GetProperty(name).GetProperty("properties").GetProperty("availability"), "in_stock", "out_of_stock", "sold");
+        foreach (var name in new[] { "InventoryAlertsView", "LowStockAlertItem", "InventoryMismatchItem" })
+        {
+            var props = schemas.GetProperty(name).GetProperty("properties");
+            Assert.All(props.EnumerateObject(), prop =>
+                Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     private static void AssertOpenApiEnum(JsonElement schema, params string[] values)

@@ -17,7 +17,7 @@ public sealed class EfInventoryStockStore(AppDbContext db) : IInventoryStockStor
                           join level in db.Set<StockLevel>() on variant.Id equals level.VariantId into levels
                           from level in levels.DefaultIfEmpty()
                           where skus.Contains(variant.Sku)
-                          select new InventoryPosition(new(variant.Id, variant.ProductId, variant.Sku, product.Slug, variant.IsUniquePiece),
+                          select new InventoryPosition(new(variant.Id, variant.ProductId, variant.Sku, product.Slug, variant.IsUniquePiece, variant.LowStockThreshold),
                               new(level == null ? 0 : level.OnHand, level == null ? 0 : level.Reserved, level == null ? null : level.AvgCostVnd),
                               db.Set<StockMovement>().Any(x => x.VariantId == variant.Id))).ToArrayAsync(ct);
         return rows.ToDictionary(x => x.Variant.Sku, StringComparer.Ordinal);
@@ -41,15 +41,25 @@ public sealed class EfInventoryStockStore(AppDbContext db) : IInventoryStockStor
         var levels = (await db.Set<StockLevel>().FromSqlInterpolated(
             $"SELECT * FROM inventory.stock_levels WHERE variant_id=ANY({ids}) ORDER BY variant_id FOR UPDATE")
             .ToArrayAsync(ct)).ToDictionary(x => x.VariantId);
+        foreach (var tracked in db.ChangeTracker.Entries<StockLevel>()
+                     .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Unchanged && ids.Contains(e.Entity.VariantId)))
+        {
+            levels[tracked.Entity.VariantId] = tracked.Entity;
+        }
         var moved = (await db.Set<StockMovement>().Where(x => ids.Contains(x.VariantId))
             .Select(x => x.VariantId).Distinct().ToArrayAsync(ct)).ToHashSet();
+        foreach (var trackedMove in db.ChangeTracker.Entries<StockMovement>()
+                     .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Unchanged && ids.Contains(e.Entity.VariantId)))
+        {
+            moved.Add(trackedMove.Entity.VariantId);
+        }
         var slugs = products.ToDictionary(x => x.Id, x => x.Slug);
         foreach (var variant in variants)
         {
             var level = levels.GetValueOrDefault(variant.Id);
             var balance = level is null ? default : new StockBalance(level.OnHand, level.Reserved, level.AvgCostVnd);
             var position = new InventoryPosition(new(variant.Id, variant.ProductId, variant.Sku, slugs[variant.ProductId],
-                variant.IsUniquePiece), balance, moved.Contains(variant.Id));
+                variant.IsUniquePiece, variant.LowStockThreshold), balance, moved.Contains(variant.Id));
             locked.Add(variant.Id, (position, level));
         }
         return locked.ToDictionary(x => x.Key, x => x.Value.Position);

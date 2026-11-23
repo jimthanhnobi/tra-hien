@@ -164,6 +164,7 @@ Upload/complete tuân 02 §5.10/schema: ảnh ≤15 MiB, evidence mp4/quicktime 
 | Method | Path | Quyền |
 |---|---|---|
 | GET | `admin/inventory?q=&status=low\|out\|in&type=` (DTO theo quyền bên dưới) | `inventory.read` |
+| GET | `admin/inventory/alerts?limit=` (tồn thấp, lệch đối soát sổ kho, số `InventoryAlert` dead; không trả giá vốn) | `inventory.read` + `inventory.write` |
 | GET | `admin/inventory/{variantId}/movements?type=&from=&to=` | `inventory.read` + `inventory.write`; giá vốn cần `costs.read` |
 | POST | `admin/inventory/opening-import?dryRun=` (file `sku, quantity, unit_cost_vnd`) | `inventory.approve` |
 | GET/POST/PATCH | `admin/receipts[/{id}]`; POST `.../{id}/post` **[idem]**; POST `.../{id}/cancel` (chỉ draft) | `inventory.write` |

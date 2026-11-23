@@ -1613,6 +1613,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/inventory/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Current low-stock variants, ledger reconciliation mismatches, and dead InventoryAlert outbox count. Never includes cost fields. */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InventoryAlertsView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/inventory/opening-import": {
         parameters: {
             query?: never;
@@ -7015,8 +7080,36 @@ export interface components {
             /** Format: uuid */
             variantId: string;
         };
+        InventoryAlertsView: {
+            /** Format: date-time */
+            checkedAt: string;
+            /** Format: int64 */
+            deadAlertOutboxCount: number;
+            lowStockItems: components["schemas"]["LowStockAlertItem"][];
+            /** Format: int64 */
+            lowStockTotal: number;
+            mismatches: components["schemas"]["InventoryMismatchItem"][];
+            /** Format: int64 */
+            mismatchTotal: number;
+        };
         InventoryDocumentVersion: {
             rowVersion: string;
+        };
+        InventoryMismatchItem: {
+            /** Format: int64 */
+            delta: number;
+            hasStockLevel: boolean;
+            /** Format: int64 */
+            ledgerQuantity: number;
+            /** Format: int32 */
+            onHand: number;
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            sku: string;
+            /** Format: uuid */
+            variantId: string;
+            variantName: null | string;
         };
         InventoryMovementView: {
             /** Format: uuid */
@@ -7066,6 +7159,23 @@ export interface components {
             email: string;
             password: string;
             totpCode: null | string;
+        };
+        LowStockAlertItem: {
+            /** Format: int32 */
+            available: number;
+            /** Format: int32 */
+            lowStockThreshold: number;
+            /** Format: int32 */
+            onHand: number;
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            /** Format: int32 */
+            reserved: number;
+            sku: string;
+            /** Format: uuid */
+            variantId: string;
+            variantName: null | string;
         };
         MaterialWriteRequest: {
             /** Format: uuid */

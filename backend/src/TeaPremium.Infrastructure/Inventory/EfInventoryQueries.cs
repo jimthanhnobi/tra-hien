@@ -1,11 +1,13 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using TeaPremium.Application.Catalog;
 using TeaPremium.Application.Inventory;
+using TeaPremium.Application.Time;
 using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.Infrastructure.Inventory;
 
-public sealed class EfInventoryQueries(AppDbContext db) : IInventoryQueries
+public sealed class EfInventoryQueries(AppDbContext db, IClock clock) : IInventoryQueries
 {
     public async Task<CatalogPage<InventoryStockView>> ListAsync(ListInventory query, CancellationToken ct)
     {
@@ -61,5 +63,72 @@ public sealed class EfInventoryQueries(AppDbContext db) : IInventoryQueries
             .Select(x => new InventoryMovementView(x.Id, x.MovementType, x.Quantity, x.OnHandAfter, x.RefType, x.RefId,
                 x.Reason, x.ActorType, x.ActorId, x.OccurredAt, x.CreatedAt, costs ? x.UnitCostVnd : null)).ToArrayAsync(ct);
         return new(items, query.Page, query.PageSize, total);
+    }
+
+    public async Task<InventoryAlertsView> AlertsAsync(GetInventoryAlerts query, CancellationToken ct)
+    {
+        var ownsTransaction = db.Database.CurrentTransaction is null;
+        await using var tx = ownsTransaction
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct)
+            : null;
+
+        var checkedAt = clock.UtcNow.UtcDateTime;
+        var deadCount = await db.OutboxMessages.AsNoTracking()
+            .LongCountAsync(x => x.Type == InventoryAlert.Message && x.Status == "dead", ct);
+
+        var lowQuery = from variant in db.Set<Variant>().AsNoTracking()
+                       join product in db.Set<Product>().AsNoTracking() on variant.ProductId equals product.Id
+                       join level in db.Set<StockLevel>().AsNoTracking() on variant.Id equals level.VariantId into levels
+                       from level in levels.DefaultIfEmpty()
+                       let onHand = level == null ? 0 : level.OnHand
+                       let reserved = level == null ? 0 : level.Reserved
+                       let available = onHand - reserved
+                       where variant.LowStockThreshold > 0 && available <= variant.LowStockThreshold
+                       select new { variant, product, onHand, reserved, available };
+
+        var lowTotal = await lowQuery.LongCountAsync(ct);
+        var lowItems = await lowQuery.OrderBy(x => x.variant.Sku).ThenBy(x => x.variant.Id)
+            .Take(query.Limit)
+            .Select(x => new LowStockAlertItem(
+                x.variant.Id,
+                x.variant.ProductId,
+                x.product.Name,
+                x.variant.Name,
+                x.variant.Sku,
+                x.onHand,
+                x.reserved,
+                x.available,
+                x.variant.LowStockThreshold))
+            .ToArrayAsync(ct);
+
+        var mismatchQuery = from variant in db.Set<Variant>().AsNoTracking()
+                            join product in db.Set<Product>().AsNoTracking() on variant.ProductId equals product.Id
+                            join level in db.Set<StockLevel>().AsNoTracking() on variant.Id equals level.VariantId into levels
+                            from level in levels.DefaultIfEmpty()
+                            let hasLevel = level != null
+                            let onHand = level == null ? 0 : level.OnHand
+                            let ledgerQty = db.Set<StockMovement>().Where(m => m.VariantId == variant.Id).Sum(m => (long?)m.Quantity) ?? 0L
+                            where ledgerQty != (long)onHand
+                            select new { variant, product, hasLevel, onHand, ledgerQty };
+
+        var mismatchTotal = await mismatchQuery.LongCountAsync(ct);
+        var mismatches = await mismatchQuery.OrderBy(x => x.variant.Sku).ThenBy(x => x.variant.Id)
+            .Take(query.Limit)
+            .Select(x => new InventoryMismatchItem(
+                x.variant.Id,
+                x.variant.ProductId,
+                x.product.Name,
+                x.variant.Name,
+                x.variant.Sku,
+                x.hasLevel,
+                x.onHand,
+                x.ledgerQty,
+                x.ledgerQty - x.onHand))
+            .ToArrayAsync(ct);
+
+        if (tx is not null)
+            await tx.CommitAsync(ct);
+
+        return new(checkedAt, deadCount, lowTotal, lowItems, mismatchTotal, mismatches);
     }
 }

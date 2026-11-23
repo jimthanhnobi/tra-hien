@@ -7,4 +7,9 @@ namespace TeaPremium.Application.Outbox;
 public interface IOutboxWriter
 {
     void Enqueue(string type, string payload, DateTimeOffset? availableAt = null);
+
+    void Enqueue(string type, string payload, string deduplicationKey, DateTimeOffset? availableAt = null) =>
+        Enqueue(type, payload, availableAt);
+
+    void ClearDeduplicated(string deduplicationKey) { }
 }

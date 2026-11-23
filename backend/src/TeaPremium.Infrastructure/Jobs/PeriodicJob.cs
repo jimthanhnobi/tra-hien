@@ -116,6 +116,8 @@ public abstract class PeriodicJob : BackgroundService
     /// </summary>
     protected abstract Task ExecuteJobAsync(AppDbContext db, CancellationToken cancellationToken);
 
+    protected virtual void OnJobCommitted() { }
+
     private async Task ExecuteProtectedAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
@@ -138,6 +140,7 @@ public abstract class PeriodicJob : BackgroundService
             ownership.Validate();
             await transaction.CommitAsync(cancellationToken);
             ownership.Complete();
+            OnJobCommitted();
         }
         catch
         {
