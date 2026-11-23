@@ -14,13 +14,16 @@ import { useAdmin, useSession } from "./providers";
 import { LoginForm, PasswordForm, TotpForm } from "./auth-forms";
 import { Confirmation, FormError, Pending } from "./ui";
 import { CatalogScreen, type CatalogSection } from "./catalog/catalog-screen";
+import { InventoryScreen, type InventoryPage } from "./inventory/inventory-screen";
 import { ProductsScreen, type ProductsPage } from "./products/products-screen";
 
 const icons = { home: LayoutDashboard, package: Package, warehouse: Warehouse, orders: ShoppingBag, users: Users,
   megaphone: Megaphone, file: FileText, chart: ChartNoAxesCombined, settings: Settings, staff: UserRoundCog };
 const authPages = ["/login", "/change-password", "/totp-setup"];
 
-export function AdminScreen({ path, catalogSection, productsPage }: { path: string; catalogSection?: CatalogSection; productsPage?: ProductsPage }) {
+export function AdminScreen({ path, catalogSection, productsPage, inventoryPage }: {
+  path: string; catalogSection?: CatalogSection; productsPage?: ProductsPage; inventoryPage?: InventoryPage;
+}) {
   const session = useSession();
   const router = useRouter();
   const target = session.data === undefined ? undefined : destination(session.data);
@@ -43,6 +46,7 @@ export function AdminScreen({ path, catalogSection, productsPage }: { path: stri
     {forbidden ? <StatusPage status={403} embedded /> : path === "/" ? <Welcome auth={session.data} />
       : path === "/catalog" ? productsPage ? <ProductsScreen page={productsPage} user={session.data.user} />
           : <CatalogScreen section={catalogSection} permissions={session.data.user.permissions} />
+      : path === "/inventory" ? <InventoryScreen page={inventoryPage ?? "stock"} user={session.data.user} />
       : item ? <ModulePlaceholder title={item.label} /> : <StatusPage status={404} embedded />}
   </ApplicationShell>}</div></>;
 }
@@ -103,9 +107,9 @@ function Welcome({ auth }: { auth: Auth }) {
     <section className="welcome-panel"><div><span className="section-tag">NỀN TẢNG QUẢN TRỊ</span><h2>Mọi việc bắt đầu<br />từ một không gian gọn gàng.</h2>
       <p>Tài khoản của bạn đã sẵn sàng. Các khu vực bên dưới được hiển thị theo quyền truy cập hiện tại.</p></div><Sprout className="welcome-sprout" size={126} strokeWidth={0.7} aria-hidden="true" /></section>
     <div className="section-heading"><h2>Khu vực làm việc</h2><span>{items.length} khu vực được cấp quyền</span></div>
-    <p className="module-notice">Quản lý catalog đã sẵn sàng. Các khu vực khác sẽ được bổ sung theo từng giai đoạn.</p>
+    <p className="module-notice">Quản lý catalog và kho hàng đã sẵn sàng. Các khu vực khác sẽ được bổ sung theo từng giai đoạn.</p>
     {items.length ? <div className="module-grid">{items.map(item => { const Icon = icons[item.icon]; return <Link key={item.path} href={item.path === "/catalog" ? productRoute : item.path} className="module-card">
-      <span className="module-icon"><Icon size={23} /></span><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" /><h3>{item.label}</h3><p>{item.path === "/catalog" ? "Quản lý sản phẩm và danh mục" : "Chưa triển khai"}</p></Link>; })}</div>
+      <span className="module-icon"><Icon size={23} /></span><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" /><h3>{item.label}</h3><p>{item.path === "/catalog" ? "Quản lý sản phẩm và danh mục" : item.path === "/inventory" ? "Tồn kho, sổ kho, phiếu nhập và kiểm kê" : "Chưa triển khai"}</p></Link>; })}</div>
       : <div className="empty-state"><ShieldCheck size={28} /><h2>Chưa có khu vực được cấp quyền</h2><p>Liên hệ người quản lý để được hỗ trợ.</p></div>}
     <p className="security-note"><ShieldCheck size={18} /> Quyền truy cập được kiểm tra bởi hệ thống. Hãy đăng xuất khi kết thúc ca làm việc.</p>
   </>;

@@ -42,7 +42,23 @@ export class ApiError extends Error {
       attribute_has_options: "Thuộc tính đã có lựa chọn. Không thể đổi sang kiểu khác.",
       attribute_not_option: "Chỉ thuộc tính kiểu lựa chọn mới quản lý được các lựa chọn.",
       slug_allocation_exhausted: "Chưa thể cấp đường dẫn tự động. Hãy nhập đường dẫn khác rồi lưu lại.",
-      publication_history_unverified: "Cần xác minh lịch sử công khai. Liên hệ người quản lý trước khi sửa."
+      publication_history_unverified: "Cần xác minh lịch sử công khai. Liên hệ người quản lý trước khi sửa.",
+      unique_piece_violation: "Sản phẩm độc bản chỉ cho phép tối đa 1 sản phẩm trong kho.",
+      out_of_stock: "Số lượng tồn kho không đủ hoặc nhỏ hơn số lượng đang giữ.",
+      invalid_status_transition: "Trạng thái chứng từ đã thay đổi, không thể thực hiện thao tác này.",
+      idempotency_key_reused: "Yêu cầu xác nhận đã được dùng với nội dung khác. Hãy kiểm tra và thử lại.",
+      opening_preview_invalid: "Mã xem trước nhập tồn đầu kỳ không hợp lệ hoặc đã hết hạn 30 phút. Vui lòng chạy thử lại.",
+      opening_already_recorded: "Biến thể đã có lịch sử nhập xuất kho, không thể nhập tồn đầu kỳ.",
+      stocktake_count_stale: "Số liệu đếm kiểm kê đã lỗi thời do có phiên kiểm kê khác duyệt trước. Hãy hủy phiên này và tạo phiên mới để đếm lại.",
+      receipt_lines_invalid: "Một số dòng phiếu nhập không thể ghi vào sổ kho. Vui lòng kiểm tra lỗi trên từng dòng.",
+      stocktake_lines_invalid: "Một số dòng kiểm kê không thể duyệt vào sổ kho. Vui lòng kiểm tra lỗi trên từng dòng.",
+      inventory_document_codes_exhausted: "Đã hết mã chứng từ trong ngày. Vui lòng liên hệ quản trị viên.",
+      file_limit_exceeded: "Tệp vượt quá giới hạn dung lượng (5 MiB) hoặc số dòng (500 dòng).",
+      unsupported_format: "Định dạng tệp không được hỗ trợ. Chỉ chấp nhận tệp CSV hoặc XLSX hợp lệ (không chứa macro hoặc công thức).",
+      unsupported_media_type: "Định dạng tệp không được hỗ trợ. Chỉ chấp nhận tệp CSV hoặc XLSX hợp lệ (không chứa macro hoặc công thức).",
+      stock_quantity_overflow: "Số lượng tồn kho vượt quá giới hạn cho phép.",
+      invalid_stock_movement: "Biến động kho không hợp lệ. Vui lòng kiểm tra lại dữ liệu.",
+      sku_identity_changed: "SKU không còn khớp với biến thể lúc chạy thử. Vui lòng chạy thử lại."
     };
     super(status === 429 ? "Có quá nhiều yêu cầu. Vui lòng chờ một phút rồi thử lại."
       : messages[code] ?? (status === 403 ? messages.forbidden
