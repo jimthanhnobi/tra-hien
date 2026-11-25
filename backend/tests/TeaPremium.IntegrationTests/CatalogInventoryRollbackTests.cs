@@ -59,7 +59,7 @@ public sealed class CatalogInventoryRollbackTests(CatalogInventoryFixture fixtur
         await db.GetService<IMigrator>().MigrateAsync(P0);
         Assert.Equal(0, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content')"));
         await db.Database.MigrateAsync();
-        Assert.Equal(25, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content') AND NOT (schemaname='pricing' AND tablename IN ('vouchers','voucher_redemptions'))"));
+        Assert.Equal(25, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content') AND NOT (schemaname='pricing' AND tablename IN ('vouchers','voucher_redemptions')) AND NOT (schemaname='inventory' AND tablename='reservations')"));
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class CatalogInventoryRollbackTests(CatalogInventoryFixture fixtur
         await ExecuteAsync(admin, "DROP OPERATOR FAMILY catalog.outside_scope USING btree");
         await db.GetService<IMigrator>().MigrateAsync(P0);
         await db.Database.MigrateAsync();
-        Assert.Equal(25, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content') AND NOT (schemaname='pricing' AND tablename IN ('vouchers','voucher_redemptions'))"));
+        Assert.Equal(25, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content') AND NOT (schemaname='pricing' AND tablename IN ('vouchers','voucher_redemptions')) AND NOT (schemaname='inventory' AND tablename='reservations')"));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ SELECT setval('catalog.sku_number_seq',9876);
         Assert.Equal(0, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content')"));
         Assert.Equal(p0, await CatalogInventoryDatabaseTests.P0FingerprintAsync(c));
         await db.Database.MigrateAsync();
-        Assert.Equal(25, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content') AND NOT (schemaname='pricing' AND tablename IN ('vouchers','voucher_redemptions'))"));
+        Assert.Equal(25, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('media','catalog','inventory','pricing','content') AND NOT (schemaname='pricing' AND tablename IN ('vouchers','voucher_redemptions')) AND NOT (schemaname='inventory' AND tablename='reservations')"));
         Assert.Equal(p0, await CatalogInventoryDatabaseTests.P0FingerprintAsync(c));
     }
 

@@ -17,8 +17,8 @@ public sealed partial class EfStoreCatalogRead(AppDbContext db, IClock clock,
 {
     private bool SiteIndexable => string.Equals(config["SITE_INDEXABLE"], "true", StringComparison.OrdinalIgnoreCase);
     private static StorePrice Offer(long original, long effective) => new(effective, effective < original ? original : null);
-    // BR-SEO-21: no authoritative sale producer exists at this phase.
-    private static string Availability(int available) => available > 0 ? "in_stock" : "out_of_stock";
+    // BR-SEO-21: unique pieces with available == 0 and net commercial sales > 0 return "sold".
+    private static string Availability(int available, bool isSold) => available > 0 ? "in_stock" : isSold ? "sold" : "out_of_stock";
     private static bool LowStock(int available) => available is > 0 and <= 3;
 
     private IQueryable<Variant> EligibleVariants => db.Set<Variant>().AsNoTracking()
@@ -97,11 +97,16 @@ public sealed partial class EfStoreCatalogRead(AppDbContext db, IClock clock,
                 v.Sku,
                 v.Name,
                 v.PriceVnd,
+                v.IsUniquePiece,
                 Promotions = db.Set<SalePrice>().Where(s => s.VariantId == v.Id && s.StartsAt <= instant && instant < s.EndsAt)
                     .Select(s => new { s.SalePriceVnd, s.StartsAt, s.EndsAt }).ToArray()
             }).AsSingleQuery().ToArrayAsync(ct);
         var ids = variants.Select(v => v.Id).ToArray();
         IReadOnlyDictionary<Guid, int> stock = ids.Length == 0 ? new Dictionary<Guid, int>() : await inventory.AvailableAsync(ids, ct);
+        var zeroUniqueIds = variants.Where(v => v.IsUniquePiece && stock.GetValueOrDefault(v.Id) <= 0).Select(v => v.Id).ToArray();
+        IReadOnlySet<Guid> soldIds = zeroUniqueIds.Length == 0
+            ? new HashSet<Guid>()
+            : await inventory.SoldUniqueVariantIdsAsync(zeroUniqueIds, ct);
         var values = await DetailAttributesAsync(row.Id, ids, ct);
         var views = variants.Select(v =>
         {
@@ -109,7 +114,7 @@ public sealed partial class EfStoreCatalogRead(AppDbContext db, IClock clock,
                 v.Promotions.Select(s => new ScheduledPrice(s.SalePriceVnd, s.StartsAt, s.EndsAt)), at)!;
             var available = stock.GetValueOrDefault(v.Id);
             return new StoreVariant(v.Id, v.Sku, v.Name, Offer(price.BasePriceVnd, price.EffectivePriceVnd),
-                Availability(available), LowStock(available), values[v.Id].ToArray());
+                Availability(available, soldIds.Contains(v.Id)), LowStock(available), values[v.Id].ToArray());
         }).ToArray();
 
         var links = await db.Set<ProductMedia>().Where(x => x.ProductId == row.Id &&

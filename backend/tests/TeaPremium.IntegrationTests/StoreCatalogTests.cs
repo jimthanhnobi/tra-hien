@@ -418,4 +418,45 @@ public sealed class StoreCatalogTests(PlatformDatabaseFixture fixture) : IClassF
                 (gen_random_uuid(),md5('v245')::uuid,750,'2026-11-21T09:00:00Z','2026-11-21T10:00:00Z','{app.OwnerId}');
             """);
     }
+
+    [Fact]
+    public async Task StoreProductsListAndDetailDistinguishSoldFromOutOfStockForUniquePieces()
+    {
+        var clock = new Clock();
+        await using var app = await P009Harness.CreateAsync(fixture, s => s.AddSingleton<IClock>(clock));
+        await Seed(app);
+
+        // v245 is unique and currently reserved (on_hand=1, reserved=1, available=0, no sale movement) -> out_of_stock.
+        var detailBefore = await app.Client.GetFromJsonAsync<StoreProductDetail>(Root + "products/pot");
+        Assert.NotNull(detailBefore);
+        Assert.Equal("out_of_stock", detailBefore.Variants.Single(v => v.Sku == "V245").Availability);
+
+        // Make a dedicated single-variant unique product to test list card + detail parity.
+        await app.ExecuteAsync("""
+            INSERT INTO catalog.products(id,product_type_id,sku_base,slug,name,status,published_at,description_word_count,search_text)
+            VALUES (md5('solo-pot')::uuid,md5('type')::uuid,'AM-XX-9001','solo-pot','Solo Pot','active',now(),150,'solo pot');
+            INSERT INTO catalog.variants(id,product_id,sku,status,price_vnd,position,is_unique_piece)
+            VALUES (md5('vsolo')::uuid,md5('solo-pot')::uuid,'VSOLO','active',2500000,0,true);
+            INSERT INTO inventory.stock_levels(variant_id,on_hand,reserved,avg_cost_vnd)
+            VALUES (md5('vsolo')::uuid,0,0,1200000);
+            INSERT INTO inventory.stock_movements(id,variant_id,movement_type,quantity,unit_cost_vnd,on_hand_after,ref_type,ref_id,actor_type,occurred_at)
+            VALUES (gen_random_uuid(),md5('vsolo')::uuid,'sale',-1,1200000,0,'order',gen_random_uuid(),'system',now());
+            """);
+
+        using var listResponse = await app.Client.GetAsync(Root + "products?q=solo");
+        listResponse.EnsureSuccessStatusCode();
+        var listRaw = await listResponse.Content.ReadAsStringAsync();
+        using var listDoc = JsonDocument.Parse(listRaw);
+        AssertPublic(listDoc.RootElement);
+        var listPage = JsonSerializer.Deserialize<StoreProductPage>(listRaw, JsonSerializerOptions.Web)!;
+        Assert.Equal("sold", Assert.Single(listPage.Items).Availability);
+
+        using var detailResponse = await app.Client.GetAsync(Root + "products/solo-pot");
+        detailResponse.EnsureSuccessStatusCode();
+        var detailRaw = await detailResponse.Content.ReadAsStringAsync();
+        using var detailDoc = JsonDocument.Parse(detailRaw);
+        AssertPublic(detailDoc.RootElement);
+        var detail = JsonSerializer.Deserialize<StoreProductDetail>(detailRaw, JsonSerializerOptions.Web)!;
+        Assert.Equal("sold", Assert.Single(detail.Variants).Availability);
+    }
 }

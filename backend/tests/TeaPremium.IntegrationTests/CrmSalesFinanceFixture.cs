@@ -10,6 +10,8 @@ public sealed class CrmSalesFinanceFixture : IAsyncLifetime
     private SharedPostgresServer _server = null!;
     private readonly ConcurrentBag<string> _databases = [];
     public const string P1Head = "202611191437_P1_04_TaxonomyPublicationHistory";
+    public const string P201Head = "202611230421_P2_01_CrmSalesFinanceFoundation";
+    public const string P205Head = "202611230721_P2_05_InventoryReservations";
 
     public async Task InitializeAsync() => _server = await SharedPostgresServer.GetAsync();
 
