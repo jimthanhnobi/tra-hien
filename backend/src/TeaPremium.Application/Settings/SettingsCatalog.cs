@@ -83,7 +83,9 @@ public static class SettingsCatalog
         if (SiteAssets.Contains(key)) return value.ValueKind == JsonValueKind.String && Guid.TryParse(value.GetString(), out var id) && id != Guid.Empty;
         if (SiteStrings.Contains(key)) return Text(value) && (!key.EndsWith("_url", StringComparison.Ordinal)
             || Uri.TryCreate(value.GetString(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" && string.IsNullOrEmpty(uri.UserInfo));
-        if (key == "notify.telegram_chat_id") return Text(value);
+        if (key == "notify.telegram_chat_id")
+            return value.ValueKind == JsonValueKind.Null
+                || (value.ValueKind == JsonValueKind.String && (value.GetString()!.Length == 0 || Text(value)));
         if (key == "notify.shop_emails") return value.ValueKind == JsonValueKind.Array && value.EnumerateArray().All(x =>
             Text(x) && System.Net.Mail.MailAddress.TryCreate(x.GetString(), out var email) && email.Address == x.GetString());
         if (!Defaults.ContainsKey(key)) return false;

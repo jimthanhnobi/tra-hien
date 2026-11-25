@@ -19,6 +19,7 @@ using TeaPremium.Infrastructure.Inventory;
 using TeaPremium.Api.Crm;
 using TeaPremium.Infrastructure.Crm;
 using TeaPremium.Infrastructure.Orders;
+using TeaPremium.Infrastructure.Notifications;
 
 // Import arguments are file paths, never deployment configuration or host options.
 // Leave the ordinary API/bootstrap-owner command-line behavior unchanged.
@@ -49,8 +50,11 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing.EndpointMiddleware", Log
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.None);
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Update", LogLevel.None);
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Query", LogLevel.None);
+// HttpClient URI logs can expose secrets embedded in URL paths (such as /bot<token>/sendMessage).
+builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.None);
 builder.Services.AddUseCasesFrom(typeof(ServiceRegistration).Assembly);
 builder.Services.AddPlatformPersistence(builder.Configuration);
+builder.Services.AddNotifications(builder.Configuration, builder.Environment);
 builder.Services.AddStaffIdentity(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddAdminSecurity(builder.Configuration);
 builder.Services.AddMedia(builder.Configuration, builder.Environment);
@@ -71,6 +75,8 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Defaul
     builder.Services.AddHostedService<PurgeIdempotencyKeys>();
     builder.Services.AddSingleton<ReconcileInventory>();
     builder.Services.AddHostedService(provider => provider.GetRequiredService<ReconcileInventory>());
+    builder.Services.AddSingleton<DailyShopDigestJob>();
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<DailyShopDigestJob>());
 }
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditContext, HttpAuditContext>();

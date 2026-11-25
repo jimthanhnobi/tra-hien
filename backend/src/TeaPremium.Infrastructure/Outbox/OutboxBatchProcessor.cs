@@ -1,12 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using TeaPremium.Application.Notifications;
 using TeaPremium.Application.Outbox;
 using TeaPremium.Application.Time;
+using TeaPremium.Infrastructure.Notifications;
 using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.Infrastructure.Outbox;
 
 /// <summary>One scoped batch; row locks remain held through handler execution and commit.</summary>
-public sealed class OutboxBatchProcessor(AppDbContext db, IClock clock, IEnumerable<IOutboxHandler> handlers)
+public sealed class OutboxBatchProcessor(
+    AppDbContext db,
+    IClock clock,
+    IEnumerable<IOutboxHandler> handlers,
+    IOutboxDeadNotifier? deadNotifier = null)
 {
     public async Task<int> ProcessAsync(int batchSize, CancellationToken cancellationToken)
     {
@@ -56,6 +62,8 @@ public sealed class OutboxBatchProcessor(AppDbContext db, IClock clock, IEnumera
         {
             message.Status = "dead";
             message.LastError = "attempts_exhausted";
+            if (deadNotifier is not null)
+                await deadNotifier.TryEnqueueAsync(db, message, now, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             db.ChangeTracker.Clear();
@@ -90,18 +98,25 @@ public sealed class OutboxBatchProcessor(AppDbContext db, IClock clock, IEnumera
             db.ChangeTracker.Clear();
             throw;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             await transaction.RollbackToSavepointAsync("before_delivery", CancellationToken.None);
             db.ChangeTracker.Clear();
             message = await db.OutboxMessages.SingleAsync(x => x.Id == message.Id, cancellationToken);
             message.Attempts++;
             // Persist fixed codes only: exceptions and payloads may contain PII.
-            message.LastError = error ?? "handler_failed";
+            message.LastError = error ?? (ex is NotificationDeliveryException nde ? nde.ErrorCode : "handler_failed");
+            var failedAt = clock.UtcNow.UtcDateTime;
             if (message.Attempts >= 10)
+            {
                 message.Status = "dead";
+                if (deadNotifier is not null)
+                    await deadNotifier.TryEnqueueAsync(db, message, failedAt, cancellationToken);
+            }
             else
-                message.AvailableAt = clock.UtcNow.UtcDateTime.AddMinutes(Math.Min(Math.Pow(2, message.Attempts), 360));
+            {
+                message.AvailableAt = failedAt.AddMinutes(Math.Min(Math.Pow(2, message.Attempts), 360));
+            }
         }
 
         await db.SaveChangesAsync(cancellationToken);
