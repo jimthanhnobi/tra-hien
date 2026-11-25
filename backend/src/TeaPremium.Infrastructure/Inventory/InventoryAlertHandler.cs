@@ -1,16 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TeaPremium.Application.Inventory;
+using TeaPremium.Application.Notifications;
 using TeaPremium.Application.Outbox;
 using TeaPremium.Domain.Inventory;
+using TeaPremium.Infrastructure.Notifications;
 using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.Infrastructure.Inventory;
 
 // BR-INV-11 / BR-INV-13 / BR-PLT-02: internal idempotent InventoryAlert consumer.
-// Re-queries current persisted state without PII or cost fields; stale/resolved and duplicate
-// deliveries complete as safe no-ops without requiring a Telegram handler.
-public sealed partial class InventoryAlertHandler(AppDbContext db, ILogger<InventoryAlertHandler> logger) : IOutboxHandler
+// Re-queries current persisted state without PII or cost fields; low_stock stays internal/digest-only
+// (never sends standalone Telegram), while active today reconciliation_mismatch can enqueue a watermarked
+// Telegram alert when configured (GAP-03 3A).
+public sealed partial class InventoryAlertHandler(
+    AppDbContext db,
+    ILogger<InventoryAlertHandler> logger,
+    IInventoryMismatchNotifier? mismatchNotifier = null) : IOutboxHandler
 {
     public string MessageType => InventoryAlert.Message;
 
@@ -66,6 +72,22 @@ public sealed partial class InventoryAlertHandler(AppDbContext db, ILogger<Inven
         LogMismatchAlert(logger, messageId, reconciled.Id, reconciled.ProductId, reconciled.Sku,
             reconciled.OnHand, reconciled.LedgerQuantity, reconciled.LedgerQuantity - reconciled.OnHand,
             reconciled.Reserved, reconciled.ActiveReservationQuantity, reconciled.ActiveReservationQuantity - reconciled.Reserved);
+
+        if (mismatchNotifier is not null && alert.VietnamDate is { } vietnamDate)
+        {
+            await mismatchNotifier.TryEnqueueAsync(
+                db,
+                messageId,
+                new InventoryReconciliationAlertModel(
+                    reconciled.Id,
+                    reconciled.Sku,
+                    reconciled.OnHand,
+                    reconciled.LedgerQuantity,
+                    vietnamDate,
+                    reconciled.Reserved,
+                    reconciled.ActiveReservationQuantity),
+                cancellationToken);
+        }
     }
 
     [LoggerMessage(
