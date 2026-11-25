@@ -78,10 +78,11 @@ SELECT setval('catalog.sku_number_seq', 42);
         Assert.Equal(42L, await ScalarAsync<long>(connection, "SELECT last_value FROM catalog.sku_number_seq"));
         var newHistory = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
         Assert.Equal(oldHistory, newHistory.Take(6));
-        Assert.Equal(7, newHistory.Length);
+        Assert.Equal(8, newHistory.Length);
         Assert.False(db.Database.HasPendingModelChanges());
         Assert.Equal(27, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('crm','sales','finance','pricing')"));
-        Assert.Equal(0, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE schemaname='marketing' OR (schemaname='inventory' AND tablename='reservations')"));
+        Assert.Equal(0, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE schemaname='marketing'"));
+        Assert.Equal(1, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE schemaname='inventory' AND tablename='reservations'"));
         Assert.StartsWith("17.", await ScalarAsync<string>(connection, "SHOW server_version"), StringComparison.Ordinal);
 
         // Exercise an independent empty database upgrade as well.
@@ -96,6 +97,7 @@ SELECT string_agg(name||':'||data,E'\n' ORDER BY name) FROM (
      'SELECT coalesce(jsonb_agg(j ORDER BY j::text),''[]''::jsonb)::text data FROM (SELECT to_jsonb(t) j FROM %I.%I t) q',n.nspname,c.relname),false,false,'')))[1]::text data
  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname IN ('platform','iam','media','catalog','inventory','content') AND c.relkind='r'
+   AND NOT (n.nspname='inventory' AND c.relname='reservations')
  UNION ALL
  SELECT 'pricing.sale_prices',
    (xpath('/table/row/data/text()',query_to_xml(
@@ -117,7 +119,7 @@ SELECT string_agg(name||':'||data,E'\n' ORDER BY name) FROM (
         await ExecuteAsync(c, sql);
         Assert.Equal(before, await P0P1FingerprintAsync(c));
         Assert.Equal(p2Before, await ScalarAsync<string>(c, "SELECT code||':'||full_name FROM crm.customers WHERE id='" + CustomerId + "'"));
-        Assert.Equal(7, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Equal(1001L, await ScalarAsync<long>(c, "SELECT nextval('crm.customer_code_seq')"));
         await ErrorAsync(DatabaseProvisioning.Login(c, "tp_app"), "DELETE FROM sales.orders", "42501");
     }

@@ -21,6 +21,14 @@ public static class GrantsSql
 
     public static string CrmSalesFinance() => CatalogAndInventory() + "\n" + CrmSalesFinanceGrants + "\n" + Preflight;
 
+    public static string Reservations() => ReservationsGrants + "\n" + Preflight;
+
+    private const string ReservationsGrants = """
+REVOKE ALL ON inventory.reservations FROM PUBLIC,tp_app,tp_readonly;
+GRANT SELECT,INSERT,UPDATE,DELETE ON inventory.reservations TO tp_app;
+GRANT SELECT ON inventory.reservations TO tp_readonly;
+""";
+
     private const string CrmSalesFinanceGrants = """
 REVOKE ALL ON SCHEMA crm,sales,finance FROM PUBLIC,tp_app,tp_readonly;
 GRANT USAGE ON SCHEMA crm,sales,finance TO tp_app,tp_readonly;

@@ -54,13 +54,18 @@ public sealed partial class InventoryAlertHandler(AppDbContext db, ILogger<Inven
                                     variant.ProductId,
                                     variant.Sku,
                                     OnHand = level == null ? 0 : level.OnHand,
-                                    LedgerQuantity = db.Set<StockMovement>().Where(m => m.VariantId == variant.Id).Sum(m => (long?)m.Quantity) ?? 0L
+                                    Reserved = level == null ? 0 : level.Reserved,
+                                    LedgerQuantity = db.Set<StockMovement>().Where(m => m.VariantId == variant.Id).Sum(m => (long?)m.Quantity) ?? 0L,
+                                    ActiveReservationQuantity = db.Set<Reservation>().Where(r => r.VariantId == variant.Id && r.Status == "active").Sum(r => (long?)r.Quantity) ?? 0L
                                 }).SingleOrDefaultAsync(cancellationToken);
 
-        if (reconciled is null || reconciled.LedgerQuantity == reconciled.OnHand) return;
+        if (reconciled is null
+            || (reconciled.LedgerQuantity == reconciled.OnHand && reconciled.ActiveReservationQuantity == reconciled.Reserved))
+            return;
 
         LogMismatchAlert(logger, messageId, reconciled.Id, reconciled.ProductId, reconciled.Sku,
-            reconciled.OnHand, reconciled.LedgerQuantity, reconciled.LedgerQuantity - reconciled.OnHand);
+            reconciled.OnHand, reconciled.LedgerQuantity, reconciled.LedgerQuantity - reconciled.OnHand,
+            reconciled.Reserved, reconciled.ActiveReservationQuantity, reconciled.ActiveReservationQuantity - reconciled.Reserved);
     }
 
     [LoggerMessage(
@@ -83,7 +88,7 @@ public sealed partial class InventoryAlertHandler(AppDbContext db, ILogger<Inven
         EventId = 2,
         EventName = "InventoryReconciliationMismatchAlert",
         Level = LogLevel.Warning,
-        Message = "Inventory reconciliation mismatch alert: messageId={MessageId}, variantId={VariantId}, productId={ProductId}, sku={Sku}, onHand={OnHand}, ledgerQuantity={LedgerQuantity}, delta={Delta}")]
+        Message = "Inventory reconciliation mismatch alert: messageId={MessageId}, variantId={VariantId}, productId={ProductId}, sku={Sku}, onHand={OnHand}, ledgerQuantity={LedgerQuantity}, delta={Delta}, reserved={Reserved}, activeReservationQuantity={ActiveReservationQuantity}, reservedDelta={ReservedDelta}")]
     private static partial void LogMismatchAlert(
         ILogger logger,
         Guid messageId,
@@ -92,5 +97,8 @@ public sealed partial class InventoryAlertHandler(AppDbContext db, ILogger<Inven
         string sku,
         int onHand,
         long ledgerQuantity,
-        long delta);
+        long delta,
+        int reserved,
+        long activeReservationQuantity,
+        long reservedDelta);
 }

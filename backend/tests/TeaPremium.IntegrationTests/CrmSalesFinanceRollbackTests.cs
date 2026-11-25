@@ -19,19 +19,22 @@ public sealed class CrmSalesFinanceRollbackTests(CrmSalesFinanceFixture fixture)
         var p1DataBefore = await CrmSalesFinanceDatabaseTests.P0P1FingerprintAsync(c);
 
         await using var db = Context(c);
+        await db.GetService<IMigrator>().MigrateAsync(P201Head);
+        Assert.Equal(7, (await db.Database.GetAppliedMigrationsAsync()).Count());
         await db.GetService<IMigrator>().MigrateAsync(P1Head);
 
         Assert.Equal(6, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Equal(p1DataBefore, await CrmSalesFinanceDatabaseTests.P0P1FingerprintAsync(c));
         Assert.True(await ScalarAsync<bool>(c, "SELECT to_regnamespace('crm') IS NULL AND to_regnamespace('sales') IS NULL AND to_regnamespace('finance') IS NULL"));
         Assert.True(await ScalarAsync<bool>(c, "SELECT to_regnamespace('pricing') IS NOT NULL AND to_regclass('pricing.sale_prices') IS NOT NULL"));
-        Assert.True(await ScalarAsync<bool>(c, "SELECT to_regclass('pricing.vouchers') IS NULL AND to_regclass('pricing.voucher_redemptions') IS NULL"));
+        Assert.True(await ScalarAsync<bool>(c, "SELECT to_regclass('pricing.vouchers') IS NULL AND to_regclass('pricing.voucher_redemptions') IS NULL AND to_regclass('inventory.reservations') IS NULL"));
         Assert.Equal(p1AclSnapshot, await AclSnapshotAsync(c));
 
         await db.Database.MigrateAsync();
-        Assert.Equal(7, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Equal(p1DataBefore, await CrmSalesFinanceDatabaseTests.P0P1FingerprintAsync(c));
         Assert.Equal(27, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('crm','sales','finance','pricing')"));
+        Assert.Equal(1, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname='inventory' AND tablename='reservations'"));
         Assert.Equal(1000L, await ScalarAsync<long>(DatabaseProvisioning.Login(c, "tp_app"), "SELECT nextval('crm.customer_code_seq')"));
     }
 
@@ -79,7 +82,7 @@ public sealed class CrmSalesFinanceRollbackTests(CrmSalesFinanceFixture fixture)
     [MemberData(nameof(OwnedTableDataSeeds))]
     public async Task DownWithDataInAnyOwnedTableRefusesBeforeAnyDrop(string label, string seed)
     {
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: P201Head);
         await ExecuteAsync(c, seed);
         Assert.NotEmpty(label);
         var before = await ShapeAsync(c);
@@ -103,7 +106,7 @@ public sealed class CrmSalesFinanceRollbackTests(CrmSalesFinanceFixture fixture)
     [InlineData("CREATE COLLATION crm.p201_outside FROM pg_catalog.\"C\"", "DROP COLLATION crm.p201_outside")]
     public async Task DownWithOutsideObjectOrDependencyRefusesAndRecovers(string create, string remove)
     {
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: P201Head);
         await ExecuteAsync(c, create);
         var before = await ShapeAsync(c);
         await using var db = Context(c);

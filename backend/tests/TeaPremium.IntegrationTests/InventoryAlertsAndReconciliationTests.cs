@@ -373,48 +373,47 @@ VALUES ('{{Guid.CreateVersion7()}}','StorefrontInvalidate','{"Tags":["catalog"]}
             services.AddSingleton<IClock>(clock);
         });
 
-        // Create an inaccessible trap table inventory.reservations in this disposable DB:
-        // any query against inventory.reservations by tp_app would immediately fail with 42501.
-        await h.App.ExecuteAsync("""
-CREATE TABLE inventory.reservations (
-  id uuid PRIMARY KEY,
-  variant_id uuid NOT NULL,
-  quantity int NOT NULL
-) WITH (autovacuum_enabled = false);
-REVOKE ALL ON inventory.reservations FROM PUBLIC, tp_app, tp_readonly;
-""");
-        await CatalogInventoryFixture.ErrorAsync(h.App.RuntimeConnection,
-            "SELECT count(*) FROM inventory.reservations", PostgresErrorCodes.InsufficientPrivilege);
-
         var matched = Assert.Single((await h.Create("Matched variant")).Variants);
         var emptyNoRow = Assert.Single((await h.Create("Empty without stock row")).Variants);
         var mismatchedLevel = Assert.Single((await h.Create("Corrupted stock level")).Variants);
         var missingLevelWithMoves = Assert.Single((await h.Create("Missing stock level with ledger")).Variants);
+        var reservedMismatch = Assert.Single((await h.Create("Reserved mismatch variant")).Variants);
+        var closedReservationsMatched = Assert.Single((await h.Create("Closed reservations matched variant")).Variants);
 
         Assert.True((await PostStock(h, matched.Id, new("opening", 10, 50_000L, "import", null, null, "staff", h.App.OwnerId))).IsSuccess);
         Assert.True((await PostStock(h, matched.Id, new("damage", -2, 50_000L, "adjustment", null, "test", "staff", h.App.OwnerId))).IsSuccess);
         Assert.True((await PostStock(h, mismatchedLevel.Id, new("opening", 5, 80_000L, "import", null, null, "staff", h.App.OwnerId))).IsSuccess);
+        Assert.True((await PostStock(h, reservedMismatch.Id, new("opening", 4, 60_000L, "import", null, null, "staff", h.App.OwnerId))).IsSuccess);
+        Assert.True((await PostStock(h, closedReservationsMatched.Id, new("opening", 4, 60_000L, "import", null, null, "staff", h.App.OwnerId))).IsSuccess);
 
-        // Inject ledger mismatches directly as owner:
+        // Inject ledger & reservation mismatches directly as owner (BR-INV-13):
         // 1) mismatchedLevel has stock_levels.on_hand = 7 vs SUM(movements) = 5;
-        // 2) missingLevelWithMoves has NO stock_levels row (COALESCE = 0) vs SUM(movements) = 3.
+        // 2) missingLevelWithMoves has NO stock_levels row (COALESCE = 0) vs SUM(movements) = 3;
+        // 3) reservedMismatch has stock_levels.on_hand = 4 == ledger, reserved = 2 vs SUM(active reservations) = 0;
+        // 4) closedReservationsMatched has reserved = 0 and a released reservation (with order_line_id IS NULL) -> MUST NOT alert.
         await h.App.ExecuteAsync($"""
 UPDATE inventory.stock_levels SET on_hand = 7 WHERE variant_id = '{mismatchedLevel.Id}';
 INSERT INTO inventory.stock_movements(id,variant_id,movement_type,quantity,unit_cost_vnd,on_hand_after,actor_type,occurred_at)
 VALUES ('{Guid.CreateVersion7()}','{missingLevelWithMoves.Id}','opening',3,40000,3,'system',now());
+UPDATE inventory.stock_levels SET reserved = 2 WHERE variant_id = '{reservedMismatch.Id}';
+INSERT INTO inventory.reservations(id,variant_id,order_line_id,quantity,status,created_at,closed_at,close_reason)
+VALUES ('{Guid.CreateVersion7()}','{closedReservationsMatched.Id}',NULL,2,'released',now(),now(),'line_removed');
 DELETE FROM platform.outbox_messages;
 """);
         Assert.Equal(0L, await Scalar(h, $"SELECT count(*) FROM inventory.stock_levels WHERE variant_id='{emptyNoRow.Id}' OR variant_id='{missingLevelWithMoves.Id}'"));
 
         var balancesBefore = await StockAndAuditFingerprint(h);
-        // Guard stock_levels at the PostgreSQL trigger level so any auto-mutation attempt immediately aborts.
+        // Guard BOTH stock_levels and reservations at the PostgreSQL trigger level so any auto-mutation attempt immediately aborts.
         await h.App.ExecuteAsync("""
 CREATE FUNCTION inventory.test_forbid_stock_level_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  RAISE EXCEPTION 'ReconcileInventory must never mutate stock_levels';
+  RAISE EXCEPTION 'ReconcileInventory must never mutate stock_levels or reservations';
 END $$;
 CREATE TRIGGER test_forbid_stock_level_mutation
   BEFORE INSERT OR UPDATE OR DELETE ON inventory.stock_levels
+  FOR EACH STATEMENT EXECUTE FUNCTION inventory.test_forbid_stock_level_mutation();
+CREATE TRIGGER test_forbid_reservation_mutation
+  BEFORE INSERT OR UPDATE OR DELETE ON inventory.reservations
   FOR EACH STATEMENT EXECUTE FUNCTION inventory.test_forbid_stock_level_mutation();
 """);
 
@@ -462,7 +461,7 @@ CREATE TRIGGER test_forbid_stock_level_mutation
         Assert.True(await run1);
 
         var vnDateDay1 = new DateOnly(2026, 11, 23);
-        var expectedDay1 = new[] { mismatchedLevel.Id, missingLevelWithMoves.Id }
+        var expectedDay1 = new[] { mismatchedLevel.Id, missingLevelWithMoves.Id, reservedMismatch.Id }
             .Order()
             .Select(id => new InventoryAlert(InventoryAlert.ReconciliationMismatch, id, vnDateDay1))
             .ToArray();
@@ -479,7 +478,7 @@ CREATE TRIGGER test_forbid_stock_level_mutation
         }
         clock.Advance(TimeSpan.FromHours(21) + TimeSpan.FromMinutes(59));
         Assert.True(await job1.RunOnceAsync());
-        Assert.Equal(2L, await AlertOutboxCount(h));
+        Assert.Equal(3L, await AlertOutboxCount(h));
 
         // 4. Next Vietnam day at 01:29:00 +07:00 is skipped; advancing timer by 5 minutes past 01:30 +07:00
         // triggers background ExecuteAsync once for 2026-11-24.
@@ -487,11 +486,11 @@ CREATE TRIGGER test_forbid_stock_level_mutation
         await job1.StartAsync(CancellationToken.None);
         try
         {
-            // Initial tick at 01:29 VN -> skipped (still 2 alerts from day 1).
+            // Initial tick at 01:29 VN -> skipped (still 3 alerts from day 1).
             await WaitUntilAsync(async () =>
             {
                 clock.Advance(ReconcileInventory.PollInterval);
-                return await AlertOutboxCount(h) == 4L;
+                return await AlertOutboxCount(h) == 6L;
             });
         }
         finally
@@ -499,32 +498,37 @@ CREATE TRIGGER test_forbid_stock_level_mutation
             await job1.StopAsync(CancellationToken.None);
         }
 
-        // 5. Prove ReconcileInventory never mutated stock_levels, stock_movements, or audit_logs;
+        // 5. Prove ReconcileInventory never mutated stock_levels, stock_movements, reservations, or audit_logs;
         // then also exercise GET /alerts and InventoryAlertHandler under the same SQL & trigger guards.
         Assert.Equal(balancesBefore, await StockAndAuditFingerprint(h));
         var stockOnlyBefore = await CatalogInventoryFixture.ScalarAsync<string>(h.App.OwnerConnection, """
 SELECT concat_ws('|',
   (SELECT coalesce(jsonb_agg(to_jsonb(s) ORDER BY variant_id)::text,'') FROM inventory.stock_levels s),
-  (SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY id)::text,'') FROM inventory.stock_movements m))
+  (SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY id)::text,'') FROM inventory.stock_movements m),
+  (SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY id)::text,'') FROM inventory.reservations r))
 """);
         await h.App.LoginAsync();
         var alertsResponse = (await h.App.Client.GetFromJsonAsync<InventoryAlertsView>(Alerts))!;
+        // ASSUMPTION-P205-01 = B: AlertsAsync remains unchanged (on_hand vs ledger mismatches only).
         Assert.Equal(2L, alertsResponse.MismatchTotal);
         await using (var scope = h.App.Factory.Services.CreateAsyncScope())
-            Assert.Equal(4, await scope.ServiceProvider.GetRequiredService<OutboxBatchProcessor>().ProcessAsync(10, default));
+            Assert.Equal(6, await scope.ServiceProvider.GetRequiredService<OutboxBatchProcessor>().ProcessAsync(10, default));
 
         Assert.Equal(stockOnlyBefore, await CatalogInventoryFixture.ScalarAsync<string>(h.App.OwnerConnection, """
 SELECT concat_ws('|',
   (SELECT coalesce(jsonb_agg(to_jsonb(s) ORDER BY variant_id)::text,'') FROM inventory.stock_levels s),
-  (SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY id)::text,'') FROM inventory.stock_movements m))
+  (SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY id)::text,'') FROM inventory.stock_movements m),
+  (SELECT coalesce(jsonb_agg(to_jsonb(r) ORDER BY id)::text,'') FROM inventory.reservations r))
 """));
         Assert.NotEmpty(sqlObserver.Commands);
         Assert.All(sqlObserver.Commands, sql =>
         {
-            Assert.DoesNotContain("reservations", sql, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("UPDATE \"inventory\".\"stock_levels\"", sql, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("INSERT INTO \"inventory\".\"stock_levels\"", sql, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("DELETE FROM \"inventory\".\"stock_levels\"", sql, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("UPDATE \"inventory\".\"reservations\"", sql, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("INSERT INTO \"inventory\".\"reservations\"", sql, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("DELETE FROM \"inventory\".\"reservations\"", sql, StringComparison.OrdinalIgnoreCase);
         });
     }
 

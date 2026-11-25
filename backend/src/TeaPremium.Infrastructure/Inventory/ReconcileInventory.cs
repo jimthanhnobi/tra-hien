@@ -9,9 +9,9 @@ using TeaPremium.Infrastructure.Persistence;
 
 namespace TeaPremium.Infrastructure.Inventory;
 
-// BR-INV-13: nightly ledger reconciliation at/after 01:30 Asia/Ho_Chi_Minh, once per Vietnam calendar date.
-// Uses only guarded AppDbContext LINQ + tracked OutboxMessages writes; never queries reservations (P2-05)
-// and never auto-mutates stock_levels.
+// BR-INV-13: nightly ledger and active-reservation reconciliation at/after 01:30 Asia/Ho_Chi_Minh,
+// once per Vietnam calendar date. Uses only guarded AppDbContext LINQ + tracked OutboxMessages writes
+// and never auto-mutates stock_levels or reservations.
 public sealed class ReconcileInventory(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
@@ -62,8 +62,10 @@ public sealed class ReconcileInventory(
             join level in db.Set<StockLevel>().AsNoTracking() on variant.Id equals level.VariantId into levels
             from level in levels.DefaultIfEmpty()
             let onHand = level == null ? 0 : level.OnHand
+            let reserved = level == null ? 0 : level.Reserved
             let ledgerQty = db.Set<StockMovement>().Where(m => m.VariantId == variant.Id).Sum(m => (long?)m.Quantity) ?? 0L
-            where ledgerQty != (long)onHand
+            let activeReservedQty = db.Set<Reservation>().Where(r => r.VariantId == variant.Id && r.Status == "active").Sum(r => (long?)r.Quantity) ?? 0L
+            where ledgerQty != (long)onHand || activeReservedQty != (long)reserved
             orderby variant.Id
             select variant.Id).ToListAsync(cancellationToken);
 

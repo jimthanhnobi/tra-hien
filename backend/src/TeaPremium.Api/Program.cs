@@ -18,6 +18,7 @@ using TeaPremium.Application.Inventory;
 using TeaPremium.Infrastructure.Inventory;
 using TeaPremium.Api.Crm;
 using TeaPremium.Infrastructure.Crm;
+using TeaPremium.Infrastructure.Orders;
 
 // Import arguments are file paths, never deployment configuration or host options.
 // Leave the ordinary API/bootstrap-owner command-line behavior unchanged.
@@ -61,6 +62,7 @@ builder.Services.AddScoped<IInventoryQueries, EfInventoryQueries>();
 builder.Services.AddScoped<InventoryMutation>();
 builder.Services.AddScoped<IInventoryDocumentStore, EfInventoryDocumentStore>();
 builder.Services.AddScoped<InventoryDocuments>();
+builder.Services.AddOrders();
 builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSection("OutboxDispatcher"));
 builder.Services.AddHostedService<OutboxDispatcher>();
 // Scaffold/OpenAPI generation can start without a DB. Production supplies this setting.

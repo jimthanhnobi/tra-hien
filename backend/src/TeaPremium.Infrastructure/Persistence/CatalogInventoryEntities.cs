@@ -358,6 +358,18 @@ public sealed class StocktakeLine
     public Guid CountedBy { get; set; }
 }
 
+public sealed class Reservation
+{
+    public Guid Id { get; set; }
+    public Guid VariantId { get; set; }
+    public Guid? OrderLineId { get; set; }
+    public int Quantity { get; set; }
+    public string Status { get; set; } = null!;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ClosedAt { get; set; }
+    public string? CloseReason { get; set; }
+}
+
 [Audited]
 public sealed class SalePrice
 {

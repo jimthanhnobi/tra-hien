@@ -11,7 +11,7 @@ public sealed class CrmSalesFinanceParityTests(CrmSalesFinanceFixture fixture) :
     [Fact]
     public async Task EveryColumnConstraintIndexForeignKeyAndSequenceMatchesApprovedDdl()
     {
-        var actual = await fixture.DatabaseAsync();
+        var actual = await fixture.DatabaseAsync(target: P201Head);
         var reference = await ReferenceAsync();
         var (expected, names) = await ExpectedAsync(actual, reference);
         Assert.Equal(expected, await CatalogAsync(actual));
@@ -34,7 +34,7 @@ public sealed class CrmSalesFinanceParityTests(CrmSalesFinanceFixture fixture) :
     [InlineData("ALTER SEQUENCE crm.customer_code_seq INCREMENT 2")]
     public async Task ParityDetectsSameNamedSemanticDrift(string mutation)
     {
-        var actual = await fixture.DatabaseAsync();
+        var actual = await fixture.DatabaseAsync(target: P201Head);
         var reference = await ReferenceAsync();
         var (expected, _) = await ExpectedAsync(actual, reference);
         Assert.Equal(expected, await CatalogAsync(actual));

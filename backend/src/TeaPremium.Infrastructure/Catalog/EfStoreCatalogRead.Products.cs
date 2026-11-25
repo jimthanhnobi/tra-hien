@@ -29,9 +29,13 @@ public sealed partial class EfStoreCatalogRead
         var result = await db.Database.SqlQuery<string>(ProductsSql(query, filters, tokens, at)).ToListAsync(ct);
         using var payload = JsonDocument.Parse(result.Single());
         var rows = payload.RootElement.GetProperty("items").Deserialize<CardRow[]>(Json)!;
+        var zeroStockIds = rows.Where(row => row.Stock <= 0).Select(row => row.VariantId).Distinct().ToArray();
+        IReadOnlySet<Guid> soldIds = zeroStockIds.Length == 0
+            ? new HashSet<Guid>()
+            : await inventory.SoldUniqueVariantIdsAsync(zeroStockIds, ct);
         var images = await ImagesAsync(rows.Select(row => row.CoverId), ct);
         var items = rows.Select(row => new StoreProductCard(row.Slug, row.Name, row.Subtitle, row.ShortDescription,
-            row.VariantId, Offer(row.BasePrice, row.EffectivePrice), Availability(row.Stock), LowStock(row.Stock),
+            row.VariantId, Offer(row.BasePrice, row.EffectivePrice), Availability(row.Stock, soldIds.Contains(row.VariantId)), LowStock(row.Stock),
             Image(images, row.CoverId, row.Alt))).ToArray();
         return new(items, query.Page, query.PageSize, payload.RootElement.GetProperty("total").GetInt64(),
             payload.RootElement.GetProperty("facets").Deserialize<StoreFacet[]>(Json)!);

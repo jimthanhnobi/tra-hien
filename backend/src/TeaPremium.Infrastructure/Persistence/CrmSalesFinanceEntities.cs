@@ -197,6 +197,7 @@ public sealed class CartItem
     public DateTime AddedAt { get; set; }
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class Order
 {
     public Guid Id { get; set; }

@@ -34,6 +34,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
         IamModel.Configure(builder);
         CatalogInventoryModel.Configure(builder);
         CrmSalesFinanceModel.Configure(builder);
+        ReservationModel.Configure(builder);
         TeaPremium.Infrastructure.AdministrativeData.AdministrativeImportModel.Configure(builder);
         builder.HasPostgresExtension("unaccent");
         builder.HasPostgresExtension("pg_trgm");

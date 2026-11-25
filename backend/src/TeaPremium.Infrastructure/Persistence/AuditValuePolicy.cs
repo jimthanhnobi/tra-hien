@@ -147,6 +147,22 @@ public static class AuditValuePolicy
             if (field == "updated_at" && value is DateTime) return value;
             return Redacted;
         }
+        // P2-05 / NFR-04: explicit allowlist for sales.orders; all PII, addresses, notes, UTM,
+        // referral_code and invoice numbers remain redacted.
+        if (entityType == "sales.orders")
+        {
+            if (field == "code" && value is string) return value;
+            if (field == "origin" && value is "web" or "admin") return value;
+            if (field == "sales_channel" && value is "web" or "zalo_personal" or "zalo_oa" or "facebook" or "phone" or "in_person" or "other") return value;
+            if (field == "status" && value is "pending" or "confirmed" or "shipping" or "delivered" or "delivery_failed" or "cancelled") return value;
+            if (field == "payment_method" && value is "cod" or "bank_transfer") return value;
+            if (field == "payment_status" && value is "unpaid" or "partially_paid" or "paid" or "partially_refunded" or "refunded") return value;
+            if (field is "subtotal_vnd" or "discount_vnd" or "shipping_fee_vnd" or "total_vnd" && value is long) return value;
+            if (field is "customer_id" or "voucher_id" or "created_by_staff_id" && value is Guid) return value;
+            if (field is "is_first_purchase" or "is_backfilled" && value is bool) return value;
+            if (field is "payment_due_at" or "placed_at" or "confirmed_at" or "shipped_at" or "delivered_at" or "failed_at" or "cancelled_at" or "created_at" or "updated_at" && value is DateTime) return value;
+            return Redacted;
+        }
         // P1-04 entity/path classification. Never whitelist names/biographies/HTML globally.
         if (entityType is "catalog.categories" or "catalog.collections" or "catalog.materials" or "catalog.artisans")
         {
