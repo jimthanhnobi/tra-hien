@@ -16,7 +16,8 @@ public sealed record Error(
     string Code,
     string Message,
     ErrorType Type,
-    IReadOnlyDictionary<string, string[]>? ValidationErrors = null)
+    IReadOnlyDictionary<string, string[]>? ValidationErrors = null,
+    IReadOnlyDictionary<string, object?>? Data = null)
 {
     public static Error BusinessRule(string code, string message) => new(code, message, ErrorType.BusinessRule);
 }

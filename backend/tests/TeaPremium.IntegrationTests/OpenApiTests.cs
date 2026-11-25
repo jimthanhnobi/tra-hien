@@ -26,7 +26,20 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
         var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
             .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
-        Assert.Equal(95, totalOperations);
+        Assert.Equal(110, totalOperations);
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers", out var customersPath));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/correct-identity", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/orders", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/tags", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/addresses", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/addresses/{aid}", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/tags", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/tags/{id}", out _));
+        var customerListParams = customersPath.GetProperty("get").GetProperty("parameters")
+            .EnumerateArray().ToDictionary(x => x.GetProperty("name").GetString()!);
+        AssertOpenApiEnum(customerListParams["group"].GetProperty("schema"), "retail", "wholesale", "reseller");
+        AssertOpenApiEnum(customerListParams["contactStatus"].GetProperty("schema"), "active", "do_not_contact", "erased");
         var alertsGet = Assert.Single(alertsPath.EnumerateObject());
         Assert.Equal("get", alertsGet.Name);
         Assert.Contains(alertsGet.Value.GetProperty("parameters").EnumerateArray(),
@@ -54,6 +67,21 @@ public sealed class OpenApiTests
             Assert.All(props.EnumerateObject(), prop =>
                 Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase));
         }
+
+        foreach (var name in new[] { "CustomerSummaryView", "CustomerDetailView", "CustomerAccountSummaryView", "CustomerOrderSummaryView" })
+        {
+            var props = schemas.GetProperty(name).GetProperty("properties");
+            Assert.All(props.EnumerateObject(), prop =>
+            {
+                Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("profit", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("password", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("securityStamp", prop.Name, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+        AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("customerGroup"), "retail", "wholesale", "reseller");
+        AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("origin"), "legacy_import", "web", "admin");
+        AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("contactStatus"), "active", "do_not_contact", "erased");
     }
 
     private static void AssertOpenApiEnum(JsonElement schema, params string[] values)

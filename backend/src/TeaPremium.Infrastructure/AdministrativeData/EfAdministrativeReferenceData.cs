@@ -22,4 +22,45 @@ public sealed class EfAdministrativeReferenceData(AppDbContext db, IConfiguratio
     public async Task<bool> IsActiveSelectionAsync(string provinceCode, string? wardCode, CancellationToken ct)
         => await IsReadyAsync(ct) && await db.Provinces.AsNoTracking().AnyAsync(p => p.Code == provinceCode && p.IsActive, ct)
             && (wardCode is null || await db.Wards.AsNoTracking().AnyAsync(w => w.Code == wardCode && w.ProvinceCode == provinceCode && w.IsActive, ct));
+
+    public async Task<IReadOnlyDictionary<(string ProvinceCode, string? WardCode), AdministrativeLocation>> ResolveLocationsAsync(
+        IReadOnlyCollection<(string ProvinceCode, string? WardCode)> keys, CancellationToken ct)
+    {
+        if (keys.Count == 0)
+        {
+            return new Dictionary<(string ProvinceCode, string? WardCode), AdministrativeLocation>();
+        }
+
+        var distinctKeys = keys.Distinct().ToArray();
+        var provinceCodes = distinctKeys.Select(k => k.ProvinceCode).Distinct(StringComparer.Ordinal).ToArray();
+        var wardCodes = distinctKeys.Where(k => k.WardCode is not null).Select(k => k.WardCode!).Distinct(StringComparer.Ordinal).ToArray();
+
+        var provinces = await db.Provinces.AsNoTracking()
+            .Where(p => provinceCodes.Contains(p.Code))
+            .ToDictionaryAsync(p => p.Code, StringComparer.Ordinal, ct);
+
+        var wards = wardCodes.Length == 0
+            ? new Dictionary<string, Ward>(StringComparer.Ordinal)
+            : await db.Wards.AsNoTracking()
+                .Where(w => wardCodes.Contains(w.Code))
+                .ToDictionaryAsync(w => w.Code, StringComparer.Ordinal, ct);
+
+        var result = new Dictionary<(string ProvinceCode, string? WardCode), AdministrativeLocation>(distinctKeys.Length);
+        foreach (var key in distinctKeys)
+        {
+            var hasProvince = provinces.TryGetValue(key.ProvinceCode, out var province);
+            Ward? ward = null;
+            var hasWard = key.WardCode is not null && wards.TryGetValue(key.WardCode, out ward);
+            var isLocationActive = hasProvince && province!.IsActive
+                && (key.WardCode is null
+                    || (hasWard && ward!.IsActive && string.Equals(ward.ProvinceCode, key.ProvinceCode, StringComparison.Ordinal)));
+
+            result[key] = new AdministrativeLocation(
+                hasProvince ? province!.Name : "",
+                hasWard ? ward!.Name : null,
+                isLocationActive);
+        }
+
+        return result;
+    }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TeaPremium.Domain.Crm;
 
 namespace TeaPremium.Infrastructure.Persistence;
 
@@ -67,6 +68,44 @@ public static class AuditValuePolicy
             {
                 throw new InvalidOperationException("Audited JSON value is invalid.");
             }
+        }
+
+        // P2-02 CRM fail-closed classification. All PII, notes, search_text, tag names and account secrets stay redacted.
+        if (entityType == "crm.customers")
+        {
+            if (field == "code" && value is string customerCode && CustomerRules.IsValidCustomerCode(customerCode)) return customerCode;
+            if (field == "customer_group" && value is string group && CustomerRules.CustomerGroups.Contains(group)) return group;
+            if (field is "is_vip" or "had_legacy_purchase" && value is bool) return value;
+            if (field == "origin" && value is string origin && CustomerRules.Origins.Contains(origin)) return origin;
+            if (field == "acquisition_source" && value is string source && CustomerRules.AcquisitionSources.Contains(source)) return source;
+            if (field is "referred_by_customer_id" or "merged_into_customer_id" or "created_by" && value is Guid) return value;
+            if (field == "contact_status" && value is string contactStatus && CustomerRules.ContactStatuses.Contains(contactStatus)) return contactStatus;
+            if (field == "delivered_orders_count" && value is int) return value;
+            if (field == "lifetime_value_vnd" && value is long) return value;
+            if (field is "first_delivered_at" or "last_delivered_at" or "last_contacted_at" or "erased_at" or "created_at" or "updated_at" && value is DateTime) return value;
+            return Redacted;
+        }
+        if (entityType == "crm.customer_addresses")
+        {
+            if (field == "customer_id" && value is Guid) return value;
+            if (field == "province_code" && value is string provinceCode && CustomerRules.IsValidProvinceCode(provinceCode)) return provinceCode;
+            if (field == "ward_code" && value is string wardCode && CustomerRules.IsValidWardCode(wardCode)) return wardCode;
+            if (field == "is_default" && value is bool) return value;
+            if (field is "created_at" or "updated_at" && value is DateTime) return value;
+            return Redacted;
+        }
+        if (entityType == "crm.tags")
+        {
+            if (field == "color" && value is string color && CustomerRules.IsValidHexColor(color)) return color;
+            return Redacted;
+        }
+        if (entityType == "crm.customer_accounts")
+        {
+            if (field == "customer_id" && value is Guid) return value;
+            if (field == "status" && value is "active" or "locked" or "disabled") return value;
+            if (field == "failed_login_count" && value is int) return value;
+            if (field is "email_verified_at" or "phone_verified_at" or "history_unlocked_at" or "lockout_end" or "created_at" or "last_login_at" && value is DateTime) return value;
+            return Redacted;
         }
 
         if (IsSensitive(field)) return Redacted;
