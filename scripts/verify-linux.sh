@@ -7,35 +7,70 @@
 #   api      = regenerate OpenAPI + TypeScript client from the real API; outputs copied to /out/api-client.
 #   frontend = CI job "Frontend verification": frozen install, lint, typecheck, tests, builds.
 #   full     = backend + frontend.
-# Env: TEST_FILTER = dotnet test --filter expression for focused runs (full suite still required before G4).
+#   docs     = fail-closed local docs-only candidate validation against read-only /src snapshot (no Docker socket, no PG).
+# Env: TEST_FILTER = dotnet test --filter expression for focused runs (backend/full only; never valid with -Manifest).
 # The worktree is never mounted: /src is a read-only, filtered snapshot made by verify-linux.ps1
-# (tracked + untracked-not-ignored files only) and is copied to /work before anything runs.
+# (tracked + untracked-not-ignored files only).
 set -euo pipefail
 exec 2>&1
 
 MODE="${1:-backend}"
-TEST_FILTER="${TEST_FILTER:-}"
+RAW_TEST_FILTER="${TEST_FILTER:-}"
+TEST_FILTER="$(printf '%s' "$RAW_TEST_FILTER" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 SRC=/src
 WORK=/work
 OUT=/out
 PNPM_STORE="${PNPM_STORE:-/cache/pnpm-store}"
 case "$MODE" in
-  backend|api|frontend|full) ;;
-  *) echo "Usage: verify-linux.sh backend|api|frontend|full"; exit 2 ;;
+  backend|api|frontend|full|docs) ;;
+  *) echo "Usage: verify-linux.sh backend|api|frontend|full|docs"; exit 2 ;;
+esac
+if [ -n "$RAW_TEST_FILTER" ] && [ -z "$TEST_FILTER" ]; then
+  echo "FAIL: TEST_FILTER cannot be whitespace-only"
+  exit 2
+fi
+if [ -n "$TEST_FILTER" ] && [ "$MODE" != "backend" ] && [ "$MODE" != "full" ]; then
+  echo "FAIL: TEST_FILTER is only valid with mode backend or full (got mode=$MODE)"
+  exit 2
+fi
+
+case "$MODE" in
+  backend)  COVERAGE="$( [ -n "$TEST_FILTER" ] && printf '%s' 'FOCUSED_BACKEND' || printf '%s' 'FULL_BACKEND' )" ;;
+  full)     COVERAGE="$( [ -n "$TEST_FILTER" ] && printf '%s' 'FOCUSED_ALL' || printf '%s' 'FULL_ALL' )" ;;
+  api)      COVERAGE="API" ;;
+  frontend) COVERAGE="FRONTEND" ;;
+  docs)     COVERAGE="DOCS" ;;
 esac
 
 T0=$(date +%s)
 step() { printf '\n=== [%4ss] %s ===\n' "$(( $(date +%s) - T0 ))" "$*"; }
 pnpm_install() { corepack pnpm install --frozen-lockfile --store-dir "$PNPM_STORE" "$@"; }
 
-# Docker Desktop maps host.docker.internal to both IPv4 and IPv6; this container has no IPv6 route,
-# so Testcontainers connections fail intermittently with "Network is unreachable". Keep the host NAME
-# (application guards allowlist it) but drop its IPv6 entries from this throwaway container's /etc/hosts.
-if grep -qE '^[0-9a-fA-F:]*:[0-9a-fA-F:]*[[:space:]].*host\.docker\.internal' /etc/hosts 2>/dev/null; then
-  grep -vE '^[0-9a-fA-F:]*:[0-9a-fA-F:]*[[:space:]].*host\.docker\.internal' /etc/hosts > /tmp/hosts.ipv4
-  cat /tmp/hosts.ipv4 > /etc/hosts
+check_no_secrets_in_dir() {
+  local dir="$1"
+  local secrets
+  secrets="$(find "$dir" -type f \( \
+    \( \( -iname '.env' -o -iname '.env.*' \) ! -iname '*.example' \) \
+    -o -iname '*.pfx' -o -iname '*.p12' -o -iname '*.pem' -o -iname '*.key' -o -iname '*.secret' \
+    -o -ipath '*/secrets/*' \
+  \) -print)"
+  if [ -n "$secrets" ]; then
+    echo "FAIL: secret-like files must not enter the container:"
+    echo "$secrets"
+    exit 4
+  fi
+}
+
+if [ "$MODE" = "backend" ] || [ "$MODE" = "full" ]; then
+  # Docker Desktop maps host.docker.internal to both IPv4 and IPv6; this container has no IPv6 route,
+  # so Testcontainers connections fail intermittently with "Network is unreachable". Keep the host NAME
+  # (application guards allowlist it) but drop its IPv6 entries from this throwaway container's /etc/hosts.
+  if grep -qE '^[0-9a-fA-F:]*:[0-9a-fA-F:]*[[:space:]].*host\.docker\.internal' /etc/hosts 2>/dev/null; then
+    grep -vE '^[0-9a-fA-F:]*:[0-9a-fA-F:]*[[:space:]].*host\.docker\.internal' /etc/hosts > /tmp/hosts.ipv4
+    cat /tmp/hosts.ipv4 > /etc/hosts
+  fi
+  echo "Testcontainers host: ${TESTCONTAINERS_HOST_OVERRIDE:-<default>} -> $(getent hosts host.docker.internal | awk '{ print $1 }' | tr '\n' ' ')"
 fi
-echo "Testcontainers host: ${TESTCONTAINERS_HOST_OVERRIDE:-<default>} -> $(getent hosts host.docker.internal | awk '{ print $1 }' | tr '\n' ' ')"
 
 summarize_trx() {
   python3 - "$1" <<'PY'
@@ -123,27 +158,51 @@ frontend() {
   corepack pnpm build
 }
 
-step "Snapshot read-only source into $WORK (mode=$MODE)"
-mkdir -p "$WORK" "$OUT"
-# /src is already a filtered host snapshot (no git-ignored files); keep the excludes as defense in depth.
-tar -C "$SRC" \
-  --exclude=.git \
-  --exclude=artifacts \
-  --exclude=node_modules \
-  --exclude='backend/src/*/bin' \
-  --exclude='backend/src/*/obj' \
-  --exclude='backend/tests/*/bin' \
-  --exclude='backend/tests/*/obj' \
-  --exclude='apps/*/.next' \
-  -cf - . | tar -C "$WORK" -xf -
-cd "$WORK"
-secrets="$(find . -type f \( -name '.env' -o -name '.env.*' \) ! -name '*.example' -print)"
-if [ -n "$secrets" ]; then echo "FAIL: environment files must not enter the container:"; echo "$secrets"; exit 1; fi
+docs() {
+  step "Validate read-only docs-only candidate snapshot ($SRC)"
+  check_no_secrets_in_dir "$SRC"
+  local inventory="$OUT/candidate-inventory.json"
+  if [ ! -f "$inventory" ]; then
+    echo "FAIL: missing candidate inventory file: $inventory"
+    exit 1
+  fi
+  if [ ! -f "$SRC/scripts/ci-fastpath.py" ]; then
+    echo "FAIL: missing scripts/ci-fastpath.py in snapshot"
+    exit 1
+  fi
+  python3 "$SRC/scripts/ci-fastpath.py" --local-inventory "$inventory" --root "$SRC"
+}
 
-case "$MODE" in
-  backend) backend ;;
-  api) api ;;
-  frontend) frontend ;;
-  full) backend; frontend ;;
-esac
-step "ALL PASSED (mode=$MODE${TEST_FILTER:+, focused})"
+if [ "$MODE" = "docs" ]; then
+  mkdir -p "$OUT"
+  docs
+else
+  step "Snapshot read-only source into $WORK (mode=$MODE)"
+  mkdir -p "$WORK" "$OUT"
+  # /src is already a filtered host snapshot (no git-ignored files); keep the excludes as defense in depth.
+  tar -C "$SRC" \
+    --exclude=.git \
+    --exclude=artifacts \
+    --exclude=node_modules \
+    --exclude='backend/src/*/bin' \
+    --exclude='backend/src/*/obj' \
+    --exclude='backend/tests/*/bin' \
+    --exclude='backend/tests/*/obj' \
+    --exclude='apps/*/.next' \
+    -cf - . | tar -C "$WORK" -xf -
+  cd "$WORK"
+  check_no_secrets_in_dir "."
+
+  case "$MODE" in
+    backend) backend ;;
+    api) api ;;
+    frontend) frontend ;;
+    full) backend; frontend ;;
+  esac
+fi
+
+if [ -n "$TEST_FILTER" ]; then
+  step "FOCUSED RUN PASSED (mode=$MODE coverage=$COVERAGE)"
+else
+  step "VERIFICATION PASSED (mode=$MODE coverage=$COVERAGE)"
+fi
