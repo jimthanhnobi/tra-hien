@@ -1,5 +1,9 @@
 # Mức sẵn sàng task P0–P6
 
+## Current Project State Pointer (Snapshot `2026-11-25 18:46 +07:00`)
+
+> **Điểm vào nhanh cho Technical Lead mới:** Mọi mục lịch sử P0/P1/B01 bên dưới được bảo toàn nguyên vẹn để truy vết. Trạng thái dự án mới nhất tại `origin/main = 591f872d7ba7377e7c5254360a59058576d5c04a` (đã merge tới PR `#47` `P2-13`), phân tách mốc `Latest Verified Spec SHA`, bảng `P1-10..P2-16`, snapshot các worktree in-flight, danh sách HOLD (`P2-07` publish, `P2-06` G3), follow-up `PR-2`/`PR-3` và checklist bàn giao nằm tại mục **[Phase 2 — Trạng thái dự án, Snapshot Worktrees & Bàn giao Technical Lead](#phase-2--trạng-thái-dự-án-snapshot-worktrees--bàn-giao-technical-lead-snapshot-2026-11-25-1846-0700)** ở cuối file. Nguồn quyết định nghiệp vụ & hợp đồng dùng chung: [ADR-P2-01](../decisions/ADR-P2-01-phase2-contracts.md) và [spec-gaps.md](../analysis/spec-gaps.md). Đây là snapshot tại thời điểm kiểm chứng, không phải trạng thái động tự cập nhật.
+
 **Cập nhật B01 (19/11/2026):** PR #22–#25 đã merge; CI tại từng PR HEAD/merge SHA PASS, baseline `origin/main` = `dadc4435e8f115faaeb9e8511e56e09d5d517a8a`. G4 #24/#25 PASS tại đúng HEAD theo **OWNER-PROVIDED REVIEWER EVIDENCE**, các finding CLOSED; không phải GitHub VERIFIED REVIEW. C1/C2/C3 PASS về readiness; owner chưa giao P1-01 G3. Targeted G1/G2 và bằng chứng ở mục hậu kiểm cuối file; các ghi chú GO/HOLD cũ giữ làm lịch sử.
 
 **Trạng thái:** PROPOSED. Bám `docs/spec/07-roadmap.md`; giữ nguyên mọi ID task và AC. Lần hậu kiểm 19/11 chỉ sửa dependency P1-01 còn sót theo B01, được owner cho phép riêng. Đối chiếu `docs/analysis/spec-inventory.md`, `spec-gaps.md`, `traceability.md` và [rà soát kiến trúc](../architecture/conformance-review.md). “GO” ở đây là đủ rõ để giao task theo gate G2/G3 của `AGENTS.md`, không phải xác nhận code đã chạy.
@@ -152,3 +156,108 @@ Tái sử dụng full G1 `cadce575597738bf40ad7c45689482de5a5fbc3d`, G2 [conform
 - Migration/rollback của lần sửa này: không có; revert đúng delta ba docs nếu cần. P1-01 sau này thêm migration, không sửa bốn migration cũ; recovery/Down an toàn theo task record §7.
 
 **READY_FOR_FOCUSED_G4** cho delta tài liệu hiện tại; reviewer độc lập đọc cùng worktree, full committed/staged/unstaged/untracked diff so `origin/main`, kiểm dependency và nguồn G4/CI. **READY_FOR_P1_01_G3: YES** là kết luận readiness; **NOT AUTHORIZED G3** cho tới owner giao riêng. Không commit/push/PR/merge và không triển khai P1-01 trong phiên này.
+
+---
+
+## Phase 2 — Trạng thái dự án, Snapshot Worktrees & Bàn giao Technical Lead (Snapshot `2026-11-25 18:46 +07:00`)
+
+> **Lưu ý về tính thời điểm:** Toàn bộ trạng thái Git, worktree, manifest và log kiểm chứng trong mục này được kiểm chứng trực tiếp (read-only) tại mốc **`2026-11-25 18:46 +07:00`** trên `origin/main = 591f872d7ba7377e7c5254360a59058576d5c04a`. Đây **không phải** trạng thái động luôn đúng; mọi phiên Technical Lead hoặc G3/G4 sau này bắt buộc tự chạy lại `git fetch origin --prune`, `git log`, `git worktree list` và `./scripts/candidate-manifest.ps1 -Verify`.
+
+### 1. Mốc kiểm định đặc tả (`Latest Verified Spec SHA`)
+
+Phân biệt rạch ròi giữa Full G1 audit, Targeted G1 audit đã commit, audit ở phiên riêng và commit chạm `docs/spec/` gần nhất (chi tiết bằng chứng tại [ADR-P2-01](../decisions/ADR-P2-01-phase2-contracts.md) §2.2 và [spec-gaps.md](../analysis/spec-gaps.md)):
+
+| Loại mốc | Commit SHA | Phạm vi & Ghi chú | Mức kiểm chứng |
+|---|---|---|---|
+| **Full G1 Audited Spec SHA** | `cadce575597738bf40ad7c45689482de5a5fbc3d` (`16/11/2026`) | Đọc đủ 10 Markdown + `schema.sql` ([spec-inventory.md](../analysis/spec-inventory.md), [spec-gaps.md](../analysis/spec-gaps.md)) | `VERIFIED_IN_CURRENT_SESSION` |
+| **Targeted G1 A01** | Base `288ca8b` → merge `024ea99` (`PR #20`, `18/11/2026`) | Amendment P0/P1 ([a01-amendment-evidence.md](../reviews/a01-amendment-evidence.md)) | `VERIFIED_IN_CURRENT_SESSION` |
+| **Targeted G1/G2 B01** | `dadc4435e8f115faaeb9e8511e56e09d5d517a8a` (`19/11/2026`) | Thu gọn vận hành P0 & readiness `P1-01` ([ADR-B01](../decisions/ADR-B01-right-sized-operations.md)) | `VERIFIED_IN_CURRENT_SESSION` |
+| **Targeted G1 gần nhất đã commit trong `spec-gaps.md`** | `f2227a07aeb75e9e8e5af655378a3d85c6b4e6e7` (`P1-04`, `19/11/2026`) + closure `P1-07` tại `ed49d11` (`20/11/2026`) | Lưu tại [spec-gaps.md](../analysis/spec-gaps.md) dòng `91–111` | `VERIFIED_IN_CURRENT_SESSION` |
+| **Phase 2 Readiness Audit (phiên riêng)** | Phiên đọc chỉ đọc trên `82710b3` (`22/11/2026`) | Chưa có biên bản riêng commit trong `docs/analysis/`; các quyết định Owner đã được xác nhận tường minh tại `STEP 462` | `REPORTED_BY_OTHER_AGENT` |
+| **Commit gần nhất thay đổi `docs/spec/`** | `57cb13fb4b03e28749e06ed8a136b6b5e6fa1748` (`P2-01`, PR `#44` merge `85218d1`, `23/11/2026`) | `0` thay đổi trong `docs/spec/` từ `57cb13f` tới `591f872`. Chỉ đi qua task-scoped G4 của `P2-01`, **không phải Full G1 audit mới** | `VERIFIED_IN_CURRENT_SESSION` |
+
+### 2. Trạng thái các task từ `P1-10` đến `P2-16` (xác minh từ `git log --merges origin/main` & worktrees)
+
+*(Lưu ý bằng chứng CI: phiên PR-1 kiểm chứng trực tiếp lịch sử merge trên `origin/main`, không truy vấn trực tiếp GitHub Actions API cho PR `#34`–`#47`; do đó không ghi `CI PASS` cho các PR chưa xác minh API trong phiên này.)*
+
+| Task | Trạng thái (`2026-11-25 18:46`) | PR / Merge SHA trên `origin/main` | Phụ thuộc chính | Ghi chú / Lý do HOLD |
+|---|---|---|---|---|
+| `P1-10` | `MERGED` | PR `#42` · `e63e90b99b596ba4e1d218d2a920733cbd79edbb` (`2026-11-23`) | `P0-06`, `P1-08` (đã merge) | Quyết định `DEC-P110-01..03` đã `OWNER_APPROVED` (`STEP 438`); CI status trong phiên này: `UNKNOWN`. |
+| `P1-11` | `MERGED` | PR `#34` · `c88069d58241fd51f5f6a76da2276c41f7a3830a` (`2026-11-20`) | `P1-03`, `P1-04` (đã merge) | Đã merge trước `P1-10`; CI status trong phiên này: `UNKNOWN`. |
+| `P1-12` | `MERGED` | PR `#36` · `b45558fd054e9b7d3ba0a28d93caf4ef100f0eed` (`2026-11-21`) | `P1-05` (đã merge) | Đã merge trước `P1-10`; CI status trong phiên này: `UNKNOWN`. |
+| `P1-13` | `MERGED` | PR `#43` · `be3f7b6e50cd75dde392feac4c3c57f2c886f078` (`2026-11-23`) | `P1-09`, `P1-10` (đã merge) | Hoàn tất mã nguồn Phase 1 (`14/14` task đã merge; gate dữ liệu thật/go-live theo `B01` vẫn mở). `GAP-P1-13-01..03`/`ASSUMPTION-01..02` ở trạng thái `IMPLEMENTED_BUT_NOT_CONFIRMED` (`O5`). |
+| `P1-14` | `MERGED` | PR `#39` · `b5d0852cdccee96404f9dca7411b079f345ebeb0` (`2026-11-22`) | `P1-05`, `P1-08` (đã merge) | Đã merge; nền Store Catalog cho `BR-SEO-21`. |
+| `P2-01` | `MERGED` | PR `#44` · `85218d119b36d5a1b8977a75c9fb71abf454ddde` (`2026-11-23`) | P1 DB foundation (đã merge) | 26 bảng + `crm.customer_code_seq`; đã áp `G03`, `G21` (`order_lines` DELETE), `G17a` (`OWNER_APPROVED`, `STEP 462`). |
+| `P2-02` | `MERGED` | PR `#45` · `97735e75f48911babd5af016867d17537ef4afab` (`2026-11-25`) | `P2-01` (đã merge) | Worktree `D:\tra-hien-p2-02` sạch, chưa dọn. `GAP-P202-01..03` / `ASSUMPTION-P202-01..03` / `R-P201-04` là `IMPLEMENTED_BUT_NOT_CONFIRMED` (`O5`). |
+| `P2-03` | `IN_REVIEW` (G4 chưa chốt verdict) | Chưa merge (`D:\tra-hien-p2-03` @ `591f872`) | `P2-02` (đã merge) | Manifest `MATCH`; `ASSUMPTION-P203-01..03` là `IMPLEMENTED_BUT_NOT_CONFIRMED`; cần Owner/G4 xem xét rủi ro re-import dòng zalo-only (`O4`) trước publish. |
+| `P2-04` | `PLAN_READY` (chưa G3) | Chưa merge (`D:\tra-hien-p2-04` @ `97735e7`) | `P2-02` (đã merge) | Chỉ có 1 file plan untracked; cần rebase lên `origin/main` mới, đồng bộ `[Audited] Interaction` với `P2-03` nếu `P2-03` merge trước, và chốt `GAP-P204-01`/`ASSUMPTION-P204-01..03` (`O7`). |
+| `P2-05` | `MERGED` | PR `#46` · `862fbf05fc8b9f9c34fc0441e559bb13e24604a3` (`2026-11-25`) | `P2-01`, `P1-08` (đã merge) | Worktree `D:\tra-hien-p2-05` sạch, chưa dọn. Sở hữu `CompositeOrderOutboxHandler`, `ICatalogInventoryRead`/`IProductSoldOutSync`, `G21` reservations, `G12` core. `GAP-P205-01`/`ASSUMPTION-P205-01..02` là `IMPLEMENTED_BUT_NOT_CONFIRMED` (`O5`). |
+| `P2-06` | `PLAN_READY` · **`HOLD G3`** | Chưa merge (`D:\tra-hien-p2-06` @ `862fbf0`) | `P2-05` (đã merge); **phối hợp `P2-07`** | **HOLD G3** do: (1) xung đột `CONF-P206-P207-01` (`OrderPaymentStatusCalculator`, `O1`/`O2`/`O3`); (2) câu hỏi scope `PROP-P206-SCOPE` (`O6a` giữ `ExpireUnpaidOrders`/`extend-payment` ở `P3-03`); (3) `ASSUMPTION-P206-01,03,04,05` (`O7`). `G11=A` & `G12=A` đã `OWNER_APPROVED`. |
+| `P2-07` | `IN_REVIEW` · **`HOLD PUBLISH`** | Chưa merge (`D:\tra-hien-p2-07` @ `591f872`) | `P2-05` (đã merge) | Manifest `MATCH`; chưa có verdict G4 cuối; **HOLD publish** chờ chốt `CONF-P206-P207-01` và `O1`–`O3` (`GAP-P207-01`, `ASSUMPTION-P207-01..04` đang `IMPLEMENTED_BUT_NOT_CONFIRMED`). |
+| `P2-08` | `PLAN_READY` · **HOLD phần phụ thuộc `O3`/`P2-07`** | Chưa merge (`D:\tra-hien-p2-08` @ `862fbf0`) | `P2-05` (đã merge); cần `OrderPaymentStatusCalculator` & chốt `O3` | Chỉ có 1 file plan untracked; cần chốt `O3` (`Order.MarkShipping` `Order.cs:569`), đồng bộ `P2-07` cho `cod_amount_vnd`, chốt `GAP-P208-01..02`/`ASSUMPTION-P208-01` (`O7`) và rebase baseline mới trước G3. |
+| `P2-09` | `WAITING_DEPENDENCIES` | Chưa tạo worktree | `P2-07`, `P2-08` (chưa merge) | Chờ `P2-07` và `P2-08` merge. |
+| `P2-10` | `WAITING_DEPENDENCIES` | Chưa tạo worktree | `P2-07`, `P2-08` (chưa merge) | Chờ `P2-07`, `P2-08`; áp `G04+G29`, `G27` (cần duyệt diff spec), `G30`, follow-up `O2` (`flag=needs_refund`) và `O3` (phí ship). |
+| `P2-11` | `WAITING_DEPENDENCIES` | Chưa tạo worktree | `P2-08` (chưa merge) | Chờ `P2-08`; đăng ký `IOrderOutboxStep` trên `CompositeOrderOutboxHandler` của `P2-05`. |
+| `P2-12` | `PLAN_READY` (chưa G3) | Chưa merge (`D:\tra-hien-p2-12` @ `97735e7`) | `P2-02` (đã merge) | Chỉ có 1 file plan untracked; cần chốt `GAP-P212-01` (`O6b`, không chạy retention dữ liệu thật) & `ASSUMPTION-P212-01..03` (`O7`), rebase baseline mới trước G3. |
+| `P2-13` | `MERGED` | PR `#47` · `591f872d7ba7377e7c5254360a59058576d5c04a` (`2026-11-25`) | `P0-06`, `P1-10` (đã merge) | Worktree `D:\tra-hien-p2-13` sạch, chưa dọn. `GAP-01..03`/`ASSUMPTION-01..02` là `IMPLEMENTED_BUT_NOT_CONFIRMED` (`O5`). |
+| `P2-14` | `WAITING_DEPENDENCIES` | Chưa tạo worktree | `P2-02` (merged), `P2-03`, `P2-04` | Chờ `P2-03` và `P2-04` merge; lưu ý quyền `GET admin/tags` (`GAP-P202-02=B`). |
+| `P2-15` | `WAITING_DEPENDENCIES` | Chưa tạo worktree | `P2-05..P2-10` (mới merge `P2-05`) | Chờ toàn bộ API đơn/thanh toán/vận đơn/COD/đổi trả hoàn tất. |
+| `P2-16` | `WAITING_DEPENDENCIES` | Chưa tạo worktree | `P2-15` | Chờ `P2-15` (và toàn bộ nguồn dữ liệu đơn/kho/tài chính P2). |
+
+### 3. Snapshot các Worktree hiện hữu (kiểm chứng read-only lúc `2026-11-25 18:46 +07:00`)
+
+*(Không có container Docker nào đang chạy vào thời điểm `docker ps` lúc `18:46:28 +07:00`. `P1-10`, `P1-13`, `P2-01` không còn worktree cục bộ, trạng thái merge xác minh từ lịch sử Git của `origin/main`. Worktree `D:\tra-hien-p2-decisions-recovery` trên nhánh `docs/p2-decisions-and-handoff-recovery` tại base `591f872` là worktree docs-only của chính PR-1 Knowledge Recovery này, không tự nhúng digest manifest của chính nó để tránh vòng lặp băm.)*
+
+| Worktree | Branch | BASE / Merge-Base (`origin/main`) | HEAD | Trạng thái working tree | Candidate Manifest SHA-256 | Kiểm chứng & Review / Merge Status |
+|---|---|---|---|---|---|---|
+| `D:\tra-hien` | `main` | `be3f7b6` (chậm `8` commit / `4` PR so với `origin/main` `591f872`) | `be3f7b6e50cd75dde392feac4c3c57f2c886f078` | `0` staged, `1` untracked (`202611230721_P2_05_InventoryReservations.Designer.cs`) + `stash@{0}` (`p1-14-remediation-pre-integration-20261121`) | Không áp dụng | Local `main` chưa fast-forward; **giữ nguyên file untracked và `stash@{0}`** cho tới khi Owner xử lý riêng. |
+| `D:\tra-hien-p2-02` | `feature/p2-02-customers` | `29581cf` (nằm trong `origin/main` qua PR `#45` `97735e7`) | `29581cfcf4d1969d92d1e3c4e5e4409f2302526f` | Sạch (`0` modified / untracked / staged) | Lịch sử `f1a542d8…` (`29` entries, base `85218d1`) | **MERGED** (PR `#45`). Worktree chưa dọn. |
+| `D:\tra-hien-p2-03` | `feature/p2-03-customer-import` | `591f872d7ba7377e7c5254360a59058576d5c04a` | `591f872d7ba7377e7c5254360a59058576d5c04a` | `0` staged, `16` modified, `9` untracked (`25` file) | `d7da23f3c4a8c05831c72dd24b76a73e555d5e017f6a3b7291e5a5adff96539b` (`MATCH`, `25` entries, base `591f872`) | **Chưa merge · G4 verdict: `UNKNOWN`**. Log mới nhất trên manifest `d7da23f3…`: `152211-827-backend` `PASS` (`1118s`, `1690/1690` tests); `155707-329-backend` `FAIL` (`2` timeout song song); `164618-826-frontend` `PASS` (`305s`); `165134-566-backend` `FAIL` (`1690/1690` tests PASS, `migrations.sql` PASS, lỗi cuối ở `check:api` do `ERR_PNPM_META_FETCH_FAIL` DNS offline); `174305-611-api` `PASS` (`3210s`, kết thúc `18:36:37`, contract khớp worktree). Không suy ra G4 PASS từ log verify; lưu ý `O4`. |
+| `D:\tra-hien-p2-04` | `feature/p2-04-interactions-followups` | `97735e7` (chậm so với `591f872`) | `97735e75f48911babd5af016867d17537ef4afab` | `0` staged, `1` untracked (`docs/plans/p2-04-implementation.md`) | Chưa có | **`PLAN_READY`** (chưa G3, `NOT_RUN`). Cần rebase + chốt `O7`. |
+| `D:\tra-hien-p2-05` | `feature/p2-05-order-core` | `5e6f6b8` (nằm trong `origin/main` qua PR `#46` `862fbf0`) | `5e6f6b8f6d6baf6fd8af0e6011674a65e018cdd1` | Sạch (`0` modified / untracked / staged) | Lịch sử `9f095247…` (`48` entries, base `97735e7`) | **MERGED** (PR `#46`). Worktree chưa dọn. |
+| `D:\tra-hien-p2-06` | `feature/p2-06-admin-orders` | `862fbf0` (chậm so với `591f872`) | `862fbf05fc8b9f9c34fc0441e559bb13e24604a3` | `0` staged, `1` untracked (`docs/plans/p2-06-implementation.md`) | Chưa có | **`PLAN_READY` · `HOLD G3`** (`CONF-P206-P207-01`, `O1`–`O3`, `O6a`, `O7`). |
+| `D:\tra-hien-p2-07` | `feature/p2-07-payments-refunds` | `591f872d7ba7377e7c5254360a59058576d5c04a` | `591f872d7ba7377e7c5254360a59058576d5c04a` | `0` staged, `15` modified, `14` untracked (`29` file) | `54bdc666e66b133eea0c9be2c9d0fe23a45f0cc413df5165679ff111e3fb577d` (`MATCH`, `29` entries, base `591f872`) | **Chưa merge · G4 verdict: `UNKNOWN` · `HOLD PUBLISH`** (`CONF-P206-P207-01`, `O1`–`O3`). Log mới nhất trên manifest `54bdc666…`: `160130-328-frontend` `PASS` (`515s`) và `161038-060-backend` `PASS` (`339s`, `411` Unit / `34` Arch / `1242` Integration, `0` skip, `OpenAPI/client are current`). Không suy ra G4 PASS từ log verify. |
+| `D:\tra-hien-p2-08` | `feature/p2-08-shipments` | `862fbf0` (chậm so với `591f872`) | `862fbf05fc8b9f9c34fc0441e559bb13e24604a3` | `0` staged, `1` untracked (`docs/plans/p2-08-implementation.md`) | Chưa có | **`PLAN_READY`** (chưa G3, `NOT_RUN`). Chờ chốt `O3` (`Order.MarkShipping`), đồng bộ `P2-07` và chốt `O7`. |
+| `D:\tra-hien-p2-12` | `feature/p2-12-privacy-merge-erase` | `97735e7` (chậm so với `591f872`) | `97735e75f48911babd5af016867d17537ef4afab` | `0` staged, `1` untracked (`docs/plans/p2-12-implementation.md`) | Chưa có | **`PLAN_READY`** (chưa G3, `NOT_RUN`). Chờ chốt `GAP-P212-01` (`O6b`) và `O7`, rebase baseline mới. |
+| `D:\tra-hien-p2-13` | `feature/p2-13-notifications` | `8fec151` (nằm trong `origin/main` qua PR `#47` `591f872`) | `8fec1516e5275d58c8e0087e8240f3270e087e11` | Sạch (`0` modified / untracked / staged) | Lịch sử `d43f4b53…` (`19` entries, base `862fbf0`) | **MERGED** (PR `#47`). Worktree chưa dọn. |
+
+### 4. Shared Contracts, Cross-Task Follow-Ups và Quyết định Owner chưa chốt
+
+- **8 Shared Contracts & Ownership:** Chi tiết đầy đủ tại [ADR-P2-01 §11](../decisions/ADR-P2-01-phase2-contracts.md#11-bảng-shared-contracts--ownership) (`OrderPaymentStatusCalculator` đang xung đột `P2-07` ↔ `P2-06`; `CompositeOrderOutboxHandler`/`ICatalogInventoryRead`/`IProductSoldOutSync` đã merge tại `P2-05`; `[Audited] Interaction`/`TabularImportFile`/`CrmModuleBoundaryRule` đang in-flight ở `P2-03`; `IRefundRecordedHook` đang in-flight ở `P2-07`; `INotificationChannel`/`NotificationTemplateNames` đã merge tại `P2-13`).
+- **Quyết định Owner chưa chốt (`O1`–`O7`):** Chi tiết tại [ADR-P2-01 §10](../decisions/ADR-P2-01-phase2-contracts.md#10-tổng-hợp-các-quyết-định-owner-chưa-chốt-o1o7-không-phải-owner_approved) — không chặn PR-1; chỉ giữ HOLD các task chịu tác động trực tiếp (`P2-07` publish, `P2-06` G3, phần phụ thuộc `O3` của `P2-08`, phần retention `O6b` của `P2-12`).
+- **Cross-Task Follow-Ups (Phase 2–5):** Chi tiết tại [ADR-P2-01 §12](../decisions/ADR-P2-01-phase2-contracts.md#12-cross-task-dependencies-và-follow-ups-phase-25--workflow-v2).
+
+### 5. Workflow V2 Follow-Ups (RECORD ONLY — CHƯA TRIỂN KHAI TRONG PR-1)
+
+Hai gói cải tiến quy trình sau đã được thống nhất phương hướng và chỉ được ghi nhận để triển khai ở các PR riêng sau khi PR-1 hoàn tất (giữ nguyên khung cổng `G0`–`G4` và phân tầng `A`/`B` hiện hành):
+
+#### PR-2 — Deterministic Verification Tooling Hardening (`NOT_STARTED`, phạm vi dự kiến: `scripts/*`, CI `full`)
+
+1. Ngăn tuyệt đối việc dùng filtered tests làm bằng chứng full verification (chặn kết hợp `-Manifest` với `-Filter`).
+2. Phân biệt rõ mức phủ kiểm chứng `FULL` / `FOCUSED` (ví dụ `RESULT=PASS_FOCUSED`) / `API` / `DOCS`.
+3. Xem xét bổ sung `-Mode docs` để kiểm chứng cục bộ đúng tập candidate docs-only thực tế (bao gồm cả file modified và untracked).
+4. Phân biệt rạch ròi giữa **candidate integrity** (manifest khớp working tree / staged index) và **base freshness** (`-RequireBase`).
+5. Kiểm tra đồng thời cả working tree và staged index trước publish.
+6. Phân biệt luồng **publish lần đầu** và **republish sau CI remediation** — không áp đặt cứng `HEAD == base` cho mọi trường hợp nếu không phù hợp với topology nhánh đã publish.
+7. Bổ sung cơ chế **host-level mutual exclusion** đơn giản cho các lượt heavy PostgreSQL verification, không chỉ dựa vào `docker ps` (vốn có thể xảy ra race condition giữa nhiều agent khởi chạy gần như đồng thời).
+8. Viết đầy đủ regression tests cho toàn bộ chốt kiểm chứng mới.
+
+#### PR-3 — Workflow V2 Governance (`NOT_STARTED`, phạm vi dự kiến: `AGENTS.md`, `docs/*`, `.agents/skills/*`, CI `full`)
+
+1. Áp dụng triệt để **chính sách độc lập với mô hình (`model-independent`)**: không hardcode tên mô hình, nhà cung cấp hay mức suy luận thành quy định hoặc điều kiện nghiệm thu.
+2. Chuẩn hóa **Blind-First G4** (reviewer tự kiểm đối chiếu độc lập trước khi đối chiếu nhận định implementer) và **một report contract thống nhất** cho các cổng.
+3. Tách **Immutable Implementation Record** (hồ sơ từng lát cắt G3 cố định sau merge) khỏi **Dynamic Task Status** (trạng thái sống của dự án).
+4. Áp dụng **lập kế hoạch theo mức độ rủi ro**; giữ rõ phân định giữa **Phase-level G1/G2** và **scoped task planning**, hỗ trợ **Design Spike chỉ đọc** khi cần làm rõ rủi ro trước G3.
+5. Không tạo worktree sớm chỉ để chứa file plan trước khi sẵn sàng G3.
+6. Không đặt giới hạn cứng số dòng cho tài liệu kế hoạch và không dùng tỷ lệ phần trăm số file thay đổi làm hard gate cho re-review.
+7. Thực hiện remediation và focused re-review dựa trên ngữ cảnh kỹ thuật, nguyên nhân gốc và bán kính ảnh hưởng (`blast radius`).
+8. Chuẩn hóa mô hình **Stateless Lead** và **knowledge checkpoint** định kỳ vào Git.
+
+### 6. Checklist bàn giao cho Technical Lead mới
+
+Trước khi ra quyết định điều phối hoặc phát hành prompt cho bất kỳ task nào, phiên Technical Lead mới phải hoàn tất 4 bước sau:
+
+1. **Xác minh Git state, merged tasks, active worktrees và candidate snapshots:** Chạy `git fetch origin --prune`, kiểm `git log -n 15 --oneline origin/main`, `git worktree list`, `git status --short -uall`, `docker ps`, và chạy `./scripts/candidate-manifest.ps1 -Verify` cho các worktree in-flight (`P2-03`, `P2-07`, hoặc các nhánh mới phát sinh); không tin mặc định vào snapshot cũ của mục §3.
+2. **Đọc các quyết định Owner còn hiệu lực và các xung đột chưa giải quyết:** Đọc [ADR-P2-01](../decisions/ADR-P2-01-phase2-contracts.md) và [spec-gaps.md](../analysis/spec-gaps.md) để nắm rõ `15` quyết định `OWNER_APPROVED` đã khôi phục, các mục `IMPLEMENTED_BUT_NOT_CONFIRMED`, xung đột `CONF-P206-P207-01`, và trạng thái chưa chốt của `O1`–`O7`.
+3. **Xác minh dependencies và follow-ups của những task tiếp theo:** Đối chiếu thứ tự mở khóa an toàn (`P2-03` chốt G4 & `O4`; `O1`–`O3` mở khóa `P2-07` → `P2-06` / `P2-08` → `P2-09` / `P2-10` / `P2-11`; `O6b` & `O7` trước `P2-04` / `P2-12`), không bỏ qua bước rebase/`base-integration` cho các worktree đang chậm sau `origin/main`.
+4. **Xác minh workflow hiện hành, trạng thái `PR-2`/`PR-3` và bước tiếp theo an toàn:** Kiểm tra `AGENTS.md`, `docs/WORKFLOW.md`, trạng thái merge của PR-1, kế hoạch triển khai `PR-2` và `PR-3`, giữ nguyên hiện trạng `D:\tra-hien` local `main` (file designer untracked & `stash@{0}`) cho tới khi có lệnh dọn dẹp riêng của Owner.
