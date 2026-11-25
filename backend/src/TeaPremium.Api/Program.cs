@@ -16,6 +16,8 @@ using TeaPremium.Api.Catalog;
 using TeaPremium.Api.Inventory;
 using TeaPremium.Application.Inventory;
 using TeaPremium.Infrastructure.Inventory;
+using TeaPremium.Api.Crm;
+using TeaPremium.Infrastructure.Crm;
 
 // Import arguments are file paths, never deployment configuration or host options.
 // Leave the ordinary API/bootstrap-owner command-line behavior unchanged.
@@ -34,6 +36,7 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer(ProductOpenApi.TransformAsync);
     options.AddDocumentTransformer(InventoryDocumentEndpoints.TransformOpenApiAsync);
     options.AddDocumentTransformer(StoreCatalogOpenApi.TransformAsync);
+    options.AddDocumentTransformer(CustomerOpenApi.TransformAsync);
 });
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
@@ -51,6 +54,7 @@ builder.Services.AddStaffIdentity(builder.Configuration, builder.Environment.IsP
 builder.Services.AddAdminSecurity(builder.Configuration);
 builder.Services.AddMedia(builder.Configuration, builder.Environment);
 builder.Services.AddCatalog();
+builder.Services.AddCrm();
 builder.Services.AddScoped<TeaPremium.Application.Catalog.IStoreCatalogRead, EfStoreCatalogRead>();
 builder.Services.AddScoped<IInventoryStockStore, EfInventoryStockStore>();
 builder.Services.AddScoped<IInventoryQueries, EfInventoryQueries>();
@@ -112,6 +116,7 @@ app.MapSalePrices();
 app.MapInventory();
 app.MapInventoryDocuments();
 app.MapStoreCatalog();
+app.MapCustomers();
 
 app.Run();
 

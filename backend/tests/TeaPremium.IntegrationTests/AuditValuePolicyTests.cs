@@ -102,4 +102,60 @@ public sealed class AuditValuePolicyTests
         Assert.Equal("Audited JSON value is invalid.", error.Message);
         Assert.DoesNotContain("secret@example.com", error.ToString(), StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("crm.customers", "FullName", "Đặng Trần Hiên")]
+    [InlineData("crm.customers", "PhoneE164", "+84901234567")]
+    [InlineData("crm.customers", "Email", "hien@example.test")]
+    [InlineData("crm.customers", "ZaloName", "Trà Hiên")]
+    [InlineData("crm.customers", "NoteSummary", "Ghi chú riêng tư")]
+    [InlineData("crm.customers", "SearchText", "dang tran hien 0901234567 hien@example.test")]
+    [InlineData("crm.customer_addresses", "Label", "Nhà riêng")]
+    [InlineData("crm.customer_addresses", "ReceiverName", "Nguyễn Văn A")]
+    [InlineData("crm.customer_addresses", "ReceiverPhone", "+84901234567")]
+    [InlineData("crm.customer_addresses", "WardNameText", "Phường Bến Nghé")]
+    [InlineData("crm.customer_addresses", "AddressLine", "123 Nguyễn Huệ")]
+    [InlineData("crm.tags", "Name", "Khách VIP Hà Nội")]
+    [InlineData("crm.customer_accounts", "LoginPhone", "+84901234567")]
+    [InlineData("crm.customer_accounts", "PasswordHash", "AQAAAAIAAYag...")]
+    [InlineData("crm.customer_accounts", "Email", "account@example.test")]
+    [InlineData("crm.customer_accounts", "SecurityStamp", "secret-stamp-value")]
+    public void CrmEntitiesAllowlistOnlySafeFieldsAndRedactEveryPiiFieldIncludingSearchText(string entityType, string property, string value)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, property, value));
+
+        var now = new DateTime(2026, 11, 23, 7, 0, 0, DateTimeKind.Utc);
+        var id = Guid.CreateVersion7();
+        Assert.Equal("KH001000", AuditValuePolicy.Filter("crm.customers", null, "Code", "KH001000"));
+        Assert.Equal("retail", AuditValuePolicy.Filter("crm.customers", null, "CustomerGroup", "retail"));
+        Assert.Equal(true, AuditValuePolicy.Filter("crm.customers", null, "IsVip", true));
+        Assert.Equal("admin", AuditValuePolicy.Filter("crm.customers", null, "Origin", "admin"));
+        Assert.Equal("zalo_personal", AuditValuePolicy.Filter("crm.customers", null, "AcquisitionSource", "zalo_personal"));
+        Assert.Equal("active", AuditValuePolicy.Filter("crm.customers", null, "ContactStatus", "active"));
+        Assert.Equal(1500000L, AuditValuePolicy.Filter("crm.customers", null, "LifetimeValueVnd", 1500000L));
+        Assert.Equal("79", AuditValuePolicy.Filter("crm.customer_addresses", null, "ProvinceCode", "79"));
+        Assert.Equal("79001", AuditValuePolicy.Filter("crm.customer_addresses", null, "WardCode", "79001"));
+        Assert.Equal(true, AuditValuePolicy.Filter("crm.customer_addresses", null, "IsDefault", true));
+        Assert.Equal("#1A2B3C", AuditValuePolicy.Filter("crm.tags", null, "Color", "#1A2B3C"));
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.customer_accounts", null, "CustomerId", id));
+        Assert.Equal("active", AuditValuePolicy.Filter("crm.customer_accounts", null, "Status", "active"));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.customer_accounts", null, "PhoneVerifiedAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.customer_accounts", null, "EmailVerifiedAt", now));
+    }
+
+    [Theory]
+    [InlineData("crm.customers", "Code", "0901234567")]
+    [InlineData("crm.customers", "CustomerGroup", "secret@example.test")]
+    [InlineData("crm.customers", "Origin", "Nguyen Van A")]
+    [InlineData("crm.customers", "AcquisitionSource", "0901234567")]
+    [InlineData("crm.customers", "ContactStatus", "private")]
+    [InlineData("crm.customer_addresses", "ProvinceCode", "TP HCM")]
+    [InlineData("crm.customer_addresses", "WardCode", "Ben Nghe")]
+    [InlineData("crm.tags", "Color", "0901234567")]
+    [InlineData("crm.customer_accounts", "Status", "secret@example.test")]
+    [InlineData("crm.customer_accounts", "EmailVerifiedAt", "secret@example.test")]
+    public void CrmSafeEnumAndCodeFieldsRejectSpoofedPiiStrings(string entityType, string property, string spoofedValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, property, spoofedValue));
+    }
 }

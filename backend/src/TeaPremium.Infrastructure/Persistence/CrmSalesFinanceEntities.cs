@@ -1,6 +1,8 @@
-// P2-01 persistence only; business behavior and [Audited] policies belong to P2-02+.
+using TeaPremium.Domain;
+
 namespace TeaPremium.Infrastructure.Persistence;
 
+[Audited]
 public sealed class Customer
 {
     public Guid Id { get; set; }
@@ -31,6 +33,7 @@ public sealed class Customer
     public uint Version { get; set; }
 }
 
+[Audited]
 public sealed class Tag
 {
     public Guid Id { get; set; }
@@ -44,6 +47,7 @@ public sealed class CustomerTag
     public Guid TagId { get; set; }
 }
 
+[Audited]
 public sealed class CustomerAddress
 {
     public Guid Id { get; set; }
@@ -60,6 +64,7 @@ public sealed class CustomerAddress
     public DateTime UpdatedAt { get; set; }
 }
 
+[Audited]
 public sealed class CustomerAccount
 {
     public Guid Id { get; set; }

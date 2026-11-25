@@ -37,6 +37,10 @@ public static class ProblemMapping
         {
             problem.Extensions["errors"] = error.ValidationErrors;
         }
+        if (error.Data is not null)
+        {
+            problem.Extensions["data"] = error.Data;
+        }
 
         return Results.Problem(problem);
     }
