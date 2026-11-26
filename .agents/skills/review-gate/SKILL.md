@@ -1,46 +1,69 @@
 ---
 name: review-gate
-description: G4 for Trà Hiên V2 — independent, skeptical, read-only review of a local task worktree or PR against origin/main and the specs (Tier A or B), in a fresh session preferably on a different model vendor than the implementer. Also used for focused re-review after remediation.
+description: G4 for Trà Hiên V2 — independent, skeptical, read-only Blind-First review of a local task worktree or authorized snapshot against base and specs (Tier A or B), bound to the exact candidate manifest. Also used for focused re-review after remediation or base integration.
 ---
 
-# Independent review gate (G4)
+# Independent review gate (G4 — Blind-First)
 
-Shared by Codex (`$review-gate`) and Antigravity (name the skill or its path).
+Shared by Codex (`$review-gate`) and Antigravity (name the skill or its path). Follow `AGENTS.md`, `docs/WORKFLOW.md`, and `docs/TOOLING.md`.
 
-## Independence
-- Fresh session/context, never the implementer's. Prefer cross-vendor: Codex-implemented work is reviewed in Antigravity (Claude/Gemini) and vice versa.
-- Read-only: no edits, commits, push, approval or merge. Running tests or `./scripts/verify-linux.ps1` is allowed (Docker needs approval in sandboxed agents).
-- If you cannot read the same worktree, report NOT RUN and ask the owner for an authorized reviewable snapshot. Never review stale remote code as if it were the local candidate.
+## Independence and authority
+- **Independent context (model-independent):** Initial G4 runs in a fresh conversation completely separate from the Implementer. Review independence comes from independent context, read-only authority, verifiable evidence, and exact candidate identity — never model name or vendor (the Owner chooses models/thinking levels).
+- **Read-only:** Never edit candidate files, commit, push, approve, or merge. Running read-only git checks, tests, or `./scripts/verify-linux.ps1` is allowed (Docker needs approval in sandboxed agents).
+- **Readable worktree required:** If you cannot read the exact candidate worktree, report `NOT_RUN` and ask the Owner for an authorized reviewable snapshot. Never review stale remote code as if it were the local candidate.
+- **Evidence invariants:** Test `PASS` is not G4 `PASS`; `CANDIDATE MATCH` is not proof that tests ran; never fabricate findings when no real defect exists.
 
-## 1. Inventory the full change set
-`git status --short`; `git diff origin/main --stat` and the full diff; `git diff --cached`; `git ls-files --others --exclude-standard` and read every untracked file in full. Verify the candidate manifest for both tiers with `./scripts/candidate-manifest.ps1 -Verify <manifest>`; a missing manifest or any mismatch means you are not reviewing the handed-off candidate: report it and stop until the implementer regenerates the handoff. Report the manifest SHA-256 you reviewed. Changes under `docs/spec/` must be owner-approved, otherwise report them.
+## Blind-First review order (complete steps 1–4 before comparing G3 summary)
 
-## 2. Compare with requirements
-Task row in `docs/spec/07-roadmap.md`, linked FR/BR/NFR/AC/DEC, ADRs and `docs/plans/<task>-implementation.md`. Report scope creep, missing AC coverage and untraceable behavior. Do not rely on the implementer's summary.
+### 1. Verify candidate identity and inventory the full change set
+- Run `./scripts/candidate-manifest.ps1 -Verify <manifest>` (both tiers). Missing manifest or any mismatch means you are not reviewing the handed-off candidate: report it and STOP until the implementer regenerates the handoff. Record the exact `manifest sha256` reviewed.
+- Inspect `git status --short -uall`, `git diff <base> --stat` and full diff, `git diff --cached`, and `git ls-files --others --exclude-standard`; **read every untracked file in full**.
+- Flag any unauthorized change outside scope or under `docs/spec/` (must have explicit Owner approval), and confirm no tracked Immutable Implementation Record embeds self-referencing manifest SHA-256, unpublished commit SHA, future CI results, or G4 verdict.
 
-## 3. Trà Hiên checklist (apply what the change touches)
-- Money: VND as `long`, wide intermediates, rounding exactly as the BR states; no floating point.
-- Inventory: locks product → variant → stock in ascending UUID order as in `docs/plans/p1-inventory-architecture.md`; append-only ledger; Σ movements = on_hand; `reserved` rules.
-- Permissions/PII: server-side checks; JSON non-disclosure per permission (for example `avgCostVnd`, low/onHand) verified on real JSON, not UI; CSRF on unsafe admin calls; no PII/secrets in logs or audit.
-- Transactions: one command = one transaction; audit and outbox in the same transaction; idempotency keys; rowVersion/xmin conflicts → 409.
-- Database: new forward migration with Down/recovery, grants `tp_app`/`tp_readonly`, parity with `schema.sql` and `03-database.md`, old migrations untouched.
-- API: contract regenerated, not hand-edited; Problem Details codes per `05-api.md`; operation/schema count changes explained.
-- SEO (DEC-21): canonical, index, sitemap and structured data per `09-seo.md` when touched.
-- Tests: would they fail without the change? Negative, boundary, permission and PG17 concurrency cases; 0 skipped; no weakened assertions.
-- Tier B (Admin UI on reviewed APIs, CRUD without money/stock/PII, docs, behavior-preserving refactor): same inventory step, checklist only for touched areas, short report.
+### 2. Independently verify requirements and decision provenance
+- Read the task row in `docs/spec/07-roadmap.md` (or Owner-authorized chore scope), linked `FR/BR/NFR/AC/DEC`, accepted ADRs, and tracked Immutable Implementation Record (if applicable).
+- Distinguish `OWNER_APPROVED` from `IMPLEMENTED_BUT_NOT_CONFIRMED`, `PROPOSED`, `CONFLICT`, and `UNRESOLVED`. Flag scope creep, missing AC coverage, or silent promotion of unconfirmed assumptions.
 
-## 4. Report in Vietnamese, findings first
+### 3. Trà Hiên invariant and failure-path checklist (apply what the change touches)
+- **Money:** VND as `long`, wide intermediates, rounding exact per BR; no floating point.
+- **Inventory:** locks product → variant → stock in ascending UUID order (`docs/plans/p1-inventory-architecture.md`); append-only ledger; `Σ movements == on_hand`; `reserved` rules.
+- **Permissions / PII / Secrets:** server-side enforcement; JSON non-disclosure per permission verified on real JSON, not UI; CSRF on unsafe admin/public state-changing calls; zero PII/secrets in code, logs, audit, fixtures, or artifacts.
+- **Transactions:** one command = one transaction; audit and outbox atomic in same transaction; idempotency keys; `rowVersion`/`xmin` conflicts → `409`.
+- **Database:** new forward migration with Down/recovery, grants `tp_app`/`tp_readonly`, parity with `schema.sql` and `03-database.md`, old migrations untouched.
+- **API:** contract regenerated via `-Mode api -WriteBack`, not hand-edited; Problem Details codes per `05-api.md`; operation/schema changes explained.
+- **SEO (`DEC-21`):** canonical, indexability, sitemap, redirects, and structured data per `09-seo.md` when touched.
+- **Tests & Governance:** would tests fail without the change? Negative, boundary, permission, and PG17 concurrency cases; 0 skipped; no weakened assertions; for governance/tooling/docs changes, verify semantic cross-document consistency, script signature parity, Markdown/TOML validity, and workflow walkthroughs.
+- **Tier B:** same full inventory and independent Blind-First flow, checklist scoped to touched areas, report may be briefer without omitting required evidence.
+
+### 4. Independently run required verification
+- Execute or verify exact required commands per scope (see `docs/TOOLING.md`): check `RESULT=PASS`, expected `coverage` (`FULL_BACKEND`, `FULL_ALL`, `FRONTEND`, `DOCS`), exact `manifest_sha256`, and `exit_code=0`.
+- Reject `RESULT=FOCUSED_PASS` (`-Filter`) as a substitute for full candidate verification, and reject `-Mode docs` outside `README.md` / `docs/**/*.md`.
+- Respect host PG lock rules (exits `5`/`6`/`7`, `-LockWaitSeconds`, ban on `TRA_HIEN_TEST_LOCK_PATH`, never kill another agent's container, no infinite retry). Distinguish local `FULL_ALL` from GitHub Actions CI and `Docker regression builds` (`NOT_RUN`).
+
+### 5. Compare with G3 handoff conclusions
+- Only after steps 1–4, compare your findings and verification results against the G3 handoff report; flag any discrepancy, hidden failed run, or unsupported claim.
+
+## Focused re-review (after remediation or base integration)
+- You may reuse the independent G4 conversation when context and independence remain intact; open a fresh reviewer conversation when context degrades or a full independent reassessment is needed.
+- Determine review scope from **actual delta, root cause, blast radius, shared execution paths, and security/data/transaction invariants** — never rely solely on a `% changed files` threshold or remediation-round count.
+- Require a new candidate manifest and matching verification evidence for any candidate change; focused source review does **not** automatically permit replacing full verification with filtered tests. Mark every prior finding `CLOSED` or `OPEN` with exact evidence.
+
+## Unified Handoff Report (Vietnamese, findings first)
 
 ```text
-TASK / TIER / REVIEWED: <P*-*> / A | B / <branch> @ <HEAD> + <n> uncommitted, <m> untracked, manifest sha256 <digest> (MATCH)
-FINDINGS:
-- [P0|P1|P2|P3] <file:line> — evidence | impact | repro | minimal fix
-VERIFIED: <commands actually run + results>
-NOT RUN: <items>        NOT APPLICABLE: <items>
-TRACEABILITY GAPS / RESIDUAL RISK: <short>
+TASK / SCOPE / TIER / STATUS: <P*-* hoặc chore> / G4 <INITIAL | FOCUSED_REREVIEW> / A | B / VERDICT: <PASS | CONDITIONAL | BLOCK>
+WORKTREE / BRANCH / BASE / HEAD: <path> / <branch> / <base SHA> / <HEAD SHA>
+CHANGED: <n tracked, m untracked, k staged>
+MANIFEST: <path> sha256=<digest> (<n> entries, base=<sha>) MATCH
+FINDINGS / CLOSURE:
+- [P0|P1|P2|P3] <path:line> — evidence | impact | repro | minimal fix
+- (hoặc: không có finding cần xử lý trong phạm vi review; hoặc trạng thái CLOSED/OPEN của finding cũ)
+COVERAGE & VERIFICATION: <VERIFIED commands, coverage token, RESULT, exit_code, log paths>
+FAILED_RUNS_AND_RETRIES: none | <meaningful failures/retries>
+NOT_RUN / NOT_APPLICABLE: <items + reason (e.g. GitHub Actions CI, Docker regression builds)>
+BLOCKERS / RESIDUAL_RISK / NEXT: <traceability gaps / residual risk / next safe step>
 VERDICT: PASS | CONDITIONAL | BLOCK
 ```
 
-- BLOCK on any open P0/P1; CONDITIONAL when material checks are unverified; PASS only with evidence. With no findings write "no actionable issues in reviewed scope", never "bug-free".
-- Focused re-review: verify the new manifest, mark each prior finding CLOSED or OPEN with evidence, review only the remediation or integration delta, then give a verdict.
-- After PASS the owner decides on publishing; the PASS applies only to the reported manifest SHA-256, and CI must pass at the published HEAD (see `publish-pr`).
+- `BLOCK` on any open `P0`/`P1`; `CONDITIONAL` when material checks remain unverified; `PASS` only with verified evidence. With no findings, write "không có finding cần xử lý trong phạm vi review", never "không còn bug".
+- Verdict `PASS` binds strictly to the exact reported `manifest sha256`. Publish still requires explicit Owner authorization and CI verification at the published HEAD (`publish-pr`).

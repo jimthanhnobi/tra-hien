@@ -1,34 +1,87 @@
 ---
 name: publish-pr
-description: Publish one Trà Hiên V2 task only after independent G4 PASS and explicit owner permission — confirm the reviewed candidate, commit exactly those files, push the feature branch, prepare the PR (gh may be missing) and verify all GitHub Actions jobs at the published HEAD. Never merges.
+description: Publish one Trà Hiên V2 task or approved chore only after independent G4 PASS and explicit Owner authorization — enforce all four PR-2 publish checkpoints (pre-stage, post-stage/pre-commit, post-commit/pre-push, post-push), prepare the PR with Dynamic Task Status, and verify all four GitHub Actions jobs at the published HEAD. Never merges.
 ---
 
-# Publish a reviewed task
+# Publish a reviewed task (4 Checkpoints)
 
-Shared by Codex (`$publish-pr`) and Antigravity. Git network/write commands need sandbox bypass/approval in sandboxed agents.
+Shared by Codex (`$publish-pr`) and Antigravity. Follow `AGENTS.md`, `docs/WORKFLOW.md`, and `docs/TOOLING.md`. Git network/write commands require sandbox bypass/approval in sandboxed agents. **Never force push. Never merge unless the Owner explicitly delegates that specific PR.**
 
-## Preconditions — STOP if any fails
+## Checkpoint A — Pre-stage (STOP if any fails)
+1. **Owner authorization & G4 PASS:** Confirm explicit Owner authorization to publish in the current conversation, and confirm independent G4 `PASS` bound to the exact candidate manifest SHA-256 (for both Tier A and Tier B).
+2. **Fetch & base freshness:** Run `git fetch origin --prune`. Verify `origin/main` matches the manifest base (if `origin/main` moved, STOP and run `base-integration` + required G4 first).
+3. **Scope, topology, and remote branch expectation:**
+   - **Initial publish (new branch):**
+     ```powershell
+     ./scripts/candidate-manifest.ps1 -Verify artifacts/<slug>/candidate.manifest -RequireBase origin/main -PublishMode initial
+     ```
+     Confirm `CANDIDATE MATCH` with exact reviewed SHA-256, and confirm the remote branch does not unexpectedly exist (`git ls-remote --heads origin <branch>`).
+   - **Republish (existing published branch — CI remediation or post-`base-integration` merge):**
+     ```powershell
+     ./scripts/candidate-manifest.ps1 -Verify artifacts/<slug>/candidate.manifest -RequireBase origin/main -PublishMode republish -PublishedHead origin/<branch>
+     ```
+     Because `-PublishedHead` validates ancestry (`merge-base --is-ancestor`), **also explicitly verify actual remote HEAD** (`git ls-remote --heads origin <branch>` == `git rev-parse origin/<branch>`) and confirm every commit in `origin/main..HEAD` is part of the authorized branch history.
 
-- G4 verdict PASS for this exact candidate manifest (SHA-256 quoted in the G4 report), for Tier A and Tier B alike; record reviewer tool/model.
-- The owner explicitly authorized publishing this task in the current conversation.
-- `git fetch origin --prune`: `origin/main` equals the manifest base. Otherwise run `base-integration` and a focused G4 first.
+## Checkpoint B — Post-stage, pre-commit
+1. **Stage exact manifest paths only:** Stage only the paths listed in the manifest (including `DELETED` entries via `git rm` / `git add --`). Never run a blind `git add -A` across unrelated files.
+2. **Verify working tree + staged index + base + topology together:**
+   - Initial:
+     ```powershell
+     ./scripts/candidate-manifest.ps1 -Verify artifacts/<slug>/candidate.manifest -Both -RequireBase origin/main -PublishMode initial
+     ```
+   - Republish:
+     ```powershell
+     ./scripts/candidate-manifest.ps1 -Verify artifacts/<slug>/candidate.manifest -Both -RequireBase origin/main -PublishMode republish -PublishedHead origin/<branch>
+     ```
+   On any mismatch, run `git restore --staged -- <paths>` and STOP.
+3. **Index inventory & secrets check:** Check `git diff --cached --stat` and index modes/blobs (`git ls-files -s`) to confirm zero `.env`, secrets, `artifacts/`, real customer data, or backups.
+4. **Independent complete candidate tree equivalence (non-circular):**
+   - Compute staged tree: `$stagedTree = (git write-tree).Trim()`.
+   - Reconstruct the reviewed candidate tree **independently** from `<manifest base>` + manifest entries into a temporary `GIT_INDEX_FILE` (`git read-tree <base>` + `git update-index --add --cacheinfo <mode>,<blob>,<path>` / `--force-remove` → `git write-tree`), or cross-check against the `tree <snapshotTree>` recorded by `verify-linux.ps1 -Manifest` for the exact reviewed `manifest_sha256`.
+   - Confirm `$stagedTree == $reviewedTree`. Never merely compare `git write-tree` of the staged index against itself.
 
-## Steps
+## Checkpoint C — Post-commit, pre-push
+1. **Commit:** Commit immediately after Checkpoint B passes using Conventional Commits (one commit per task unless the Owner requests otherwise). If `base-integration` prepared a valid `MERGE_HEAD` on a published branch, commit that merge here under this authorization.
+2. **Verify committed state before pushing:**
+   - Committed tree equals independently verified reviewed tree: `git rev-parse HEAD^{tree}` == `$reviewedTree`.
+   - Parent/commit topology is valid (`git rev-list --parents -n 1 HEAD`, `git log --oneline <base>..HEAD`, valid 2-parent merge only when prepared by `base-integration`).
+   - Authorized delta matches manifest scope (`git diff --stat <base>..HEAD`).
+   - Working tree is completely clean (`git status --short -uall` empty).
+   - Base freshness (`git rev-parse origin/main` unchanged vs `<base>`) and remote branch expectation still hold.
+   - **Important:** Do **not** run `-PublishMode initial` after commit (because `HEAD` is now ahead of `base`). **Never force push.**
 
-1. **Working tree == reviewed.** `./scripts/candidate-manifest.ps1 -Verify artifacts/<task>/candidate.manifest` must print `CANDIDATE MATCH`, and the manifest SHA-256 must equal the one G4 reviewed. Any mismatch → STOP.
-2. **Stage exactly the manifest paths.** `git add -- <paths listed in the manifest>` (deletions included), never a blind `git add -A`. Then `./scripts/candidate-manifest.ps1 -Verify artifacts/<task>/candidate.manifest -Index` must print `CANDIDATE MATCH` for the staged index. On mismatch run `git restore --staged -- <paths>` and STOP. Also check `git diff --cached --stat` for `.env`, secrets, `artifacts/`, real customer data or backups.
-3. **Commit** immediately after the index check, with Conventional Commits, for example `feat(inventory): implement P1-10 low-stock alerts and nightly reconciliation`. One commit per task unless the owner asks otherwise. A merge prepared by `base-integration` (`MERGE_HEAD` present) is committed here, only under this authorization.
-4. **Push** `git push -u origin <branch>`.
-5. **PR.** Write the body to `artifacts/<task>/pr-body.md` (Vietnamese): task and spec IDs, scope/out of scope, migration/rollback, real test results, NOT RUN, G4 verdict, reviewer and manifest SHA-256, risks. With `gh`: `gh pr create --base main --head <branch> --title "<commit subject>" --body-file <file>`. Without `gh`: return `https://github.com/jimthanhnobi/tra-hien/pull/new/<branch>` plus the body file. In PowerShell never inline `${{ }}` or backticks in command strings; always use the body file.
-6. **CI at the published SHA.** All four jobs must succeed: `Classify changes and validate docs`, `Backend and API contract`, `Frontend verification`, `Docker regression builds`. If you cannot read Actions, say NOT VERIFIED and give the Actions URL. On failure: fix on the same branch, new manifest, focused G4, publish again only with owner approval.
+## Checkpoint D — Post-push, PR, and 4-job CI verification
+1. **Push & confirm remote HEAD:** Push `git push -u origin <branch>` (or `git push origin <branch>`, never `--force`). Verify `git ls-remote --heads origin <branch>` equals `git rev-parse HEAD` (`remote HEAD == published HEAD`).
+2. **Prepare/update PR with Dynamic Task Status:** Write the Vietnamese PR body to `artifacts/<slug>/pr-body.md` following `.github/pull_request_template.md` (include Dynamic Task Status: Task/Tier, BASE → published HEAD, exact manifest SHA-256 & tree, independent G4 verdict & finding closures, local verification coverage, `NOT_RUN`, risks).
+   - With `gh`: `gh pr create --base main --head <branch> --title "<commit subject>" --body-file artifacts/<slug>/pr-body.md` (or `gh pr edit` on republish).
+   - Without `gh`: return `https://github.com/jimthanhnobi/tra-hien/pull/new/<branch>` and the body file path.
+   - In PowerShell, never inline `${{ }}` or backticks in CLI strings; always use `--body-file`.
+3. **Verify all 4 GitHub Actions jobs at exact published SHA:**
+   - `Classify changes and validate docs`
+   - `Backend and API contract`
+   - `Frontend verification`
+   - `Docker regression builds`
+   Distinguish clearly between **job `success`**, **suite executed**, and **fast-path / `not applicable`** for the actual scope. If Actions cannot be read, mark `UNKNOWN` (`NOT_VERIFIED`) and include the Actions URL.
+4. **Failure or drift handling:**
+   - CI remediation that modifies the candidate requires a new manifest, required verification, review evidence, and Owner authorization before republishing.
+   - If `origin/main` moves, run `base-integration` per current governance.
+   - Owner reviews and merges manually.
 
-## Return
+## Unified Handoff Report (Vietnamese)
 
 ```text
-PUBLISHED: <branch> @ <commit SHA>        PR: <url | create link + body file>
-REVIEWED == PUBLISHED: YES | NO (manifest sha256 <digest>; working tree and staged index MATCH)
-CI @ <SHA>: <job: result, ...> | NOT VERIFIED (<url>)
-NEXT: owner reviews and merges manually
+TASK / SCOPE / TIER / STATUS: <P*-* hoặc chore> / PUBLISH (<initial | republish>) / A | B / PUBLISHED | BLOCKED
+WORKTREE / BRANCH / BASE / HEAD: <path> / <branch> / <base SHA> / <published HEAD SHA>
+PUBLISHED: <branch> @ <published HEAD SHA> | REMOTE_HEAD_MATCH: YES | NO
+MANIFEST: <path> sha256=<digest> (<n> entries) | CANDIDATE_TREE: <tree SHA> | REVIEWED == PUBLISHED: YES | NO
+PR: <url | create link + body file>
+COVERAGE & VERIFICATION: Checkpoints A–D (<commands + exit codes>)
+CI @ <published HEAD SHA>:
+- Classify changes and validate docs: <PASS (mode=...) | FAIL | UNKNOWN>
+- Backend and API contract: <PASS (executed) | PASS (not applicable) | FAIL | UNKNOWN>
+- Frontend verification: <PASS (executed) | PASS (not applicable) | FAIL | UNKNOWN>
+- Docker regression builds: <PASS (built) | PASS (fast-path skipped) | FAIL | UNKNOWN>
+FAILED_RUNS_AND_RETRIES: none | <details>
+NOT_RUN / NOT_APPLICABLE: <items + reason>
+BLOCKERS / RESIDUAL_RISK / NEXT: Owner reviews and merges manually (no auto-merge)
 ```
-
-Never merge unless the owner explicitly delegates that specific PR.
