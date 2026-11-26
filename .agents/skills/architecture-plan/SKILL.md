@@ -1,24 +1,33 @@
 ---
 name: architecture-plan
-description: G2 for Trà Hiên V2 — check a task or phase against the already-approved architecture (DEC-*) and the P0–P6 roadmap, identify implementation risks and propose minimal corrections as ADR-PROPOSALs instead of inventing a second architecture or backlog.
+description: G2 for Trà Hiên V2 — validate baseline conformance, plan complex/high-risk tasks, or run a read-only Design Spike against approved DEC-* architecture and the P0–P6 roadmap without creating a second architecture, backlog, or premature worktree.
 ---
 
-# Architecture conformance and task sequencing (G2)
+# Architecture conformance, complex planning, and Design Spike (G2)
 
-Shared by Codex (`$architecture-plan`) and Antigravity (name the skill or its path).
+Shared by Codex (`$architecture-plan`) and Antigravity (name the skill or its path). Follow `AGENTS.md` and `docs/WORKFLOW.md`. Never edit `docs/spec/` or write application code here. Do **not** create a worktree solely to store an unready plan or Design Spike.
 
-1. Read `AGENTS.md`, the applicable DEC decisions and task in `07-roadmap.md`, `docs/architecture/`, `docs/analysis/spec-gaps.md`, and only the relevant parts of `02-architecture.md`, `03-database.md`, `schema.sql`, `06-infrastructure.md` and related specs. Inspect the complete context only for an initial baseline or a material architecture change.
-2. The architecture is already specified: DEC-01 modular monolith, .NET 10, PostgreSQL 17, separate Next.js store/admin, same-origin reverse proxy. Do not replace these or offer unrequested options. If evidence shows a concrete flaw, write an `ADR-PROPOSAL` in `docs/decisions/` with impact and alternatives for owner approval.
-3. The only backlog is `07-roadmap.md` (`P0-01` onwards). Never create TASK-XXX items or a second tasks file. `docs/plans/task-readiness.md` may map existing IDs to dependencies, linked IDs and open decisions.
-4. Check risks relevant to the task: schema/EF parity, lock order and concurrency, auth/CSRF, privacy, SEO, operations. Never claim SQL ran, provider permissions, legal validity or performance without execution.
-5. Scoped task: check its dependencies and the later tasks it affects; unrelated later-phase decisions must not block it. Phase planning: identify minimum vertical slices and meaningful gates.
-6. Baseline or material change: update `docs/architecture/conformance-review.md` and `docs/plans/task-readiness.md` as PROPOSED. Unchanged bounded task: reuse those records and return only a scoped assessment. Never edit `docs/spec/` or write application code here.
-7. Return:
+1. **Choose the G2 mode (risk-based planning).**
+   - **`BASELINE`:** initial architecture baseline or material design change; inspect full relevant architecture/spec context.
+   - **`COMPLEX_PLAN`:** separate planning for a task with material risk in business rules, transactions, migrations/DDL, auth/PII, shared contracts, or multi-task dependencies.
+   - **`DESIGN_SPIKE` (read-only):** verify readiness, technical feasibility, shared-contract impact, or options before the Owner authorizes G3 — zero repo edits and no worktree creation.
+   - Routine small, clear-scope tasks on a valid baseline do not need a separate G2 session; they run scoped G1/G2 inside `implementation-slice` §2.
+2. **Inputs & provenance.** Read `AGENTS.md`, applicable `DEC-*`, the task row in `docs/spec/07-roadmap.md`, `docs/architecture/`, `docs/analysis/spec-gaps.md`, relevant ADRs in `docs/decisions/`, live Git state (`origin/main` + merged dependencies), and only the relevant sections of `02-architecture.md`, `03-database.md`, `schema.sql`, `06-infrastructure.md`, and related specs. Distinguish `OWNER_APPROVED`, `IMPLEMENTED_BUT_NOT_CONFIRMED`, `PROPOSED`, `CONFLICT`, `UNRESOLVED`, and `SUPERSEDED`; dated snapshots (e.g. `docs/plans/task-readiness.md`) never override live Git state.
+3. **Architecture & backlog invariants.** The architecture is already specified (`DEC-01` modular monolith, .NET 10, PostgreSQL 17, separate Next.js store/admin, same-origin reverse proxy). Do not invent alternatives or a second backlog (`TASK-XXX`/`REQ-###`). If evidence proves a concrete flaw, draft an `ADR-PROPOSAL` in `docs/decisions/` with impact and options for Owner approval; ADRs record decision provenance and never silently override `docs/spec/`.
+4. **Risk & contract checks.** Inspect task-relevant risks: schema/EF parity, lock order & concurrency, auth/CSRF/PII, shared contracts & hot files (`Program.cs`, `AppDbContext`, migrations/snapshot, `openapi.json`, `schema.ts`), SEO (`DEC-21`), and operations. Never claim SQL executed, provider permissions, legal compliance, or performance without execution (`VERIFIED` vs `NOT_RUN`).
+5. **Dependencies & sequencing.** Verify prerequisites against live Git history; separate current-task blockers from unrelated later-phase decisions. Identify Owner decision blockers clearly so G3 is not launched prematurely.
+6. **Record updates.** Only in `BASELINE` or authorized `COMPLEX_PLAN` doc updates: update `docs/architecture/conformance-review.md` or dated snapshot entries as `PROPOSED`. In `DESIGN_SPIKE` or unchanged bounded tasks: stay read-only and reuse existing approved records.
+7. **Unified Handoff Report (Vietnamese).** Omit unapplicable fields (such as `MANIFEST`) in read-only runs:
 
 ```text
-TASK: <P*-*>   ARCH BASELINE: <doc + sha> reused | updated
-DEPENDENCIES: <P*-* merged? evidence>
-RISKS: <risk — mitigation / test>
-PROPOSALS: none | ADR-PROPOSAL-<name> (owner approval needed)
-RECOMMENDATION: GO | HOLD — next action: <one scoped step>
+TASK / SCOPE / TIER / STATUS: <P*-* | phase> / G2 <BASELINE | COMPLEX_PLAN | DESIGN_SPIKE> / <A | B> / <GO | HOLD>
+WORKTREE / BRANCH / BASE / HEAD: <inspected path> / <branch> / <origin/main SHA> / <HEAD SHA>
+ARCH_BASELINE: <doc + sha> reused | updated
+DEPENDENCIES & SHARED_CONTRACTS: <P*-* merged? VERIFIED evidence; hot files / shared contracts>
+CHANGED: none (read-only) | <updated planning/ADR files>
+COVERAGE & VERIFICATION: <commands/inspections run + VERIFIED/REPORTED/UNKNOWN status>
+FINDINGS / CLOSURE: <risk — mitigation / test | decision conflicts>
+PROPOSALS / OWNER_BLOCKERS: none | <ADR-PROPOSAL or Owner decisions needed>
+NOT_RUN / NOT_APPLICABLE: <items + reason>
+BLOCKERS / RESIDUAL_RISK / NEXT: RECOMMENDATION: <GO | HOLD> — <one concrete next step>
 ```
