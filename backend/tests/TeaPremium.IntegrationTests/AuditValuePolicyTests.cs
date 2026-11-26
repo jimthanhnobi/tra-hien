@@ -158,4 +158,36 @@ public sealed class AuditValuePolicyTests
     {
         Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, property, spoofedValue));
     }
+
+    [Theory]
+    [InlineData("Content", "Khách quen số bàn 02439998888 tại 99 Trần Hưng Đạo")]
+    [InlineData("FollowUpResult", "Đã gọi lại anh Hiên 0901234567")]
+    [InlineData("UnknownField", "PII text")]
+    public void CrmInteractionsAllowlistSafeMetadataAndRedactContentAndFollowUpResult(string property, string secretValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter("crm.interactions", null, property, secretValue));
+
+        var now = new DateTime(2026, 11, 25, 7, 0, 0, DateTimeKind.Utc);
+        var id = Guid.CreateVersion7();
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.interactions", null, "CustomerId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.interactions", null, "StaffId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.interactions", null, "OrderId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.interactions", null, "CampaignId", id));
+        Assert.Equal("other", AuditValuePolicy.Filter("crm.interactions", null, "Channel", "other"));
+        Assert.Equal("note", AuditValuePolicy.Filter("crm.interactions", null, "Kind", "note"));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.interactions", null, "OccurredAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.interactions", null, "FollowUpAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.interactions", null, "FollowUpDoneAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.interactions", null, "CreatedAt", now));
+    }
+
+    [Theory]
+    [InlineData("Channel", "0901234567")]
+    [InlineData("Channel", "secret@example.test")]
+    [InlineData("Kind", "Nguyen Van A")]
+    [InlineData("OccurredAt", "0901234567")]
+    public void CrmInteractionsRejectSpoofedChannelOrKindStrings(string property, string spoofedValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter("crm.interactions", null, property, spoofedValue));
+    }
 }

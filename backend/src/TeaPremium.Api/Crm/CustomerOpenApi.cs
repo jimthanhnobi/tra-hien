@@ -81,6 +81,10 @@ public static class CustomerOpenApi
             SetEnum(schemas, viewName, "contactStatus", ContactStatuses, nullable: false);
         }
 
+        SetEnum(schemas, nameof(CustomerImportRow), "status", CustomerImportSchema.RowStatuses, nullable: false);
+        SetEnum(schemas, nameof(CustomerImportRow), "reasonCode", CustomerImportSchema.ReasonCodes, nullable: false);
+        SetArrayItemEnum(schemas, nameof(CustomerImportRow), "warnings", CustomerImportSchema.WarningCodes);
+
         // Query parameter enums on GET /api/v1/admin/customers
         if (document.Paths.TryGetValue("/api/v1/admin/customers", out var listPath)
             && listPath.Operations is not null
@@ -144,6 +148,28 @@ public static class CustomerOpenApi
         var copy = (OpenApiSchema)prop.CreateShallowCopy();
         copy.Type = nullable ? JsonSchemaType.String | JsonSchemaType.Null : JsonSchemaType.String;
         copy.Enum = values.Select(v => (JsonNode)JsonValue.Create(v)!).ToList();
+        schema.Properties[field] = copy;
+    }
+
+    private static void SetArrayItemEnum(
+        IDictionary<string, IOpenApiSchema> schemas,
+        string schemaName,
+        string field,
+        string[] values)
+    {
+        if (!schemas.TryGetValue(schemaName, out var raw) || raw is not OpenApiSchema schema
+            || schema.Properties is null || !schema.Properties.TryGetValue(field, out var prop))
+        {
+            return;
+        }
+
+        var copy = (OpenApiSchema)prop.CreateShallowCopy();
+        copy.Type = JsonSchemaType.Array;
+        copy.Items = new OpenApiSchema
+        {
+            Type = JsonSchemaType.String,
+            Enum = values.Select(v => (JsonNode)JsonValue.Create(v)!).ToList()
+        };
         schema.Properties[field] = copy;
     }
 

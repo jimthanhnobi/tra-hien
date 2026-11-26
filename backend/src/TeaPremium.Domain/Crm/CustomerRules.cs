@@ -7,6 +7,13 @@ public static class CustomerRules
     // BR-CRM-11 (P2-12): anonymized sentinel matches DB regex ^\+84[0-9]{9}$ while remaining rejected as user input.
     public const string AnonymizedOrderPhone = "+84000000000";
 
+    public const int MaxImportRows = 2000;
+    public const int MaxFullNameLength = 150;
+    public const int MaxZaloNameLength = 150;
+    public const int MaxTagNameLength = 60;
+    public const int MaxTagsPerCustomer = 50;
+    public const int MaxInteractionContentLength = 4000;
+
     public static readonly IReadOnlySet<string> CustomerGroups = new HashSet<string>(StringComparer.Ordinal)
     {
         "retail", "wholesale", "reseller"
@@ -51,6 +58,16 @@ public static class CustomerRules
     public static readonly IReadOnlySet<string> ConsentPurposes = new HashSet<string>(StringComparer.Ordinal)
     {
         "marketing_new_products", "marketing_promotions", "customer_care"
+    };
+
+    public static readonly IReadOnlySet<string> InteractionChannels = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "zalo_personal", "zalo_oa", "phone", "facebook", "in_person", "email", "web", "other"
+    };
+
+    public static readonly IReadOnlySet<string> InteractionKinds = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "inquiry", "consultation", "quote", "follow_up", "complaint", "note", "campaign_message"
     };
 
     public static readonly IReadOnlySet<string> SortOptions = new HashSet<string>(StringComparer.Ordinal)
@@ -288,6 +305,119 @@ public static class CustomerRules
 
     public static bool IsValidWardCode(string? code)
         => code is { Length: 5 } && AllAsciiDigits(code);
+
+    public static bool IsValidPostgresText(string? value)
+    {
+        if (value is null)
+        {
+            return true;
+        }
+
+        for (var i = 0; i < value.Length; i++)
+        {
+            var ch = value[i];
+            if (ch == '\0')
+            {
+                return false;
+            }
+
+            if (char.IsHighSurrogate(ch))
+            {
+                if (i + 1 >= value.Length || !char.IsLowSurrogate(value[i + 1]))
+                {
+                    return false;
+                }
+
+                i++;
+            }
+            else if (char.IsLowSurrogate(ch))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // BR-CRM-03 & Q5: had_purchase defaults to true when blank.
+    public static bool TryParseImportHadPurchase(string? raw, out bool hadPurchase)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            hadPurchase = true;
+            return true;
+        }
+
+        if (!IsValidPostgresText(raw))
+        {
+            hadPurchase = false;
+            return false;
+        }
+
+        var trimmed = raw.Trim();
+        if (trimmed.Equals("true", StringComparison.OrdinalIgnoreCase) || string.Equals(trimmed, "1", StringComparison.Ordinal))
+        {
+            hadPurchase = true;
+            return true;
+        }
+
+        if (trimmed.Equals("false", StringComparison.OrdinalIgnoreCase) || string.Equals(trimmed, "0", StringComparison.Ordinal))
+        {
+            hadPurchase = false;
+            return true;
+        }
+
+        hadPurchase = false;
+        return false;
+    }
+
+    // BR-CRM-03 / ASSUMPTION-P203-03: split tags by ',' or ';', trim, dedupe case-insensitively, enforce 1..60 length and max 50 tags.
+    public static bool TryParseImportTags(string? raw, out string[] tags)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            tags = [];
+            return true;
+        }
+
+        if (!IsValidPostgresText(raw))
+        {
+            tags = [];
+            return false;
+        }
+
+        var parts = raw.Split([',', ';']);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var list = new List<string>();
+        foreach (var part in parts)
+        {
+            var trimmed = part.Trim();
+            if (trimmed.Length == 0)
+            {
+                continue;
+            }
+
+            if (trimmed.Length > MaxTagNameLength)
+            {
+                tags = [];
+                return false;
+            }
+
+            if (seen.Add(trimmed))
+            {
+                if (list.Count >= MaxTagsPerCustomer)
+                {
+                    tags = [];
+                    return false;
+                }
+
+                list.Add(trimmed);
+            }
+        }
+
+        tags = [.. list];
+        return true;
+    }
 
     private static bool IsVietnameseMobilePrefix(char ch) => ch is '3' or '5' or '7' or '8' or '9';
 

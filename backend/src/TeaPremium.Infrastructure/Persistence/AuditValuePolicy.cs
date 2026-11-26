@@ -107,6 +107,15 @@ public static class AuditValuePolicy
             if (field is "email_verified_at" or "phone_verified_at" or "history_unlocked_at" or "lockout_end" or "created_at" or "last_login_at" && value is DateTime) return value;
             return Redacted;
         }
+        // P2-03 / NFR-04: fail-closed classification for crm.interactions; content and follow_up_result always stay redacted.
+        if (entityType == "crm.interactions")
+        {
+            if (field is "customer_id" or "staff_id" or "order_id" or "campaign_id" && value is Guid) return value;
+            if (field == "channel" && value is string channel && CustomerRules.InteractionChannels.Contains(channel)) return channel;
+            if (field == "kind" && value is string kind && CustomerRules.InteractionKinds.Contains(kind)) return kind;
+            if (field is "occurred_at" or "follow_up_at" or "follow_up_done_at" or "created_at" && value is DateTime) return value;
+            return Redacted;
+        }
 
         if (IsSensitive(field)) return Redacted;
         // P1-05: classify variant business fields by entity and runtime type. Names,

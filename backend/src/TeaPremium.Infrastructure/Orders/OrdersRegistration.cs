@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using TeaPremium.Application.Catalog;
 using TeaPremium.Application.Inventory;
 using TeaPremium.Application.Orders;
+using TeaPremium.Application.Orders.Contracts;
 using TeaPremium.Application.Outbox;
 using TeaPremium.Application.Pricing;
 using TeaPremium.Domain.Orders;
@@ -23,6 +24,7 @@ public static class OrdersRegistration
         services.AddScoped<IOrderPricingRead, EfOrderPricingRead>();
         services.AddSingleton<IOrderCodeGenerator, RandomOrderCodeGenerator>();
         services.AddScoped<IOrderRepository, EfOrderRepository>();
+        services.AddScoped<ICustomerOrderQueries, EfCustomerOrderQueries>();
         services.AddScoped<IVariantUsage, OrderVariantUsage>();
 
         // G22: register exactly one CompositeOrderOutboxHandler per Order* message type.

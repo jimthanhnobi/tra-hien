@@ -2090,6 +2090,260 @@
         ],
         "type": "object"
       },
+      "CustomerImportFieldError": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "column": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "column",
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "CustomerImportResult": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerImportRow"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/CustomerImportSummary"
+          }
+        },
+        "required": [
+          "summary",
+          "rows"
+        ],
+        "type": "object"
+      },
+      "CustomerImportRow": {
+        "properties": {
+          "createNoteInteraction": {
+            "type": "boolean"
+          },
+          "customerCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "duplicateOfRow": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerImportFieldError"
+            },
+            "type": "array"
+          },
+          "existingCustomerId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "normalizedPhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reasonCode": {
+            "enum": [
+              "imported",
+              "would_import",
+              "duplicate_in_file",
+              "existing_phone_skipped",
+              "missing_full_name",
+              "invalid_full_name",
+              "missing_contact",
+              "invalid_phone",
+              "invalid_zalo_name",
+              "invalid_customer_group",
+              "invalid_tag",
+              "invalid_note",
+              "invalid_had_purchase"
+            ],
+            "type": "string"
+          },
+          "row": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "status": {
+            "enum": [
+              "imported",
+              "would_import",
+              "skipped",
+              "error"
+            ],
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "enum": [
+                "zalo_only_reimport_risk",
+                "possible_duplicate_zalo_customer"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "row",
+          "status",
+          "reasonCode",
+          "customerId",
+          "customerCode",
+          "normalizedPhone",
+          "existingCustomerId",
+          "duplicateOfRow",
+          "createNoteInteraction",
+          "tags",
+          "warnings",
+          "errors"
+        ],
+        "type": "object"
+      },
+      "CustomerImportSummary": {
+        "properties": {
+          "committed": {
+            "type": "boolean"
+          },
+          "createdInteractionsCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "createdTagsCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "duplicateInFileCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "errorCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "existingPhoneSkippedCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "importedCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "newTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "readyCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "skippedCount": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "totalRows": {
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "dryRun",
+          "committed",
+          "totalRows",
+          "readyCount",
+          "importedCount",
+          "skippedCount",
+          "duplicateInFileCount",
+          "existingPhoneSkippedCount",
+          "errorCount",
+          "createdTagsCount",
+          "createdInteractionsCount",
+          "newTags"
+        ],
+        "type": "object"
+      },
       "CustomerInterestView": {
         "properties": {
           "id": {
@@ -8195,6 +8449,115 @@
               }
             },
             "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          }
+        },
+        "tags": [
+          "Customers"
+        ]
+      }
+    },
+    "/api/v1/admin/customers/import": {
+      "post": {
+        "description": "Preview (dryRun=true) or apply (dryRun=false) legacy customer import from CSV UTF-8 or XLSX (up to 2,000 rows, 5 MiB).",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "dryRun",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerImportResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
           },
           "415": {
             "content": {

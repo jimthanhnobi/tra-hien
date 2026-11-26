@@ -92,6 +92,7 @@ public sealed class CustomerLogin
     public DateTime CreatedAt { get; set; }
 }
 
+[Audited]
 public sealed class Interaction
 {
     public Guid Id { get; set; }

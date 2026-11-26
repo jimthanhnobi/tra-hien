@@ -26,8 +26,9 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
         var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
             .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
-        Assert.Equal(110, totalOperations);
+        Assert.Equal(111, totalOperations);
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers", out var customersPath));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/import", out var customerImportPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/correct-identity", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/orders", out _));
@@ -68,7 +69,7 @@ public sealed class OpenApiTests
                 Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase));
         }
 
-        foreach (var name in new[] { "CustomerSummaryView", "CustomerDetailView", "CustomerAccountSummaryView", "CustomerOrderSummaryView" })
+        foreach (var name in new[] { "CustomerSummaryView", "CustomerDetailView", "CustomerAccountSummaryView", "CustomerOrderSummaryView", "CustomerImportResult", "CustomerImportSummary", "CustomerImportRow" })
         {
             var props = schemas.GetProperty(name).GetProperty("properties");
             Assert.All(props.EnumerateObject(), prop =>
@@ -82,6 +83,36 @@ public sealed class OpenApiTests
         AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("customerGroup"), "retail", "wholesale", "reseller");
         AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("origin"), "legacy_import", "web", "admin");
         AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("contactStatus"), "active", "do_not_contact", "erased");
+
+        var importPost = customerImportPath.GetProperty("post");
+        var importDryRun = importPost.GetProperty("parameters").EnumerateArray().Single(x => x.GetProperty("name").GetString() == "dryRun");
+        Assert.Equal("query", importDryRun.GetProperty("in").GetString());
+        Assert.True(importDryRun.GetProperty("required").GetBoolean());
+        Assert.Equal("boolean", importDryRun.GetProperty("schema").GetProperty("type").GetString());
+        var importFile = importPost.GetProperty("requestBody").GetProperty("content").GetProperty("multipart/form-data")
+            .GetProperty("schema").GetProperty("properties").GetProperty("file");
+        Assert.Equal("string", importFile.GetProperty("type").GetString());
+        Assert.Equal("binary", importFile.GetProperty("format").GetString());
+        AssertOpenApiEnum(schemas.GetProperty("CustomerImportRow").GetProperty("properties").GetProperty("status"),
+            "imported", "would_import", "skipped", "error");
+        AssertOpenApiEnum(schemas.GetProperty("CustomerImportRow").GetProperty("properties").GetProperty("reasonCode"),
+            "imported", "would_import", "duplicate_in_file", "existing_phone_skipped",
+            "missing_full_name", "invalid_full_name", "missing_contact", "invalid_phone",
+            "invalid_zalo_name", "invalid_customer_group", "invalid_tag", "invalid_note", "invalid_had_purchase");
+        var importWarnings = schemas.GetProperty("CustomerImportRow").GetProperty("properties").GetProperty("warnings");
+        Assert.Equal("array", importWarnings.GetProperty("type").GetString());
+        AssertOpenApiEnum(importWarnings.GetProperty("items"),
+            "zalo_only_reimport_risk", "possible_duplicate_zalo_customer");
+
+        var importSummarySchema = schemas.GetProperty("CustomerImportSummary");
+        var importSummaryProps = importSummarySchema.GetProperty("properties");
+        var importSummaryRequired = importSummarySchema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("committed", importSummaryRequired);
+        Assert.Contains("newTags", importSummaryRequired);
+        Assert.Equal("boolean", importSummaryProps.GetProperty("committed").GetProperty("type").GetString());
+        var importNewTags = importSummaryProps.GetProperty("newTags");
+        Assert.Equal("array", importNewTags.GetProperty("type").GetString());
+        Assert.Equal("string", importNewTags.GetProperty("items").GetProperty("type").GetString());
     }
 
     private static void AssertOpenApiEnum(JsonElement schema, params string[] values)

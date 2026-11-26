@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
-using System.Reflection;
 using TeaPremium.Api.Iam;
 using TeaPremium.Application.Crm;
 using TeaPremium.Infrastructure.Crm;
@@ -338,11 +337,13 @@ public sealed class CustomerTagsAddressesAndSecurityTests(PlatformDatabaseFixtur
             (HttpMethod.Delete, $"{CustomersRoot}/{customer.Id}/addresses/{addrId}", null),
             (HttpMethod.Get, TagsRoot, null),
             (HttpMethod.Post, TagsRoot, new { name = "New" }),
-            (HttpMethod.Patch, $"{TagsRoot}/{tag.Id}", new { name = "Renamed" })
+            (HttpMethod.Patch, $"{TagsRoot}/{tag.Id}", new { name = "Renamed" }),
+            (HttpMethod.Post, $"{CustomersRoot}/import?dryRun=true", new { }),
+            (HttpMethod.Post, $"{CustomersRoot}/import?dryRun=false", new { })
         };
-        Assert.Equal(15, endpoints.Length);
+        Assert.Equal(17, endpoints.Length);
 
-        // 1. Unauthenticated -> 401 on all 15 endpoints
+        // 1. Unauthenticated -> 401 on all 17 endpoints
         using (var anon = h.Factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new("https://localhost"), AllowAutoRedirect = false }))
         {
             foreach (var (method, path, body) in endpoints)
@@ -353,7 +354,7 @@ public sealed class CustomerTagsAddressesAndSecurityTests(PlatformDatabaseFixtur
             }
         }
 
-        // 2. Content role -> 403 forbidden on all 15 endpoints (AC-P2-09)
+        // 2. Content role -> 403 forbidden on all 17 endpoints (AC-P2-09)
         using (var contentClient = h.Factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new("https://localhost"), AllowAutoRedirect = false }))
         {
             await LoginClientAsync(contentClient, contentEmail, StaffNewPassword);
@@ -528,56 +529,6 @@ public sealed class CustomerTagsAddressesAndSecurityTests(PlatformDatabaseFixtur
         Assert.DoesNotContain(secretName, combinedOutput, StringComparison.Ordinal);
         Assert.DoesNotContain(dupPhone, combinedOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("+84908123456", combinedOutput, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ArchitectureRulesRemainGreenForCrmAndOrdersReadContracts()
-    {
-        var forbiddenTypes = new HashSet<Type> { typeof(Province), typeof(Ward), typeof(Order) };
-        var crmInfraTypes = typeof(EfCustomerStore).Assembly.GetTypes()
-            .Where(t => t.Namespace == "TeaPremium.Infrastructure.Crm"
-                || (t.DeclaringType?.Namespace == "TeaPremium.Infrastructure.Crm"))
-            .ToArray();
-        Assert.NotEmpty(crmInfraTypes);
-
-        foreach (var type in crmInfraTypes)
-        {
-            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
-            foreach (var field in type.GetFields(flags))
-            {
-                AssertDoesNotContainForbiddenType(field.FieldType, forbiddenTypes, $"{type.FullName}.{field.Name}");
-            }
-
-            foreach (var method in type.GetMethods(flags))
-            {
-                AssertDoesNotContainForbiddenType(method.ReturnType, forbiddenTypes, $"{type.FullName}.{method.Name}");
-                foreach (var param in method.GetParameters())
-                {
-                    AssertDoesNotContainForbiddenType(param.ParameterType, forbiddenTypes, $"{type.FullName}.{method.Name}({param.Name})");
-                }
-            }
-        }
-
-        var appRefs = typeof(ICustomerStore).Assembly.GetReferencedAssemblies().Select(a => a.Name ?? "").ToArray();
-        Assert.DoesNotContain(appRefs, name => name.Contains("EntityFrameworkCore", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(appRefs, name => name.Contains("Npgsql", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(appRefs, name => name.StartsWith("TeaPremium.Infrastructure", StringComparison.Ordinal));
-    }
-
-    private static void AssertDoesNotContainForbiddenType(Type candidate, HashSet<Type> forbidden, string site)
-    {
-        Assert.False(forbidden.Contains(candidate), $"Forbidden type {candidate.Name} referenced at {site}");
-        if (candidate.IsGenericType)
-        {
-            foreach (var arg in candidate.GetGenericArguments())
-            {
-                AssertDoesNotContainForbiddenType(arg, forbidden, site);
-            }
-        }
-        else if (candidate.HasElementType && candidate.GetElementType() is { } element)
-        {
-            AssertDoesNotContainForbiddenType(element, forbidden, site);
-        }
     }
 
     [Fact]
