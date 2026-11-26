@@ -30,6 +30,7 @@ public static class IamRegistration
             .AddDefaultTokenProviders().AddTokenProvider<StaffTotp>("StaffTotp");
         services.AddScoped<IUserStore<StaffUser>, ProtectedStaffStore>();
         services.AddScoped<IStaffIdentity, StaffIdentity>();
+        services.AddScoped<IStaffDirectory, EfStaffDirectory>();
         var protection = services.AddDataProtection().SetApplicationName("teapremium");
         if (!string.IsNullOrWhiteSpace(configuration.GetConnectionString("Default")))
         {

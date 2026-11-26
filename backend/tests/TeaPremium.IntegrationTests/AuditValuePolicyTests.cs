@@ -192,6 +192,29 @@ public sealed class AuditValuePolicyTests
     }
 
     [Theory]
+    [InlineData("OrderId", "0901234567")]
+    [InlineData("CampaignId", "secret@example.test")]
+    [InlineData("CustomerId", "Nguyen Van A")]
+    [InlineData("StaffId", "0901234567")]
+    [InlineData("FollowUpAt", "2026-11-25 0901234567")]
+    [InlineData("FollowUpDoneAt", "secret")]
+    [InlineData("CreatedAt", "123 Nguyen Hue")]
+    public void CrmInteractionsSafeFieldsRejectSpoofedPiiValuesAndAllowAllValidChannelsAndKinds(string property, string spoofedValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter("crm.interactions", null, property, spoofedValue));
+
+        foreach (var channel in TeaPremium.Domain.Crm.InteractionRules.ChannelValues)
+        {
+            Assert.Equal(channel, AuditValuePolicy.Filter("crm.interactions", null, "Channel", channel));
+        }
+
+        foreach (var kind in TeaPremium.Domain.Crm.InteractionRules.AllKindValues)
+        {
+            Assert.Equal(kind, AuditValuePolicy.Filter("crm.interactions", null, "Kind", kind));
+        }
+    }
+
+    [Theory]
     [InlineData("sales.payments", "BankReference", "FT261125-NGUYEN-VAN-A-0901234567")]
     [InlineData("sales.payments", "Note", "Khach chuyen khoan qua VCB 0901234567")]
     [InlineData("sales.payments", "VoidReason", "Nhap nham so tien cua anh Minh")]

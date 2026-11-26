@@ -18,7 +18,11 @@ public sealed record CustomerOrderSummaryView(
     DateTime? DeliveredAt,
     DateTime? CancelledAt);
 
+public sealed record CustomerOrderReference(Guid OrderId, Guid CustomerId, string Code);
+
 public interface ICustomerOrderQueries
 {
     Task<CatalogPage<CustomerOrderSummaryView>> ListByCustomerAsync(Guid customerId, int page, int pageSize, CancellationToken ct);
+    Task<CustomerOrderReference?> FindOrderReferenceAsync(Guid orderId, CancellationToken ct);
+    Task<IReadOnlyDictionary<Guid, string>> ResolveOrderCodesAsync(IReadOnlyCollection<Guid> orderIds, CancellationToken ct);
 }
