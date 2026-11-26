@@ -2316,6 +2316,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/customers/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Preview (dryRun=true) or apply (dryRun=false) legacy customer import from CSV UTF-8 or XLSX (up to 2,000 rows, 5 MiB). */
+        post: {
+            parameters: {
+                query: {
+                    dryRun: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        file: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerImportResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/inventory": {
         parameters: {
             query?: never;
@@ -8363,6 +8462,58 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             zaloName: null | string;
+        };
+        CustomerImportFieldError: {
+            code: string;
+            column: string;
+            message: string;
+        };
+        CustomerImportResult: {
+            rows: components["schemas"]["CustomerImportRow"][];
+            summary: components["schemas"]["CustomerImportSummary"];
+        };
+        CustomerImportRow: {
+            createNoteInteraction: boolean;
+            customerCode: null | string;
+            /** Format: uuid */
+            customerId: null | string;
+            /** Format: int32 */
+            duplicateOfRow: null | number | string;
+            errors: components["schemas"]["CustomerImportFieldError"][];
+            /** Format: uuid */
+            existingCustomerId: null | string;
+            normalizedPhone: null | string;
+            /** @enum {string} */
+            reasonCode: "imported" | "would_import" | "duplicate_in_file" | "existing_phone_skipped" | "missing_full_name" | "invalid_full_name" | "missing_contact" | "invalid_phone" | "invalid_zalo_name" | "invalid_customer_group" | "invalid_tag" | "invalid_note" | "invalid_had_purchase";
+            /** Format: int32 */
+            row: number | string;
+            /** @enum {string} */
+            status: "imported" | "would_import" | "skipped" | "error";
+            tags: string[];
+            warnings: ("zalo_only_reimport_risk" | "possible_duplicate_zalo_customer")[];
+        };
+        CustomerImportSummary: {
+            committed: boolean;
+            /** Format: int32 */
+            createdInteractionsCount: number | string;
+            /** Format: int32 */
+            createdTagsCount: number | string;
+            dryRun: boolean;
+            /** Format: int32 */
+            duplicateInFileCount: number | string;
+            /** Format: int32 */
+            errorCount: number | string;
+            /** Format: int32 */
+            existingPhoneSkippedCount: number | string;
+            /** Format: int32 */
+            importedCount: number | string;
+            newTags: string[];
+            /** Format: int32 */
+            readyCount: number | string;
+            /** Format: int32 */
+            skippedCount: number | string;
+            /** Format: int32 */
+            totalRows: number | string;
         };
         CustomerInterestView: {
             /** Format: uuid */

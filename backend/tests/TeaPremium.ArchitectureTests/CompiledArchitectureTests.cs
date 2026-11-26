@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 using NetArchTest.Rules;
 using TeaPremium.Application.Time;
 using TeaPremium.Domain;
@@ -87,6 +88,58 @@ public sealed class CompiledArchitectureTests
     {
         Assert.True(Sample("InjectedClock").Should().MeetCustomRule(new NoDirectClockRule()).GetResult().IsSuccessful);
         Assert.True(Sample("DomainValue").ShouldNot().HaveDependencyOnAny(Forbidden("Domain")).GetResult().IsSuccessful);
+    }
+
+    // P2-03 / G4 P2-02 carry-over [P2]: compiled IL check enforcing CRM module boundary across async state machines and closures.
+    [Fact]
+    public void CrmInfrastructureDoesNotTouchForeignModulePersistenceEntitiesOrInfraNamespaces()
+    {
+        var crmTypes = Types.InAssembly(SourceAssembly("Infrastructure")).That()
+            .ResideInNamespace("TeaPremium.Infrastructure.Crm");
+        Assert.NotEmpty(crmTypes.GetTypes());
+
+        var result = crmTypes.Should().MeetCustomRule(new CrmModuleBoundaryRule()).GetResult();
+        Assert.True(result.IsSuccessful, string.Join(", ", result.FailingTypeNames ?? []));
+
+        // Verify parity against every EF Core entity registered in AppDbContext (including Reservation and future modules).
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql("Host=localhost;Database=teapremium_arch_model_only")
+            .Options;
+        using var db = new AppDbContext(options);
+        var foreignEntities = db.Model.GetEntityTypes()
+            .Where(e => !string.Equals(e.GetSchema(), "crm", StringComparison.Ordinal)
+                && !(string.Equals(e.GetSchema(), "platform", StringComparison.Ordinal)
+                     && string.Equals(e.GetTableName(), "audit_logs", StringComparison.Ordinal)))
+            .Select(e => e.ClrType)
+            .Distinct()
+            .ToArray();
+
+        Assert.NotEmpty(foreignEntities);
+        Assert.All(foreignEntities, entityType =>
+            Assert.True(CrmModuleBoundaryRule.IsForbiddenClrType(entityType),
+                $"Foreign EF entity {entityType.FullName} must be rejected by CrmModuleBoundaryRule."));
+    }
+
+    [Theory]
+    [InlineData("CrmDirectDbSetPropertySample")]
+    [InlineData("CrmGenericSetMethodSample")]
+    [InlineData("CrmAsyncMoveNextLinqSample")]
+    [InlineData("CrmLambdaClosureSample")]
+    [InlineData("CrmTypeCheckAndTokenSample")]
+    [InlineData("CrmForeignModuleInfraSample")]
+    [InlineData("CrmReturnAttributeSample")]
+    public void CrmModuleBoundaryRuleRejectsDeliberateCompiledViolations(string sample)
+    {
+        var result = Sample(sample).Should().MeetCustomRule(new CrmModuleBoundaryRule()).GetResult();
+        Assert.False(result.IsSuccessful);
+        Assert.Contains(result.FailingTypes, type => type.Name == sample);
+    }
+
+    [Fact]
+    public void CrmModuleBoundaryRuleAcceptsOwnCrmEntitiesAndAuditLog()
+    {
+        var result = Sample("CrmAllowedOwnEntitySample").Should().MeetCustomRule(new CrmModuleBoundaryRule()).GetResult();
+        Assert.True(result.IsSuccessful, string.Join(", ", result.FailingTypeNames ?? []));
     }
 
     private static PredicateList Sample(string name)

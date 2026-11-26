@@ -115,6 +115,9 @@ public static class CustomerEndpoints
             .WithTags("Customers")
             .RequireAuthorization(AdminSecurity.Ready);
 
+        // P2-03: POST /api/v1/admin/customers/import?dryRun=true|false
+        customers.MapCustomerImport();
+
         // 1. GET /api/v1/admin/customers
         customers.MapGet("", async (
             HttpContext http,
@@ -445,7 +448,7 @@ public static class CustomerEndpoints
             };
         });
 
-    private static CustomerActor Actor(HttpContext http) => new(
+    internal static CustomerActor Actor(HttpContext http) => new(
         Guid.Parse(http.User.FindFirstValue(ClaimTypes.NameIdentifier)!),
         http.User.FindAll("permission").Select(c => c.Value).ToArray(),
         http.User.IsInRole("owner"));

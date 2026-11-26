@@ -36,3 +36,65 @@ internal sealed class InjectedClock(IClock clock)
     public static string Description => "DateTime.Now";
     public DateTimeOffset Read() => clock.UtcNow;
 }
+
+// P2-03 / G4 P2-02 carry-over [P2]: deliberate compiled CRM boundary violations & positive control.
+internal static class CrmDirectDbSetPropertySample
+{
+    public static int Read(AppDbContext db) => db.Provinces.Local.Count;
+}
+
+internal static class CrmGenericSetMethodSample
+{
+    public static object Read(AppDbContext db) => db.Set<Order>();
+}
+
+internal static class CrmAsyncMoveNextLinqSample
+{
+    // Outer signature mentions only AppDbContext, CancellationToken and Task<int>; Variant only appears inside MoveNext().
+    public static async Task<int> CountAsync(AppDbContext db, CancellationToken ct)
+    {
+        await Task.Yield();
+        return await db.Set<Variant>().CountAsync(ct);
+    }
+}
+
+internal static class CrmLambdaClosureSample
+{
+    public static Func<object> Deferred(AppDbContext db) => () => db.Set<Product>();
+}
+
+internal static class CrmTypeCheckAndTokenSample
+{
+    // Uses isinst (Ward) and ldtoken (Reservation) so Release builds never optimize the references out of IL.
+    public static bool Inspect(object? value) => value is Ward || typeof(Reservation) == value?.GetType();
+}
+
+internal static class CrmForeignModuleInfraSample
+{
+    public static object ReferenceForeign(AppDbContext db) => new TeaPremium.Infrastructure.Orders.EfCustomerOrderQueries(db);
+}
+
+[AttributeUsage(AttributeTargets.ReturnValue)]
+internal sealed class SampleReturnTypeHintAttribute(Type hintType) : Attribute
+{
+    public Type HintType { get; } = hintType;
+}
+
+internal static class CrmReturnAttributeSample
+{
+    [return: SampleReturnTypeHint(typeof(Order))]
+    public static int Read() => 1;
+}
+
+internal static class CrmAllowedOwnEntitySample
+{
+    public static async Task<int> CountOwnAsync(AppDbContext db, CancellationToken ct)
+    {
+        await Task.Yield();
+        db.AuditLogs.Add(new AuditLog { Id = Guid.CreateVersion7() });
+        var customers = await db.Set<Customer>().CountAsync(ct);
+        var tags = await db.Set<Tag>().CountAsync(ct);
+        var interactions = await db.Set<Interaction>().CountAsync(ct);
+        return customers + tags + interactions;
+    }
+}
