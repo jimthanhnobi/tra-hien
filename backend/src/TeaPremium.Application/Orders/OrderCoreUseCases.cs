@@ -1,6 +1,7 @@
 using FluentValidation;
 using TeaPremium.Application.Inventory;
 using TeaPremium.Application.Outbox;
+using TeaPremium.Application.Payments;
 using TeaPremium.Application.Pricing;
 using TeaPremium.Application.Results;
 using TeaPremium.Application.Time;
@@ -194,6 +195,7 @@ public sealed class OrderCoreHandlers(
     IInventoryReservationService reservations,
     IVoucherRedemptionPort vouchers,
     IOrderPricingRead pricingRead,
+    IOrderPaymentLedgerReader paymentLedger,
     IOutboxWriter outbox,
     IClock clock,
     IEnumerable<IOrderDeliveredHook> deliveredHooks) :
@@ -369,12 +371,27 @@ public sealed class OrderCoreHandlers(
     public async Task<Result<OrderSummary>> Handle(ConfirmOrder command, CancellationToken cancellationToken)
     {
         var ct = cancellationToken;
+        var now = clock.UtcNow;
         var loaded = await orders.LoadForUpdateAsync(command.OrderId, command.ExpectedVersion, ct);
         if (loaded.ConcurrencyConflict) return ConcurrencyFailure();
         if (loaded.Order is not { } order) return NotFoundFailure();
 
+        // BR-PAY-02 (O3a=C): self-heal/recalculate payment_status from ledger under L1 lock (handles legacy 0-VND rows).
+        if (!order.IsBackfilled)
+        {
+            var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
+            var paymentCalc = OrderPaymentStatusCalculator.Calculate(
+                ledger.ConfirmedPaidVnd,
+                ledger.RefundedVnd,
+                ledger.OverpaymentRefundedVnd,
+                order.TotalVnd,
+                order.Status,
+                order.IsBackfilled);
+            order.ApplyPaymentCalculation(paymentCalc, now);
+        }
+
         var settings = await pricingRead.GetOrderSettingsAsync(ct);
-        order.Confirm(command.ActorType, command.ActorId, clock.UtcNow, settings.CodRequiresCall, command.CodCallConfirmed, command.Note);
+        order.Confirm(command.ActorType, command.ActorId, now, settings.CodRequiresCall, command.CodCallConfirmed, command.Note);
 
         await orders.SaveUpdatedOrderAsync(order, null, ct);
         EnqueueEvents(order);
@@ -384,13 +401,25 @@ public sealed class OrderCoreHandlers(
     public async Task<Result<OrderSummary>> Handle(CancelOrder command, CancellationToken cancellationToken)
     {
         var ct = cancellationToken;
+        var now = clock.UtcNow;
         var loaded = await orders.LoadForUpdateAsync(command.OrderId, command.ExpectedVersion, ct);
         if (loaded.ConcurrencyConflict) return ConcurrencyFailure();
         if (loaded.Order is not { } order) return NotFoundFailure();
 
         var hasActiveShipment = order.Status == OrderStatus.Confirmed
             && await orders.HasActiveOrderShipmentAsync(order.Id, ct);
-        order.Cancel(command.ActorType, command.ActorId, command.Reason, clock.UtcNow, hasActiveShipment);
+        order.Cancel(command.ActorType, command.ActorId, command.Reason, now, hasActiveShipment);
+
+        // BR-PAY-02 (O3a=C): recalculate payment_status using cancelled precedence in the same transaction.
+        var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
+        var paymentCalc = OrderPaymentStatusCalculator.Calculate(
+            ledger.ConfirmedPaidVnd,
+            ledger.RefundedVnd,
+            ledger.OverpaymentRefundedVnd,
+            order.TotalVnd,
+            order.Status,
+            order.IsBackfilled);
+        order.ApplyPaymentCalculation(paymentCalc, now);
 
         var closeReason = command.ActorType == OrderActorType.System
             && string.Equals(command.Reason?.Trim(), "payment_expired", StringComparison.Ordinal)
@@ -515,6 +544,17 @@ public sealed class OrderCoreHandlers(
             command.ManualDiscountVnd is > 0 ? command.DiscountNote : null,
             now);
 
+        // BR-ORD-08 / BR-PAY-02: recalculate payment_status from committed ledger whenever order total changes.
+        var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
+        var paymentCalc = OrderPaymentStatusCalculator.Calculate(
+            ledger.ConfirmedPaidVnd,
+            ledger.RefundedVnd,
+            ledger.OverpaymentRefundedVnd,
+            order.TotalVnd,
+            order.Status,
+            order.IsBackfilled);
+        order.ApplyPaymentCalculation(paymentCalc, now);
+
         var syncResult = await reservations.SyncOrderLinesAsync(
             order.Id,
             delta,
@@ -549,12 +589,27 @@ public sealed class OrderCoreHandlers(
     public async Task<Result<OrderSummary>> Handle(MarkOrderShipping command, CancellationToken cancellationToken)
     {
         var ct = cancellationToken;
+        var now = clock.UtcNow;
         var loaded = await orders.LoadForUpdateAsync(command.OrderId, command.ExpectedVersion, ct);
         if (loaded.ConcurrencyConflict) return ConcurrencyFailure();
         if (loaded.Order is not { } order) return NotFoundFailure();
 
+        // BR-PAY-02 (O3a=C): self-heal/recalculate payment_status from ledger under L1 lock (handles legacy 0-VND rows).
+        if (!order.IsBackfilled)
+        {
+            var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
+            var paymentCalc = OrderPaymentStatusCalculator.Calculate(
+                ledger.ConfirmedPaidVnd,
+                ledger.RefundedVnd,
+                ledger.OverpaymentRefundedVnd,
+                order.TotalVnd,
+                order.Status,
+                order.IsBackfilled);
+            order.ApplyPaymentCalculation(paymentCalc, now);
+        }
+
         var hasOrderShipment = await orders.HasOrderShipmentAsync(order.Id, ct);
-        order.MarkShipping(command.StaffId, clock.UtcNow, hasOrderShipment, command.Note);
+        order.MarkShipping(command.StaffId, now, hasOrderShipment, command.Note);
 
         var consumed = await reservations.ConsumeForOrderAsync(order.Id, order.Lines, OrderActorType.Staff, command.StaffId, ct);
         if (!consumed.IsSuccess)
@@ -586,11 +641,23 @@ public sealed class OrderCoreHandlers(
     public async Task<Result<OrderSummary>> Handle(MarkOrderDeliveryFailed command, CancellationToken cancellationToken)
     {
         var ct = cancellationToken;
+        var now = clock.UtcNow;
         var loaded = await orders.LoadForUpdateAsync(command.OrderId, command.ExpectedVersion, ct);
         if (loaded.ConcurrencyConflict) return ConcurrencyFailure();
         if (loaded.Order is not { } order) return NotFoundFailure();
 
-        order.MarkDeliveryFailed(command.ActorType, command.ActorId, command.Reason, clock.UtcNow);
+        order.MarkDeliveryFailed(command.ActorType, command.ActorId, command.Reason, now);
+
+        // BR-SHP-03 / BR-PAY-02 (O1=A / O3a=C): recalculate payment_status using delivery_failed precedence in the same transaction.
+        var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
+        var paymentCalc = OrderPaymentStatusCalculator.Calculate(
+            ledger.ConfirmedPaidVnd,
+            ledger.RefundedVnd,
+            ledger.OverpaymentRefundedVnd,
+            order.TotalVnd,
+            order.Status,
+            order.IsBackfilled);
+        order.ApplyPaymentCalculation(paymentCalc, now);
 
         await orders.SaveUpdatedOrderAsync(order, null, ct);
         EnqueueEvents(order);

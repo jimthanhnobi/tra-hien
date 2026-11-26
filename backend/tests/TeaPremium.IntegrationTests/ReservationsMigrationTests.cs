@@ -80,7 +80,7 @@ VALUES ('00000000-0000-0000-0000-000000000251','{VariantId}','{OrderLineId}',1,'
 """);
 
         await ExecuteAsync(c, sql);
-        Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(9, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Equal(1, await ScalarAsync<int>(c, "SELECT count(*)::int FROM inventory.reservations WHERE status='active'"));
     }
 
@@ -90,14 +90,14 @@ VALUES ('00000000-0000-0000-0000-000000000251','{VariantId}','{OrderLineId}',1,'
         var p201Ref = await fixture.DatabaseAsync(target: P201Head);
         var p201Acl = await InventoryAclSnapshotAsync(p201Ref);
 
-        var c = await fixture.DatabaseAsync();
+        var c = await fixture.DatabaseAsync(target: P205Head);
         await using var db = Context(c);
         await db.GetService<IMigrator>().MigrateAsync(P201Head);
         Assert.Equal(7, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.True(await ScalarAsync<bool>(c, "SELECT to_regclass('inventory.reservations') IS NULL"));
         Assert.Equal(p201Acl, await InventoryAclSnapshotAsync(c));
 
-        await db.Database.MigrateAsync();
+        await db.GetService<IMigrator>().MigrateAsync(P205Head);
         Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.True(await ScalarAsync<bool>(c, "SELECT to_regclass('inventory.reservations') IS NOT NULL"));
 

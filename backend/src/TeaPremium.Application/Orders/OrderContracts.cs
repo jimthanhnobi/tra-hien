@@ -10,7 +10,8 @@ public sealed record OrderSettingsSnapshot(
     int BankTransferHoldHours,
     int MaxQuantityPerLineWeb,
     bool CodRequiresCall,
-    int MaxStaffDiscountPercent);
+    int MaxStaffDiscountPercent,
+    bool AutoConfirmOnFullPayment = true);
 
 public interface IOrderPricingRead
 {

@@ -31,7 +31,7 @@ public sealed class CrmSalesFinanceRollbackTests(CrmSalesFinanceFixture fixture)
         Assert.Equal(p1AclSnapshot, await AclSnapshotAsync(c));
 
         await db.Database.MigrateAsync();
-        Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(9, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Equal(p1DataBefore, await CrmSalesFinanceDatabaseTests.P0P1FingerprintAsync(c));
         Assert.Equal(27, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('crm','sales','finance','pricing')"));
         Assert.Equal(1, await ScalarAsync<int>(c, "SELECT count(*)::int FROM pg_tables WHERE schemaname='inventory' AND tablename='reservations'"));

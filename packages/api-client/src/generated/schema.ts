@@ -3439,6 +3439,389 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders/{id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RecordOrderPaymentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaymentRecordedView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{id}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateOrderRefundRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefundRecordedView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/{id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["VoidPaymentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaymentVoidedView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/awaiting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    carrier?: string;
+                    page?: number | string;
+                    pageSize?: number | string;
+                    type: "bank_transfer" | "cod";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AwaitingPaymentsPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/product-types": {
         parameters: {
             query?: never;
@@ -8090,6 +8473,60 @@ export interface components {
             totpRequired: boolean;
             user: components["schemas"]["StaffView"];
         };
+        AwaitingBankTransferItem: {
+            /** Format: int64 */
+            effectivePaidVnd: number;
+            orderCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** @enum {string} */
+            orderStatus: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** @enum {string} */
+            origin: "web" | "admin";
+            /** Format: int64 */
+            paidVnd: number;
+            /** Format: date-time */
+            paymentDueAt: null | string;
+            /** @enum {string} */
+            paymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            /** Format: date-time */
+            placedAt: string;
+            /** Format: int64 */
+            remainingVnd: number;
+            /** @enum {string} */
+            salesChannel: "web" | "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other";
+            /** Format: int64 */
+            totalVnd: number;
+        };
+        AwaitingCodPaymentItem: {
+            /** Format: int64 */
+            amountVnd: number;
+            carrierName: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deliveredAt: null | string;
+            orderCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            paymentId: string;
+            trackingCode: null | string;
+        };
+        AwaitingPaymentsPage: {
+            bankTransferItems: components["schemas"]["AwaitingBankTransferItem"][];
+            codItems: components["schemas"]["AwaitingCodPaymentItem"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int64 */
+            totalAmountVnd: number;
+            /** Format: int64 */
+            totalItems: number;
+            /** @enum {string} */
+            type: "bank_transfer" | "cod";
+        };
         CatalogPage: {
             items: components["schemas"]["CatalogView"][];
             /** Format: int32 */
@@ -8342,6 +8779,22 @@ export interface components {
             referredByCustomerId?: null | string;
             tagIds?: null | string[];
             zaloName?: null | string;
+        };
+        CreateOrderRefundRequest: {
+            /** Format: int64 */
+            amountVnd: number;
+            bankReference?: null | string;
+            /** @enum {string} */
+            kind: "overpayment" | "return" | "cancellation" | "adjustment";
+            /** @enum {string} */
+            method: "bank_transfer" | "cash";
+            reason: string;
+            /** Format: date-time */
+            refundedAt: string;
+            /** Format: uuid */
+            returnRequestId?: null | string;
+            /** Format: int64 */
+            shippingAmountVnd?: number;
         };
         CreateReceiptLineRequest: {
             /** Format: int32 */
@@ -8871,6 +9324,63 @@ export interface components {
             color?: null | string;
             name?: string;
         };
+        PaymentRecordedView: {
+            /** Format: int64 */
+            amountVnd: number;
+            autoConfirmed: boolean;
+            /** Format: date-time */
+            confirmedAt: string;
+            isOverpaid: boolean;
+            /** @enum {string} */
+            method: "bank_transfer" | "cash";
+            needsRefund: boolean;
+            /** Format: int64 */
+            netPaidVnd: number;
+            orderCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** @enum {string} */
+            orderPaymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            orderRowVersion: string;
+            /** @enum {string} */
+            orderStatus: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** Format: int64 */
+            paidVnd: number;
+            /** Format: uuid */
+            paymentId: string;
+            /** @enum {string} */
+            provider: "manual" | "sepay";
+            /** Format: date-time */
+            receivedAt: string;
+            /** Format: int64 */
+            refundedVnd: number;
+            /** @enum {string} */
+            status: "awaiting_settlement" | "confirmed" | "voided";
+        };
+        PaymentVoidedView: {
+            /** Format: int64 */
+            amountVnd: number;
+            isOverpaid: boolean;
+            needsRefund: boolean;
+            /** Format: int64 */
+            netPaidVnd: number;
+            orderCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** @enum {string} */
+            orderPaymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            orderRowVersion: string;
+            /** @enum {string} */
+            orderStatus: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** Format: int64 */
+            paidVnd: number;
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: int64 */
+            refundedVnd: number;
+            /** @enum {string} */
+            status: "voided";
+        };
         ProblemDetails: {
             detail?: null | string;
             instance?: null | string;
@@ -9235,6 +9745,50 @@ export interface components {
             document: components["schemas"]["ReceiptSummary"];
             lines: components["schemas"]["ReceiptLineView"][];
         };
+        RecordOrderPaymentRequest: {
+            /** Format: int64 */
+            amountVnd: number;
+            bankReference?: null | string;
+            /** @enum {string} */
+            method: "bank_transfer" | "cash";
+            note?: null | string;
+            /** Format: date-time */
+            receivedAt: string;
+        };
+        RefundRecordedView: {
+            /** Format: int64 */
+            amountVnd: number;
+            isOverpaid: boolean;
+            /** @enum {string} */
+            kind: "overpayment" | "return" | "cancellation" | "adjustment";
+            /** @enum {string} */
+            method: "bank_transfer" | "cash";
+            needsRefund: boolean;
+            /** Format: int64 */
+            netPaidVnd: number;
+            orderCode: string;
+            /** Format: uuid */
+            orderId: string;
+            /** @enum {string} */
+            orderPaymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            orderRowVersion: string;
+            /** @enum {string} */
+            orderStatus: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** Format: int64 */
+            paidVnd: number;
+            /** Format: date-time */
+            refundedAt: string;
+            /** Format: int64 */
+            refundedVnd: number;
+            /** Format: uuid */
+            refundId: string;
+            /** Format: uuid */
+            returnRequestId: null | string;
+            /** @enum {null|string} */
+            returnRequestStatus: "requested" | "approved" | "rejected" | "resolved" | null;
+            /** Format: int64 */
+            shippingAmountVnd: number;
+        };
         SalePriceList: {
             items: components["schemas"]["SalePriceView"][];
             rowVersion: string;
@@ -9570,6 +10124,9 @@ export interface components {
             status?: string;
             /** Format: int32 */
             weightG?: null | number | string;
+        };
+        VoidPaymentRequest: {
+            reason: string;
         };
     };
     responses: never;

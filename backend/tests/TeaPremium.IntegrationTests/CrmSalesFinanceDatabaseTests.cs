@@ -78,7 +78,7 @@ SELECT setval('catalog.sku_number_seq', 42);
         Assert.Equal(42L, await ScalarAsync<long>(connection, "SELECT last_value FROM catalog.sku_number_seq"));
         var newHistory = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
         Assert.Equal(oldHistory, newHistory.Take(6));
-        Assert.Equal(8, newHistory.Length);
+        Assert.Equal(9, newHistory.Length);
         Assert.False(db.Database.HasPendingModelChanges());
         Assert.Equal(27, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN ('crm','sales','finance','pricing')"));
         Assert.Equal(0, await ScalarAsync<int>(connection, "SELECT count(*)::int FROM pg_tables WHERE schemaname='marketing'"));
@@ -119,7 +119,7 @@ SELECT string_agg(name||':'||data,E'\n' ORDER BY name) FROM (
         await ExecuteAsync(c, sql);
         Assert.Equal(before, await P0P1FingerprintAsync(c));
         Assert.Equal(p2Before, await ScalarAsync<string>(c, "SELECT code||':'||full_name FROM crm.customers WHERE id='" + CustomerId + "'"));
-        Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(9, (await db.Database.GetAppliedMigrationsAsync()).Count());
         Assert.Equal(1001L, await ScalarAsync<long>(c, "SELECT nextval('crm.customer_code_seq')"));
         await ErrorAsync(DatabaseProvisioning.Login(c, "tp_app"), "DELETE FROM sales.orders", "42501");
     }

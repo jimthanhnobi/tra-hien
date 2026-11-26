@@ -60,10 +60,11 @@ public sealed class AuditSaveChangesInterceptor(IClock clock, IAuditContext audi
         foreach (var property in entry.Properties)
         {
             if (property.Metadata.IsPrimaryKey()) continue;
-            // StockLevel, Customer, CustomerAddress and Interaction writes explicitly supply their OnAdd defaulted fields
-            // (never OnAddOrUpdate such as xmin). Other generated values may still be unknown before INSERT.
+            // StockLevel, Customer, CustomerAddress, Interaction, Payment, Refund and ReturnRequest writes explicitly supply
+            // their OnAdd defaulted fields (never OnAddOrUpdate such as xmin). Other generated values may still be unknown before INSERT.
             if (entry.State == EntityState.Added && property.Metadata.ValueGenerated != ValueGenerated.Never
-                && !(property.Metadata.ValueGenerated == ValueGenerated.OnAdd && entry.Entity is StockLevel or Customer or CustomerAddress or Interaction)) continue;
+                && !(property.Metadata.ValueGenerated == ValueGenerated.OnAdd
+                    && entry.Entity is StockLevel or Customer or CustomerAddress or Interaction or Payment or Refund or ReturnRequest)) continue;
             if (entry.State == EntityState.Modified && property.Metadata.ValueGenerated == ValueGenerated.OnAddOrUpdate) continue;
             if (entry.State == EntityState.Modified && !property.IsModified) continue;
             var before = dbValues?[property.Metadata.Name];

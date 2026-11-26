@@ -19,6 +19,8 @@ using TeaPremium.Infrastructure.Inventory;
 using TeaPremium.Api.Crm;
 using TeaPremium.Infrastructure.Crm;
 using TeaPremium.Infrastructure.Orders;
+using TeaPremium.Api.Payments;
+using TeaPremium.Infrastructure.Payments;
 using TeaPremium.Infrastructure.Notifications;
 
 // Import arguments are file paths, never deployment configuration or host options.
@@ -39,6 +41,7 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer(InventoryDocumentEndpoints.TransformOpenApiAsync);
     options.AddDocumentTransformer(StoreCatalogOpenApi.TransformAsync);
     options.AddDocumentTransformer(CustomerOpenApi.TransformAsync);
+    options.AddDocumentTransformer(PaymentOpenApi.TransformAsync);
 });
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
@@ -67,6 +70,7 @@ builder.Services.AddScoped<InventoryMutation>();
 builder.Services.AddScoped<IInventoryDocumentStore, EfInventoryDocumentStore>();
 builder.Services.AddScoped<InventoryDocuments>();
 builder.Services.AddOrders();
+builder.Services.AddPayments();
 builder.Services.Configure<OutboxDispatcherOptions>(builder.Configuration.GetSection("OutboxDispatcher"));
 builder.Services.AddHostedService<OutboxDispatcher>();
 // Scaffold/OpenAPI generation can start without a DB. Production supplies this setting.
@@ -125,6 +129,7 @@ app.MapInventory();
 app.MapInventoryDocuments();
 app.MapStoreCatalog();
 app.MapCustomers();
+app.MapPayments();
 
 app.Run();
 

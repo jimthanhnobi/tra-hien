@@ -29,7 +29,8 @@ public sealed class EfOrderPricingRead(ISettingsStore settingsStore) : IOrderPri
             ReadClampedInt32(orders, "orders.bank_transfer_hold_hours", 1, 24 * 365),
             ReadClampedInt32(orders, "orders.max_quantity_per_line_web", 1, 1000),
             ReadBool(orders, "orders.cod_requires_call"),
-            ReadClampedInt32(orders, "orders.max_staff_discount_percent", 0, 100));
+            ReadClampedInt32(orders, "orders.max_staff_discount_percent", 0, 100),
+            ReadBool(orders, "orders.auto_confirm_on_full_payment"));
     }
 
     private static string Raw(IReadOnlyDictionary<string, string> values, string key) =>

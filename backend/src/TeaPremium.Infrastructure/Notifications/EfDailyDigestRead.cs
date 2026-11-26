@@ -22,22 +22,24 @@ public sealed class EfDailyDigestRead(AppDbContext db) : IDailyDigestRead
         var expiringCutoffUtc = nowDateTime.Add(NotificationContracts.OrderPaymentExpiringWindow);
         var nextDayStartUtc = BusinessCalendar.ToUtc(vietnamDate.AddDays(1), TimeOnly.MinValue).UtcDateTime;
 
-        // 1. Pending confirmation orders (GAP-02 2A): pending, non-backfilled, excluding awaiting-payment bank transfers.
+        // 1. Pending confirmation orders (GAP-02 2A, BR-PAY-02 O3a=C): pending, non-backfilled, excluding awaiting-payment bank transfers (0-VND orders have no payment obligation).
         var pendingConfirmationOrders = await db.Set<Order>().AsNoTracking()
             .LongCountAsync(o =>
                 o.Status == "pending"
                 && !o.IsBackfilled
                 && !(o.PaymentMethod == "bank_transfer"
+                     && o.TotalVnd > 0
                      && (o.PaymentStatus == "unpaid" || o.PaymentStatus == "partially_paid")),
                 cancellationToken);
 
-        // 2. Expiring bank transfer payments (GAP-02 2A, 24h ASSUMPTION owner-approved 2026-11-23):
-        //    status = pending, bank_transfer, unpaid, now < payment_due_at <= now + 24h.
+        // 2. Expiring bank transfer payments (GAP-02 2A, 24h ASSUMPTION owner-approved 2026-11-23; BR-PAY-02 O3a=C excludes 0-VND orders):
+        //    status = pending, bank_transfer, total_vnd > 0, unpaid, now < payment_due_at <= now + 24h.
         var expiringPaymentOrders = await db.Set<Order>().AsNoTracking()
             .LongCountAsync(o =>
                 o.Status == "pending"
                 && !o.IsBackfilled
                 && o.PaymentMethod == "bank_transfer"
+                && o.TotalVnd > 0
                 && o.PaymentStatus == "unpaid"
                 && o.PaymentDueAt != null
                 && o.PaymentDueAt > nowDateTime

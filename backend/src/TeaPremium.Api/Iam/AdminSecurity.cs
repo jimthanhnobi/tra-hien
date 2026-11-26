@@ -18,6 +18,7 @@ public static class AdminSecurity
     public const string Scheme = "AdminCookie";
     public const string Onboarding = "StaffOnboarding";
     public const string Ready = "StaffReady";
+    public const string Owner = "StaffOwner";
     internal const string Stamp = "staff_stamp";
     internal const string Started = "staff_started";
     internal const string Factor = "staff_factor";
@@ -45,6 +46,8 @@ public static class AdminSecurity
         {
             options.AddPolicy(Onboarding, policy => policy.AddAuthenticationSchemes(Scheme).RequireAuthenticatedUser());
             options.AddPolicy(Ready, policy => policy.AddAuthenticationSchemes(Scheme).RequireAuthenticatedUser().RequireClaim("staff_ready", "true"));
+            options.AddPolicy(Owner, policy => policy.AddAuthenticationSchemes(Scheme).RequireAuthenticatedUser()
+                .RequireClaim("staff_ready", "true").RequireRole("owner"));
             foreach (var permission in StaffPermissions.ByRole["owner"])
                 options.AddPolicy(permission, policy => policy.AddAuthenticationSchemes(Scheme).RequireAuthenticatedUser()
                     .RequireClaim("staff_ready", "true").RequireClaim("permission", permission));

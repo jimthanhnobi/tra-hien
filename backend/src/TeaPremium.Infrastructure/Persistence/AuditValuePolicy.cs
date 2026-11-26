@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TeaPremium.Domain.Crm;
+using TeaPremium.Domain.Orders;
 
 namespace TeaPremium.Infrastructure.Persistence;
 
@@ -170,6 +171,38 @@ public static class AuditValuePolicy
             if (field is "customer_id" or "voucher_id" or "created_by_staff_id" && value is Guid) return value;
             if (field is "is_first_purchase" or "is_backfilled" && value is bool) return value;
             if (field is "payment_due_at" or "placed_at" or "confirmed_at" or "shipped_at" or "delivered_at" or "failed_at" or "cancelled_at" or "created_at" or "updated_at" && value is DateTime) return value;
+            return Redacted;
+        }
+        // P2-07 / R-P201-01 / R-P201-06 / NFR-04: explicit fail-closed allowlists for sales.payments,
+        // sales.refunds and sales.return_requests; bank_reference, note, void_reason, reason, description
+        // and decision_note stay redacted while confirmed_at preserves historical confirmation timestamp on void.
+        if (entityType == "sales.payments")
+        {
+            if (field is "order_id" or "cod_settlement_id" or "created_by" or "confirmed_by" && value is Guid) return value;
+            if (field == "method" && value is string method && PaymentMethod.IsValid(method)) return method;
+            if (field == "provider" && value is string provider && PaymentProvider.IsValid(provider)) return provider;
+            if (field == "amount_vnd" && value is long) return value;
+            if (field == "status" && value is string paymentStatus && PaymentRecordStatus.IsValid(paymentStatus)) return paymentStatus;
+            if (field is "received_at" or "created_at" or "confirmed_at" && value is DateTime) return value;
+            return Redacted;
+        }
+        if (entityType == "sales.refunds")
+        {
+            if (field is "order_id" or "return_request_id" or "created_by" && value is Guid) return value;
+            if (field == "kind" && value is string refundKind && RefundKind.IsValid(refundKind)) return refundKind;
+            if (field is "amount_vnd" or "shipping_amount_vnd" && value is long) return value;
+            if (field == "method" && value is string refundMethod && RefundMethod.IsValid(refundMethod)) return refundMethod;
+            if (field is "refunded_at" or "created_at" && value is DateTime) return value;
+            return Redacted;
+        }
+        if (entityType == "sales.return_requests")
+        {
+            if (field == "code" && value is string returnCode && ReturnCode.IsValid(returnCode)) return returnCode;
+            if (field is "order_id" or "decided_by" or "created_by" && value is Guid) return value;
+            if (field == "reason" && value is string returnReason && ReturnReason.IsValid(returnReason)) return returnReason;
+            if (field == "status" && value is string returnStatus && ReturnRequestStatus.IsValid(returnStatus)) return returnStatus;
+            if (field == "resolution" && value is string resolution && ReturnResolution.IsValid(resolution)) return resolution;
+            if (field is "requested_at" or "decided_at" or "resolved_at" && value is DateTime) return value;
             return Redacted;
         }
         // P1-04 entity/path classification. Never whitelist names/biographies/HTML globally.
