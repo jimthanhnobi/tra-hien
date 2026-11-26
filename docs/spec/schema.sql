@@ -990,19 +990,27 @@ CREATE TABLE sales.return_evidence (
   PRIMARY KEY (return_request_id, asset_id)
 );
 
+-- Owner-approved 2026-11-26 (O3b Phương án 3, P2-07): phân loại refund, phần phí vận chuyển hoàn và quan hệ 1 return_request <-> tối đa 1 refund.
 CREATE TABLE sales.refunds (
   id             uuid PRIMARY KEY,
   order_id       uuid NOT NULL REFERENCES sales.orders(id),
   return_request_id uuid REFERENCES sales.return_requests(id),
+  kind           text NOT NULL,
   amount_vnd     bigint NOT NULL CHECK (amount_vnd > 0),
+  shipping_amount_vnd bigint NOT NULL DEFAULT 0,
   method         text NOT NULL CHECK (method IN ('bank_transfer','cash')),
   bank_reference text,
   reason         text NOT NULL,
   refunded_at    timestamptz NOT NULL,
   created_by     uuid NOT NULL,
-  created_at     timestamptz NOT NULL DEFAULT now()
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ck_refunds_kind CHECK (kind IN ('overpayment','return','cancellation','adjustment')),
+  CONSTRAINT ck_refunds_shipping_amount_vnd CHECK (shipping_amount_vnd >= 0 AND shipping_amount_vnd <= amount_vnd),
+  CONSTRAINT ck_refunds_kind_return_request CHECK ((kind = 'return') = (return_request_id IS NOT NULL)),
+  CONSTRAINT ck_refunds_kind_shipping CHECK (kind IN ('return','adjustment') OR shipping_amount_vnd = 0)
 );
 CREATE INDEX ix_refunds_order ON sales.refunds(order_id);
+CREATE UNIQUE INDEX ux_refunds_return_request ON sales.refunds(return_request_id) WHERE return_request_id IS NOT NULL;
 
 CREATE TABLE sales.shipments (
   id             uuid PRIMARY KEY,

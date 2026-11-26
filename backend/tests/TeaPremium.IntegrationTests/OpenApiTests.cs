@@ -26,7 +26,24 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
         var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
             .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
-        Assert.Equal(111, totalOperations);
+        Assert.Equal(115, totalOperations);
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/payments", out var recordPaymentPath));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/payments/{id}/void", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/payments/awaiting", out var awaitingPaymentsPath));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/refunds", out var createRefundPath));
+        Assert.False(paths.TryGetProperty("/api/v1/admin/cod-settlements", out _));
+        Assert.Contains(recordPaymentPath.GetProperty("post").GetProperty("parameters").EnumerateArray(),
+            x => x.GetProperty("name").GetString() == "Idempotency-Key"
+                && x.GetProperty("in").GetString() == "header"
+                && x.GetProperty("required").GetBoolean());
+        Assert.Contains(createRefundPath.GetProperty("post").GetProperty("parameters").EnumerateArray(),
+            x => x.GetProperty("name").GetString() == "Idempotency-Key"
+                && x.GetProperty("in").GetString() == "header"
+                && x.GetProperty("required").GetBoolean());
+        var awaitingParams = awaitingPaymentsPath.GetProperty("get").GetProperty("parameters")
+            .EnumerateArray().ToDictionary(x => x.GetProperty("name").GetString()!);
+        Assert.True(awaitingParams["type"].GetProperty("required").GetBoolean());
+        AssertOpenApiEnum(awaitingParams["type"].GetProperty("schema"), "bank_transfer", "cod");
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers", out var customersPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/import", out var customerImportPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}", out _));
@@ -113,6 +130,24 @@ public sealed class OpenApiTests
         var importNewTags = importSummaryProps.GetProperty("newTags");
         Assert.Equal("array", importNewTags.GetProperty("type").GetString());
         Assert.Equal("string", importNewTags.GetProperty("items").GetProperty("type").GetString());
+
+        foreach (var name in new[] { "PaymentRecordedView", "PaymentVoidedView", "RefundRecordedView", "AwaitingPaymentsPage", "AwaitingBankTransferItem", "AwaitingCodPaymentItem" })
+        {
+            var props = schemas.GetProperty(name).GetProperty("properties");
+            Assert.All(props.EnumerateObject(), prop =>
+            {
+                Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("profit", prop.Name, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+        AssertOpenApiEnum(schemas.GetProperty("RecordOrderPaymentRequest").GetProperty("properties").GetProperty("method"), "bank_transfer", "cash");
+        AssertOpenApiEnum(schemas.GetProperty("CreateOrderRefundRequest").GetProperty("properties").GetProperty("kind"), "overpayment", "return", "cancellation", "adjustment");
+        AssertOpenApiEnum(schemas.GetProperty("CreateOrderRefundRequest").GetProperty("properties").GetProperty("method"), "bank_transfer", "cash");
+        Assert.Equal("integer", schemas.GetProperty("CreateOrderRefundRequest").GetProperty("properties").GetProperty("shippingAmountVnd").GetProperty("type").GetString());
+        AssertOpenApiEnum(schemas.GetProperty("RefundRecordedView").GetProperty("properties").GetProperty("kind"), "overpayment", "return", "cancellation", "adjustment");
+        Assert.Equal("integer", schemas.GetProperty("RefundRecordedView").GetProperty("properties").GetProperty("shippingAmountVnd").GetProperty("type").GetString());
+        Assert.Equal("integer", schemas.GetProperty("AwaitingBankTransferItem").GetProperty("properties").GetProperty("effectivePaidVnd").GetProperty("type").GetString());
+        AssertOpenApiEnum(schemas.GetProperty("PaymentVoidedView").GetProperty("properties").GetProperty("status"), "voided");
     }
 
     private static void AssertOpenApiEnum(JsonElement schema, params string[] values)

@@ -11,13 +11,13 @@ public sealed class CrmSalesFinanceParityTests(CrmSalesFinanceFixture fixture) :
     [Fact]
     public async Task EveryColumnConstraintIndexForeignKeyAndSequenceMatchesApprovedDdl()
     {
-        var actual = await fixture.DatabaseAsync(target: P201Head);
+        var actual = await fixture.DatabaseAsync(target: P207Head);
         var reference = await ReferenceAsync();
         var (expected, names) = await ExpectedAsync(actual, reference);
         Assert.Equal(expected, await CatalogAsync(actual));
         Assert.Equal(27, await ScalarAsync<int>(actual, "SELECT count(*)::int FROM pg_tables WHERE schemaname IN " + Scope));
         Assert.Equal(0, await ScalarAsync<int>(actual, "SELECT count(*)::int FROM pg_tables WHERE schemaname = 'marketing'"));
-        Assert.Equal(0, await ScalarAsync<int>(actual, "SELECT count(*)::int FROM pg_tables WHERE schemaname = 'inventory' AND tablename = 'reservations'"));
+        Assert.Equal(1, await ScalarAsync<int>(actual, "SELECT count(*)::int FROM pg_tables WHERE schemaname = 'inventory' AND tablename = 'reservations'"));
         // Exact implicit-name exceptions, retained for the local review inventory.
         await File.WriteAllLinesAsync(Path.Combine(AppContext.BaseDirectory, "p201-naming-exceptions.md"), names);
     }
@@ -32,9 +32,11 @@ public sealed class CrmSalesFinanceParityTests(CrmSalesFinanceFixture fixture) :
     [InlineData("DROP INDEX crm.ux_customer_interest; CREATE UNIQUE INDEX ux_customer_interest ON crm.customer_interests(customer_id, interest_type, ref_id, price_band, source)")]
     [InlineData("ALTER TABLE crm.interactions DROP CONSTRAINT fk_interactions_order; ALTER TABLE crm.interactions ADD CONSTRAINT fk_interactions_order FOREIGN KEY (order_id) REFERENCES sales.orders(id) ON DELETE CASCADE")]
     [InlineData("ALTER SEQUENCE crm.customer_code_seq INCREMENT 2")]
+    [InlineData("ALTER TABLE sales.refunds ALTER COLUMN kind SET DEFAULT 'adjustment'")]
+    [InlineData("DROP INDEX sales.ux_refunds_return_request; CREATE UNIQUE INDEX ux_refunds_return_request ON sales.refunds(return_request_id)")]
     public async Task ParityDetectsSameNamedSemanticDrift(string mutation)
     {
-        var actual = await fixture.DatabaseAsync(target: P201Head);
+        var actual = await fixture.DatabaseAsync(target: P207Head);
         var reference = await ReferenceAsync();
         var (expected, _) = await ExpectedAsync(actual, reference);
         Assert.Equal(expected, await CatalogAsync(actual));

@@ -3735,6 +3735,11 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
                     b.Property<string>("Method")
                         .IsRequired()
                         .HasColumnType("text")
@@ -3757,17 +3762,36 @@ namespace TeaPremium.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("return_request_id");
 
+                    b.Property<long>("ShippingAmountVnd")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("shipping_amount_vnd")
+                        .HasDefaultValueSql("0");
+
                     b.HasKey("Id")
                         .HasName("pk_refunds");
 
                     b.HasIndex("OrderId")
                         .HasDatabaseName("ix_refunds_order");
 
+                    b.HasIndex("ReturnRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_refunds_return_request")
+                        .HasFilter("return_request_id IS NOT NULL");
+
                     b.ToTable("refunds", "sales", t =>
                         {
                             t.HasCheckConstraint("ck_refunds_amount_vnd", "amount_vnd > 0");
 
+                            t.HasCheckConstraint("ck_refunds_kind", "kind IN ('overpayment','return','cancellation','adjustment')");
+
+                            t.HasCheckConstraint("ck_refunds_kind_return_request", "(kind = 'return') = (return_request_id IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_refunds_kind_shipping", "kind IN ('return','adjustment') OR shipping_amount_vnd = 0");
+
                             t.HasCheckConstraint("ck_refunds_method", "method IN ('bank_transfer','cash')");
+
+                            t.HasCheckConstraint("ck_refunds_shipping_amount_vnd", "shipping_amount_vnd >= 0 AND shipping_amount_vnd <= amount_vnd");
                         });
                 });
 

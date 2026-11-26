@@ -168,7 +168,7 @@
 - **BR-ORD-06** Gia hạn thanh toán: staff, mỗi lần tối đa +72 giờ, lý do bắt buộc. Hủy sớm: staff hủy với lý do (sau khi liên hệ khách).
 - **BR-ORD-07** Khi `delivered`:
   1. COD: tạo `payments(cod, awaiting_settlement, amount = shipment.cod_amount_vnd)` nếu > 0.
-  2. Cập nhật chỉ số khách (`delivered_orders_count`, `lifetime_value_vnd += total − refunds`, `first/last_delivered_at`).
+  2. Cập nhật chỉ số khách (`delivered_orders_count`, `lifetime_value_vnd += total − Σ refunds(kind ∈ {'return','adjustment'})` — không trừ `overpayment`; *Owner-approved 2026-11-26: O3b Phương án 3*, `first/last_delivered_at`).
   3. Cập nhật sở thích khách (BR-CRM-08).
   4. Cấp mã giới thiệu nếu khách chưa có (BR-MKT-06).
   5. Bắt đầu đếm thời gian xét giới thiệu (BR-MKT-07).
@@ -180,40 +180,65 @@
 
 ## 7. PAY — Thanh toán
 
-- **BR-PAY-01** Ghi nhận chuyển khoản (staff `payments.write`, `Idempotency-Key`): `amount > 0`, `received_at ≤ now`, `bank_reference` không trùng (trừ bản ghi đã void). Đơn `cancelled` vẫn ghi được (tiền đã vào) nhưng đơn bị gắn cờ "cần hoàn tiền".
-- **BR-PAY-02** Trạng thái thanh toán (chỉ `OrderPaymentStatusCalculator` được tính):
+> **Cập nhật được Owner phê duyệt (`2026-11-26`):** `O1 = A`, `O2 = A`, `O3a = C`, `O3b = Phương án 3`, `ASSUMPTION-P207-01/02/04 = A`.
+
+- **BR-PAY-01** Ghi nhận chuyển khoản/tiền mặt (staff `payments.write`, `Idempotency-Key`): `amount > 0`, `received_at ≤ now`, `bank_reference` không trùng (trừ bản ghi đã void). Đơn `cancelled` hoặc `delivery_failed` vẫn ghi được (tiền đã vào) và tự bật cờ `needs_refund`; chặn ghi nhận trên đơn `is_backfilled = true` (`422 backfilled_order_immutable`).
+- **BR-PAY-02** Trạng thái thanh toán (chỉ `OrderPaymentStatusCalculator` được tính; *Owner-approved 2026-11-26: O1=A, O2=A, O3a=C, O3b=Phương án 3*):
   ```
-  paid      = Σ payments(confirmed).amount
-  refunded  = Σ refunds.amount
-  net       = paid − refunded
-  if refunded > 0: status = (net == 0) ? refunded : partially_refunded
-  elif paid == 0:  status = unpaid
-  elif paid < total: status = partially_paid
-  else: status = paid            (paid > total → cờ "thu thừa", cần hoàn)
+  paid                 = Σ payments(confirmed).amount
+  refunded             = Σ refunds.amount
+  refunded_overpayment = Σ refunds(kind = 'overpayment').amount
+  refunded_commercial  = refunded − refunded_overpayment
+  effective_paid       = paid − refunded_overpayment
+  net                  = paid − refunded                  (bất biến: net ≥ 0)
+
+  Nhánh 1 — is_backfilled = true (chặn nếu paid ≠ 0 hoặc refunded ≠ 0):
+    status = unpaid, remaining_to_pay = 0, overpaid = 0, is_overpaid = false, needs_refund = false
+
+  Nhánh 2 — order.status ∈ {'cancelled', 'delivery_failed'} (ưu tiên refunded > 0):
+    if refunded > 0: status = (net == 0) ? refunded : partially_refunded
+    elif paid == 0:  status = unpaid
+    elif paid < total: status = partially_paid
+    else: status = paid
+    remaining_to_pay = 0, overpaid = 0, is_overpaid = false, needs_refund = (net > 0)
+
+  Nhánh 3 — đơn còn chạy hoặc delivered:
+    if refunded_commercial > 0: status = (net == 0) ? refunded : partially_refunded
+    elif net >= total: status = paid          (gồm đơn 0đ không sinh payment giả và đơn hoàn tiền thừa về đúng total)
+    elif net == 0:     status = unpaid
+    else:              status = partially_paid
+    remaining_to_pay = max(0, total − effective_paid)
+    overpaid         = (effective_paid > total) ? min(net, effective_paid − total) : 0
+    is_overpaid      = (overpaid > 0)
+    needs_refund     = is_overpaid
   ```
-  Tính lại sau mọi thay đổi payment/refund/tổng đơn.
-- **BR-PAY-03** Đơn web `pending` + `bank_transfer` vừa đạt `paid` và `orders.auto_confirm_on_full_payment = true` (mặc định true) → tự chuyển `confirmed` (actor system), email "Đã nhận thanh toán".
-- **BR-PAY-04** Hướng dẫn chuyển khoản: số tiền = `total − net`; nội dung = mã đơn; VietQR payload theo 02 §5.7; kèm hạn `payment_due_at` (giờ VN).
+  Lưu ý bộ lọc `?flag=needs_refund` (và cờ `needsRefund` trên kết quả ghi nhận/void/refund): nối thêm `OR EXISTS return_requests(status = 'approved' AND resolution = 'refund')`. Tính lại `payment_status` khi tạo đơn, sửa đơn/payment/refund và khi chuyển `cancelled` hoặc `delivery_failed`.
+- **BR-PAY-03** Chỉ tự chuyển `confirmed` (actor `system`, phát outbox `OrderConfirmed` với `ReasonCode = "auto_confirmed_on_full_payment"`, email "Đã nhận thanh toán" qua step ở P3-06) khi thao tác **ghi nhận payment** làm đơn web `pending` + `bank_transfer` chuyển sang `paid` và `orders.auto_confirm_on_full_payment = true` (mặc định `true`). Không tự auto-confirm khi tạo đơn `0đ` hoặc khi sửa đơn làm giảm tổng (`BR-ORD-08`).
+- **BR-PAY-04** Hướng dẫn chuyển khoản: số tiền = `remaining_to_pay`; nội dung = mã đơn; VietQR payload theo 02 §5.7; kèm hạn `payment_due_at` (giờ VN). Khi `remaining_to_pay = 0` (gồm đơn `0đ`) không sinh VietQR.
 - **BR-PAY-05** Đối soát COD: chọn các payment `awaiting_settlement` của cùng hãng → tạo `cod_settlements(gross = Σ amount, fee, net)`; các payment → `confirmed`, `received_at = settled_at`, gắn `cod_settlement_id`. `gross` phải đúng Σ đã chọn.
-- **BR-PAY-06** Hủy (void) payment: chỉ owner, lý do bắt buộc; payment đã thuộc phiên đối soát COD không void được.
-- **BR-PAY-07** Hoàn tiền (`refunds.write`, `Idempotency-Key`): `amount ≤ net` hiện tại; lý do bắt buộc; liên kết `return_request` nếu có.
+- **BR-PAY-06** Hủy (void) payment: chỉ owner, lý do bắt buộc; payment đã thuộc phiên đối soát COD không void được; chặn void làm `net < 0` (`409 payment_has_refunds`, *Owner-approved 2026-11-26: ASSUMPTION-P207-01=A*). Khi void khoản `confirmed`, đặt đồng thời `status = 'voided'`, `confirmed_at = NULL`, `void_reason = reason` (giữ mốc `confirmed_at` cũ trong `platform.audit_logs`).
+- **BR-PAY-07** Hoàn tiền (`refunds.write`, `Idempotency-Key`, append-only; *Owner-approved 2026-11-26: O3b Phương án 3*): bắt buộc `kind ∈ {'overpayment','return','cancellation','adjustment'}`, `amount > 0`, `0 ≤ shipping_amount_vnd ≤ amount`, `amount ≤ net` hiện tại, lý do bắt buộc; mô hình **1 `return_request` ↔ tối đa 1 `refund`** (`ux_refunds_return_request`). Kiểm cộng dồn dưới khóa `sales.orders FOR UPDATE` theo ma trận trạng thái:
+  - `overpayment`: cấm trên `cancelled | delivery_failed | is_backfilled`, `return_request_id IS NULL`, `shipping_amount_vnd = 0`, `amount ≤ min(net, max(0, effective_paid − total))`.
+  - `cancellation`: CHỈ trên `cancelled | delivery_failed`, `return_request_id IS NULL`, `shipping_amount_vnd = 0`.
+  - `adjustment`: CHỈ trên `delivered`, `return_request_id IS NULL`, `goods = amount − shipping_amount_vnd ≤ (subtotal − discount) − Σ goods(return + adjustment trước đó)` và `shipping_amount_vnd ≤ shipping_fee_vnd − Σ shipping_amount_vnd trước đó`.
+  - `return`: CHỈ trên `delivered`, bắt buộc `return_request_id IS NOT NULL` (phiếu `approved` + `resolution = 'refund'`, có `≥ 1` dòng trả), kiểm trần hàng lũy kế half-up và điều kiện hoàn phí ship theo `BR-RET-02`.
 
 ## 8. SHP — Giao hàng
 
 - **BR-SHP-01** Phí ship đơn web: `base = merchandise − discount`; nếu `shipping.free_threshold_vnd` khác null và `base ≥ threshold` → 0; ngược lại `shipping.flat_fee_vnd`. Đơn Admin: mặc định theo công thức, nhân viên sửa được.
-- **BR-SHP-02** Tạo shipment (`ShippingProvider = manual`): đơn `confirmed`; nhập hãng, mã vận đơn (có thể để trống rồi bổ sung), `shipping_cost_vnd` (có thể bổ sung sau); `cod_amount = payment_method = cod ? total − net : 0`. Tạo shipment chuyển đơn sang `shipping` (BR-ORD bảng).
-- **BR-SHP-03** Shipment `failed` → đơn `delivery_failed`. Khi hàng về kho (shipment `returned`, nhân viên xác nhận) → movement `return_restock` cho mọi dòng với cost = `unit_cost_vnd` của dòng; ghi `return_cost_vnd` nếu có.
+- **BR-SHP-02** Tạo shipment (`ShippingProvider = manual`): đơn `confirmed`; nhập hãng, mã vận đơn (có thể để trống rồi bổ sung), `shipping_cost_vnd` (có thể bổ sung sau); `cod_amount = (payment_method = cod) ? remaining_to_pay : 0` (đơn `0đ` → `cod_amount = 0`, không yêu cầu thu COD; *Owner-approved 2026-11-26: O3a=C*). Tạo shipment chuyển đơn sang `shipping` (BR-ORD bảng).
+- **BR-SHP-03** Shipment `failed` → đơn `delivery_failed` và tính lại `payment_status` (`BR-PAY-02`); nếu `net > 0` tự bật cờ `needs_refund` (hoàn tiền qua `kind = 'cancellation'`, *Owner-approved 2026-11-26: O1=A, O3b Phương án 3*). Khi hàng về kho (shipment `returned`, nhân viên xác nhận) → movement `return_restock` cho mọi dòng với cost = `unit_cost_vnd` của dòng; ghi `return_cost_vnd` nếu có.
 - **BR-SHP-04** Một đơn chỉ có 1 shipment `purpose=order` đang hoạt động (index `ux_shipment_active_order`).
 - **BR-SHP-05** Báo cáo liệt kê shipment chưa có `shipping_cost_vnd` → báo cáo lãi đánh dấu "chưa đủ dữ liệu".
 
 ## 9. RET — Đổi trả
 
 - **BR-RET-01** Tạo yêu cầu: đơn `delivered`, trong `returns.window_days` (mặc định 7) ngày từ `delivered_at` (owner được bỏ qua với lý do); lý do thuộc `damaged_in_transit | defective | wrong_item`; `damaged_in_transit` cần ≥ 1 ảnh/video bằng chứng; số lượng mỗi dòng ≤ `quantity − returned_quantity`. Bằng chứng ảnh ≤ 15 MiB/ảnh hoặc video mp4/mov ≤ 50 MiB/video, chỉ purpose=evidence, bucket private.
-- **BR-RET-02** Duyệt → chọn `refund` hoặc `replacement`:
-  - `refund`: tạo refund (BR-PAY-07), số tiền ≤ giá trị dòng trả (theo `unit_price` sau phân bổ giảm giá theo tỷ lệ); `returned_quantity += q`. Hàng nhận về và còn bán được (`restockable`) → movement `return_restock`. Hàng vỡ không nhận về → không có movement; giá vốn của nó tự thành lỗ trong báo cáo (BR-FIN-02).
+- **BR-RET-02** Duyệt → chọn `refund` hoặc `replacement` (*Owner-approved 2026-11-26: O3b Phương án 3, G04 + G29*):
+  - `refund` (luồng 2 bước: `approve` dùng `returns.write` → owner ghi đúng `1` refund `kind = 'return'` qua `POST admin/orders/{id}/refunds` dùng `refunds.write` + `Idempotency-Key` chốt `resolved` trong cùng transaction): trần tiền hàng cộng dồn trên các phiếu `resolution = 'refund'` đã có refund `kind = 'return'` + phiếu hiện tại làm tròn **half-up ở bước cuối** (`04-business-rules.md:4`), tức `cum_ceiling = (cum_gross ≥ subtotal) ? (subtotal − discount) : round_half_up(cum_gross × (subtotal − discount) / subtotal)`, `goods = amount − shipping_amount_vnd ≤ min(cum_ceiling − Σ goods(return trước đó), (subtotal − discount) − Σ goods(return + adjustment trước đó))`; chỉ cho phép `shipping_amount_vnd > 0` khi hoàn tất trả 100% mọi dòng của đơn qua các phiếu `resolution = 'refund'` (không tính `replacement`, không dựa vào `order_lines.returned_quantity`) và `Σ shipping_amount_vnd ≤ shipping_fee_vnd`; `returned_quantity += q`. Hàng nhận về và còn bán được (`restockable`) → movement `return_restock`. Hàng vỡ không nhận về → không có movement; giá vốn của nó tự thành lỗ trong báo cáo (BR-FIN-02).
   - `replacement`: tạo shipment `purpose=replacement` và movement `replacement_out` (−q, cost = avg). Không có doanh thu; chi phí = giá vốn + ship.
 - **BR-RET-03** `resolved` khi refund đã ghi hoặc shipment thay thế `delivered`. Từ chối cần `decision_note`.
-- **BR-RET-04** Đơn bị trả toàn bộ và hoàn đủ tiền → không còn tính là khách đã mua (chỉ số khách tính lại), referral liên quan bị `rejected`.
+- **BR-RET-04** Đơn bị trả toàn bộ qua các phiếu `resolution = 'refund'` và hoàn đủ tiền thương mại (`kind ∈ {'return','adjustment'}`, không tính `overpayment`; *Owner-approved 2026-11-26: O3b Phương án 3*) → không còn tính là khách đã mua (chỉ số khách tính lại), referral liên quan bị `rejected`.
 
 ## 10. CRM — Khách hàng
 
@@ -244,7 +269,7 @@
 - **BR-MKT-04** `GET /r/{code}`: link không tồn tại/hết hạn → 302 về `/`. Ngược lại: nếu User-Agent là bot (danh sách) → `is_bot=true`, không đặt cookie; nếu không: `click_count + 1`, ghi `link_clicks(visitor_id)`, đặt cookie `tp_attr = {link_code, clicked_at}` 30 ngày (ghi đè — last click), 302 tới `target_path`. Không ghi IP.
 - **BR-MKT-05** Mã giới thiệu ở checkout: hợp lệ khi mã `is_active`; SĐT người mua **không** thuộc hồ sơ đã có đơn giao thành công, `had_legacy_purchase=false`, `origin≠legacy_import`; không trùng SĐT người giới thiệu; `merchandise ≥ referral.welcome_min_order_vnd`. Giảm `referral.welcome_discount_vnd` (≤ merchandise). Tạo `marketing.referrals(pending)`; khách mới tạo → `referred_by_customer_id`, `acquisition_source=referral`.
 - **BR-MKT-06** Cấp mã giới thiệu (6 ký tự, `23456789ABCDEFGHJKMNPQRSTUVWXYZ`) khi khách có đơn giao thành công đầu tiên; nhân viên cấp tay được.
-- **BR-MKT-07** Job `QualifyReferrals`: referral `pending` có đơn đầu `delivered` và `now ≥ delivered_at + referral.qualify_after_days`, không có refund/đổi trả mở → `qualified` → tạo voucher `referral_reward` gắn người giới thiệu theo `referral.reward_voucher` → `rewarded`; gửi email (nếu có) và tạo hẹn chăm sóc cho nhân viên "Báo khách nhận quà giới thiệu". Đơn đầu bị hủy/giao thất bại/hoàn toàn bộ → `rejected`.
+- **BR-MKT-07** Job `QualifyReferrals`: referral `pending` có đơn đầu `delivered` và `now ≥ delivered_at + referral.qualify_after_days`, không có refund thương mại (`kind ∈ {'return','adjustment'}`, không tính `overpayment`) hoặc đổi trả mở (*Owner-approved 2026-11-26: O3b Phương án 3*) → `qualified` → tạo voucher `referral_reward` gắn người giới thiệu theo `referral.reward_voucher` → `rewarded`; gửi email (nếu có) và tạo hẹn chăm sóc cho nhân viên "Báo khách nhận quà giới thiệu". Đơn đầu bị hủy/giao thất bại/hoàn toàn bộ (chỉ tính refund thương mại `kind ∈ {'return','adjustment'}`, không tính `overpayment`) → `rejected`.
 - **BR-MKT-08** Mỗi người giới thiệu tối đa `referral.max_rewards_per_year` (mặc định 20) phần thưởng/năm.
 - **BR-MKT-09** Phân bổ nguồn cho đơn web:
   - `tracking_link_id`/`campaign_id` từ cookie `tp_attr` nếu click ≤ 30 ngày.
@@ -266,11 +291,13 @@
 Kỳ báo cáo `[from, to)` theo ngày giờ Việt Nam. Chỉ người có `finance.read`.
 
 - **BR-FIN-01** **Đơn ghi nhận** của kỳ: `delivered_at ∈ kỳ` và `is_backfilled = false` (trừ khi tích "gồm đơn lịch sử").
-- **BR-FIN-02** Công thức lãi lỗ:
+- **BR-FIN-02** Công thức lãi lỗ (*Owner-approved 2026-11-26: O3b Phương án 3*):
   ```
   R1  Doanh thu hàng           = Σ (subtotal − discount)           của đơn ghi nhận
   S   Phí ship thu khách       = Σ shipping_fee                    của đơn ghi nhận
-  RF  Hoàn tiền                = Σ refunds.amount có refunded_at ∈ kỳ, của đơn đã từng delivered
+  RF  Hoàn tiền                = Σ refunds.amount (kind ∈ {'return','adjustment'}) có refunded_at ∈ kỳ,
+                                 của đơn đã từng delivered (delivered_at IS NOT NULL) và cùng điều kiện is_backfilled như BR-FIN-01
+                                 (không trừ overpayment, không gồm cancellation, 0 double-count)
   NR  Doanh thu thuần          = R1 + S − RF
   C1  Giá vốn hàng bán         = Σ quantity × unit_cost_vnd        dòng của đơn ghi nhận
   C2  Giá vốn hàng trả về kho  = Σ |quantity| × unit_cost_vnd      movement return_restock ∈ kỳ (ref_type='return')
@@ -288,11 +315,11 @@ Kỳ báo cáo `[from, to)` theo ngày giờ Việt Nam. Chỉ người có `fin
   ```
   Chiết khấu voucher/giới thiệu đã nằm trong `discount` nên không tính lại ở M.
 - **BR-FIN-03** Mỗi báo cáo kèm **độ đầy đủ dữ liệu**: số dòng thiếu `unit_cost_vnd`, số shipment thiếu `shipping_cost_vnd`, số COD chưa đối soát, số đơn `shipping` quá 10 ngày. Có thiếu → hiện cảnh báo "Lãi chưa chính xác".
-- **BR-FIN-04** Dòng tiền: vào = payments `confirmed` theo `received_at` (chuyển khoản, tiền mặt) + `cod_settlements.net_received` theo `settled_at`; ra = refunds theo `refunded_at`; COD đang treo = Σ payments `awaiting_settlement`.
+- **BR-FIN-04** Dòng tiền: vào = payments `confirmed` theo `received_at` (chuyển khoản, tiền mặt) + `cod_settlements.net_received` theo `settled_at`; ra = mọi refunds (gồm `overpayment`, `return`, `cancellation`, `adjustment`; *Owner-approved 2026-11-26: O3b Phương án 3*) theo `refunded_at`; COD đang treo = Σ payments `awaiting_settlement`.
 - **BR-FIN-05** Theo kênh (`sales_channel`) và theo nguồn (`acquisition_source` trên đơn): số đơn, NR, COGS, GP; M theo `expenses.channel`; CM2 theo kênh. **Không** phân bổ chi phí cố định theo kênh. Hai bảng kênh và nguồn **không được cộng với nhau**.
 - **BR-FIN-06** Khách: khách mới trong kỳ = khách có đơn ghi nhận đầu tiên với `is_first_purchase=true`; khách quay lại = có đơn ghi nhận và (đã có đơn delivered trước kỳ hoặc `had_legacy_purchase`); tỷ lệ mua lại = khách có ≥ 2 đơn delivered (tính `had_legacy_purchase` là 1) / khách có ≥ 1; AOV = R1 / số đơn ghi nhận.
 - **BR-FIN-07** Sản phẩm: số lượng bán, NR theo dòng (phân bổ giảm giá đơn theo tỷ lệ giá trị dòng), GP; hàng tồn lâu = variant có `on_hand > 0` không có movement `sale` trong 90 ngày.
-- **BR-FIN-08** Xuất doanh thu theo tháng/năm (Excel): mỗi đơn ghi nhận một dòng (mã đơn, ngày giao, tổng tiền, phí ship, giảm giá, hoàn tiền, phương thức thanh toán, số hóa đơn nếu có) + tổng tháng. Ghi chú trên file: "Căn cứ ghi nhận do kế toán xác nhận".
+- **BR-FIN-08** Xuất doanh thu theo tháng/năm (Excel): mỗi đơn ghi nhận một dòng (mã đơn, ngày giao, tổng tiền, phí ship, giảm giá, hoàn tiền — chỉ tính `kind ∈ {'return','adjustment'}` của đơn đã `delivered` cùng điều kiện `is_backfilled` như `BR-FIN-01`, không gồm `overpayment`/`cancellation`, 0 double-count; *Owner-approved 2026-11-26: O3b Phương án 3*, phương thức thanh toán, số hóa đơn nếu có) + tổng tháng. Ghi chú trên file: "Căn cứ ghi nhận do kế toán xác nhận".
 
 ## 14. PLT — Nền tảng
 

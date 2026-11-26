@@ -262,7 +262,15 @@ public sealed partial class Order
         string? customerNote,
         DateTimeOffset placedAt)
     {
-        ValidateCommon(id, code, customerId, paymentMethod, OrderPaymentStatus.Unpaid, contact, attribution,
+        var initialPayment = OrderPaymentStatusCalculator.Calculate(
+            confirmedPaidVnd: 0L,
+            refundedVnd: 0L,
+            overpaymentRefundedVnd: 0L,
+            totalVnd: totalVnd,
+            orderStatus: OrderStatus.Pending,
+            isBackfilled: false);
+
+        ValidateCommon(id, code, customerId, paymentMethod, initialPayment.Status, contact, attribution,
             lines, subtotalVnd, discountVnd, shippingFeeVnd, totalVnd, allowOverrideLines: false);
 
         if (paymentMethod == OrderPaymentMethod.BankTransfer)
@@ -284,7 +292,7 @@ public sealed partial class Order
             customerAccountId,
             OrderStatus.Pending,
             paymentMethod,
-            OrderPaymentStatus.Unpaid,
+            initialPayment.Status,
             paymentDueAt,
             NormalizeContact(contact),
             subtotalVnd,
@@ -348,14 +356,22 @@ public sealed partial class Order
         if (createdByStaffId == Guid.Empty)
             throw new DomainException("invalid_actor", "Đơn hàng quản trị bắt buộc có mã nhân viên tạo.");
 
-        ValidateCommon(id, code, customerId, paymentMethod, OrderPaymentStatus.Unpaid, contact, attribution,
+        var initialStatus = confirmNow ? OrderStatus.Confirmed : OrderStatus.Pending;
+        var initialPayment = OrderPaymentStatusCalculator.Calculate(
+            confirmedPaidVnd: 0L,
+            refundedVnd: 0L,
+            overpaymentRefundedVnd: 0L,
+            totalVnd: totalVnd,
+            orderStatus: initialStatus,
+            isBackfilled: false);
+
+        ValidateCommon(id, code, customerId, paymentMethod, initialPayment.Status, contact, attribution,
             lines, subtotalVnd, discountVnd, shippingFeeVnd, totalVnd, allowOverrideLines: true);
 
         var trimmedConfirmNote = NormalizeOptional(confirmNote);
         if (confirmNow && paymentMethod == OrderPaymentMethod.Cod && codRequiresCall && (!codCallConfirmed || trimmedConfirmNote is null))
             throw new DomainException("cod_confirmation_required", "Đơn COD cần xác nhận đã gọi khách và ghi chú.");
 
-        var initialStatus = confirmNow ? OrderStatus.Confirmed : OrderStatus.Pending;
         var confirmedAt = confirmNow ? placedAt : (DateTimeOffset?)null;
 
         var order = new Order(
@@ -367,7 +383,7 @@ public sealed partial class Order
             null,
             initialStatus,
             paymentMethod,
-            OrderPaymentStatus.Unpaid,
+            initialPayment.Status,
             null,
             NormalizeContact(contact),
             subtotalVnd,
@@ -484,17 +500,38 @@ public sealed partial class Order
             [.. lines]);
     }
 
+    public void ApplyPaymentCalculation(OrderPaymentCalculation calculation, DateTimeOffset at)
+    {
+        ArgumentNullException.ThrowIfNull(calculation);
+        if (!OrderPaymentStatus.IsValid(calculation.Status))
+            throw new DomainException("validation_failed", "Trạng thái thanh toán không hợp lệ.");
+        if (calculation.TotalVnd != TotalVnd)
+            throw new DomainException("validation_failed", "Tổng tiền tính trạng thái thanh toán không khớp tổng đơn hàng.");
+
+        if (!string.Equals(PaymentStatus, calculation.Status, StringComparison.Ordinal))
+        {
+            PaymentStatus = calculation.Status;
+            UpdatedAt = at;
+        }
+    }
+
     public void Confirm(
         string actorType,
         Guid? actorId,
         DateTimeOffset at,
         bool codRequiresCall = true,
         bool codCallConfirmed = false,
-        string? note = null)
+        string? note = null,
+        string? reasonCode = null)
     {
         if (Status != OrderStatus.Pending)
             throw new DomainException("invalid_status_transition", "Chỉ đơn ở trạng thái chờ mới có thể xác nhận.");
         ValidateStaffOrSystemActor(actorType, actorId);
+
+        if (reasonCode is not null
+            && (actorType != OrderActorType.System
+                || !string.Equals(reasonCode, OrderConfirmReasonCodes.AutoConfirmedOnFullPayment, StringComparison.Ordinal)))
+            throw new DomainException("validation_failed", "Mã lý do xác nhận đơn hàng không hợp lệ.");
 
         if (Origin == OrderOrigin.Web && PaymentMethod == OrderPaymentMethod.BankTransfer && PaymentStatus != OrderPaymentStatus.Paid)
             throw new DomainException("invalid_status_transition", "Đơn chuyển khoản web phải thanh toán đủ trước khi xác nhận.");
@@ -509,7 +546,7 @@ public sealed partial class Order
         ConfirmedAt = at;
         UpdatedAt = at;
         AppendHistory(from, Status, actorType, actorId, trimmedNote, at);
-        AppendEvent(OrderEventTypes.OrderConfirmed, Status, at);
+        AppendEvent(OrderEventTypes.OrderConfirmed, Status, at, reasonCode);
     }
 
     public void Cancel(

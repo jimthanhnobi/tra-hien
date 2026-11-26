@@ -297,6 +297,7 @@ public sealed class CodSettlement
     public DateTime CreatedAt { get; set; }
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class Payment
 {
     public Guid Id { get; set; }
@@ -316,6 +317,7 @@ public sealed class Payment
     public DateTime? ConfirmedAt { get; set; }
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class ReturnRequest
 {
     public Guid Id { get; set; }
@@ -349,12 +351,15 @@ public sealed class ReturnEvidence
     public Guid AssetId { get; set; }
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class Refund
 {
     public Guid Id { get; set; }
     public Guid OrderId { get; set; }
     public Guid? ReturnRequestId { get; set; }
+    public string Kind { get; set; } = null!;
     public long AmountVnd { get; set; }
+    public long ShippingAmountVnd { get; set; }
     public string Method { get; set; } = null!;
     public string? BankReference { get; set; }
     public string Reason { get; set; } = null!;

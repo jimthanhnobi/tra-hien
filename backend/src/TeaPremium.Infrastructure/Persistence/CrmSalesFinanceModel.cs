@@ -600,14 +600,20 @@ internal static class CrmSalesFinanceModel
         {
             b.ToTable("refunds", "sales", t =>
             {
+                t.HasCheckConstraint("ck_refunds_kind", "kind IN ('overpayment','return','cancellation','adjustment')");
                 t.HasCheckConstraint("ck_refunds_amount_vnd", "amount_vnd > 0");
+                t.HasCheckConstraint("ck_refunds_shipping_amount_vnd", "shipping_amount_vnd >= 0 AND shipping_amount_vnd <= amount_vnd");
                 t.HasCheckConstraint("ck_refunds_method", "method IN ('bank_transfer','cash')");
+                t.HasCheckConstraint("ck_refunds_kind_return_request", "(kind = 'return') = (return_request_id IS NOT NULL)");
+                t.HasCheckConstraint("ck_refunds_kind_shipping", "kind IN ('return','adjustment') OR shipping_amount_vnd = 0");
             });
             b.HasKey(x => x.Id).HasName("pk_refunds");
             b.Property(x => x.Id).HasColumnName("id").HasColumnType("uuid").IsRequired().ValueGeneratedNever();
             b.Property(x => x.OrderId).HasColumnName("order_id").HasColumnType("uuid").IsRequired();
             b.Property(x => x.ReturnRequestId).HasColumnName("return_request_id").HasColumnType("uuid").IsRequired(false);
+            b.Property(x => x.Kind).HasColumnName("kind").HasColumnType("text").IsRequired();
             b.Property(x => x.AmountVnd).HasColumnName("amount_vnd").HasColumnType("bigint").IsRequired();
+            b.Property(x => x.ShippingAmountVnd).HasColumnName("shipping_amount_vnd").HasColumnType("bigint").IsRequired().HasDefaultValueSql("0");
             b.Property(x => x.Method).HasColumnName("method").HasColumnType("text").IsRequired();
             b.Property(x => x.BankReference).HasColumnName("bank_reference").HasColumnType("text").IsRequired(false);
             b.Property(x => x.Reason).HasColumnName("reason").HasColumnType("text").IsRequired();
@@ -617,6 +623,7 @@ internal static class CrmSalesFinanceModel
             b.HasOne<Order>().WithMany().HasForeignKey(x => x.OrderId).HasConstraintName("fk_refunds_order_id").OnDelete(DeleteBehavior.NoAction);
             b.HasOne<ReturnRequest>().WithMany().HasForeignKey(x => x.ReturnRequestId).HasConstraintName("fk_refunds_return_request_id").OnDelete(DeleteBehavior.NoAction);
             b.HasIndex(x => x.OrderId).HasDatabaseName("ix_refunds_order");
+            b.HasIndex(x => x.ReturnRequestId).IsUnique().HasDatabaseName("ux_refunds_return_request").HasFilter("return_request_id IS NOT NULL");
         });
 
         builder.Entity<Shipment>(b =>

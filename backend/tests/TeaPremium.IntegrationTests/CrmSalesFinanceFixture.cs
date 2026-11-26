@@ -12,6 +12,7 @@ public sealed class CrmSalesFinanceFixture : IAsyncLifetime
     public const string P1Head = "202611191437_P1_04_TaxonomyPublicationHistory";
     public const string P201Head = "202611230421_P2_01_CrmSalesFinanceFoundation";
     public const string P205Head = "202611230721_P2_05_InventoryReservations";
+    public const string P207Head = "202611260800_P2_07_RefundClassificationAndShipping";
 
     public async Task InitializeAsync() => _server = await SharedPostgresServer.GetAsync();
 

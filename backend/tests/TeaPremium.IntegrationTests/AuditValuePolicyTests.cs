@@ -190,4 +190,67 @@ public sealed class AuditValuePolicyTests
     {
         Assert.Equal("[redacted]", AuditValuePolicy.Filter("crm.interactions", null, property, spoofedValue));
     }
+
+    [Theory]
+    [InlineData("sales.payments", "BankReference", "FT261125-NGUYEN-VAN-A-0901234567")]
+    [InlineData("sales.payments", "Note", "Khach chuyen khoan qua VCB 0901234567")]
+    [InlineData("sales.payments", "VoidReason", "Nhap nham so tien cua anh Minh")]
+    [InlineData("sales.refunds", "BankReference", "FT261125-REFUND-STK-123456789")]
+    [InlineData("sales.refunds", "Reason", "Hoan tien cho chi Lan 0901234567")]
+    [InlineData("sales.return_requests", "Description", "Am bi vo quai khi giao cho anh Nam")]
+    [InlineData("sales.return_requests", "DecisionNote", "Duyet hoan tien theo anh Minh")]
+    public void PaymentRefundAndReturnEntitiesRedactSensitiveFieldsAndAllowOnlyTypedSafeFields(
+        string entityType,
+        string sensitiveProperty,
+        string sensitiveValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, sensitiveProperty, sensitiveValue));
+
+        var now = new DateTime(2026, 11, 25, 7, 0, 0, DateTimeKind.Utc);
+        var id = Guid.CreateVersion7();
+
+        Assert.Equal(id, AuditValuePolicy.Filter("sales.payments", null, "OrderId", id));
+        Assert.Equal("bank_transfer", AuditValuePolicy.Filter("sales.payments", null, "Method", "bank_transfer"));
+        Assert.Equal("manual", AuditValuePolicy.Filter("sales.payments", null, "Provider", "manual"));
+        Assert.Equal(500_000L, AuditValuePolicy.Filter("sales.payments", null, "AmountVnd", 500_000L));
+        Assert.Equal("voided", AuditValuePolicy.Filter("sales.payments", null, "Status", "voided"));
+        Assert.Equal("awaiting_settlement", AuditValuePolicy.Filter("sales.payments", null, "Status", "awaiting_settlement"));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.payments", null, "ConfirmedAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.payments", null, "ReceivedAt", now));
+        Assert.Equal(id, AuditValuePolicy.Filter("sales.payments", null, "CodSettlementId", id));
+
+        Assert.Equal(id, AuditValuePolicy.Filter("sales.refunds", null, "OrderId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("sales.refunds", null, "ReturnRequestId", id));
+        Assert.Equal("overpayment", AuditValuePolicy.Filter("sales.refunds", null, "Kind", "overpayment"));
+        Assert.Equal("return", AuditValuePolicy.Filter("sales.refunds", null, "Kind", "return"));
+        Assert.Equal("cancellation", AuditValuePolicy.Filter("sales.refunds", null, "Kind", "cancellation"));
+        Assert.Equal("adjustment", AuditValuePolicy.Filter("sales.refunds", null, "Kind", "adjustment"));
+        Assert.Equal(200_000L, AuditValuePolicy.Filter("sales.refunds", null, "AmountVnd", 200_000L));
+        Assert.Equal(30_000L, AuditValuePolicy.Filter("sales.refunds", null, "ShippingAmountVnd", 30_000L));
+        Assert.Equal("cash", AuditValuePolicy.Filter("sales.refunds", null, "Method", "cash"));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.refunds", null, "RefundedAt", now));
+
+        Assert.Equal("DT-261125-001", AuditValuePolicy.Filter("sales.return_requests", null, "Code", "DT-261125-001"));
+        Assert.Equal("damaged_in_transit", AuditValuePolicy.Filter("sales.return_requests", null, "Reason", "damaged_in_transit"));
+        Assert.Equal("resolved", AuditValuePolicy.Filter("sales.return_requests", null, "Status", "resolved"));
+        Assert.Equal("refund", AuditValuePolicy.Filter("sales.return_requests", null, "Resolution", "refund"));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.return_requests", null, "ResolvedAt", now));
+    }
+
+    [Theory]
+    [InlineData("sales.payments", "Method", "secret@example.test")]
+    [InlineData("sales.payments", "Provider", "0901234567")]
+    [InlineData("sales.payments", "Status", "Nguyen Van A")]
+    [InlineData("sales.payments", "ConfirmedAt", "2026-11-25 0901234567")]
+    [InlineData("sales.refunds", "Kind", "secret-pii")]
+    [InlineData("sales.refunds", "Method", "cod")]
+    [InlineData("sales.refunds", "AmountVnd", "500000")]
+    [InlineData("sales.refunds", "ShippingAmountVnd", "30000")]
+    [InlineData("sales.return_requests", "Code", "0901234567")]
+    [InlineData("sales.return_requests", "Status", "secret")]
+    [InlineData("sales.return_requests", "Resolution", "0901234567")]
+    public void PaymentRefundAndReturnSafeFieldsRejectSpoofedStrings(string entityType, string property, string spoofedValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, property, spoofedValue));
+    }
 }

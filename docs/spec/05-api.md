@@ -190,11 +190,13 @@ Người đọc hạn chế (inventory.read không inventory.write) chỉ thấy
 | GET | `admin/orders/{id}/packing-slip` (HTML) | `orders.read` |
 | POST | `admin/orders/{id}/payments` **[idem]** `{method: bank_transfer\|cash, amountVnd, receivedAt, bankReference?, note?}` | `payments.write` |
 | POST | `admin/payments/{id}/void` `{reason}` | owner |
-| GET | `admin/payments/awaiting?type=bank_transfer\|cod&carrier=` | `payments.write` |
+| GET | `admin/payments/awaiting?type=bank_transfer\|cod&carrier=&page=&pageSize=` (`type` bắt buộc; `bank_transfer` lọc `effective_paid < total_vnd`; `carrier` chỉ áp dụng cho `cod`) | `payments.write` |
 | POST | `admin/cod-settlements` **[idem]** `{carrierName, reference?, settledAt, paymentIds[], feeVnd}` | `payments.write` |
-| POST | `admin/orders/{id}/refunds` **[idem]** `{amountVnd, method, bankReference?, reason, returnRequestId?, refundedAt}` | `refunds.write` |
+| POST | `admin/orders/{id}/refunds` **[idem]** `{kind: overpayment\|return\|cancellation\|adjustment, amountVnd, shippingAmountVnd?, method, bankReference?, reason, returnRequestId?, refundedAt}` | `refunds.write` |
 | GET/POST | `admin/returns[/{id}]` `{orderId, reason, description, lines[{orderLineId, quantity}], evidenceAssetIds[]}` | `returns.write` |
 | POST | `admin/returns/{id}/approve` `{resolution, lines[{orderLineId, restockable}], note?}` · `.../reject` `{note}` · `.../receive-goods` · `.../resolve` | `returns.write` |
+
+> **Ghi chú §4.4 (Owner-approved `2026-11-26`: `O1=A`, `O2=A`, `O3a=C`, `O3b=Phương án 3`, `ASSUMPTION-P207-01/02/04=A`):** `POST admin/orders/{id}/refunds` yêu cầu `kind` tường minh (`shippingAmountVnd` tùy chọn, mặc định `0`), tuân theo quan hệ `1 returnRequestId ↔ tối đa 1 refund` (`kind = return` bắt buộc truyền `returnRequestId` và chỉ hoàn phí ship khi trả đủ 100% mọi dòng qua phiếu `resolution = refund`; `overpayment`/`cancellation` bắt buộc `shippingAmountVnd = 0`). `GET admin/payments/awaiting?type=bank_transfer` lọc các đơn chuyển khoản chưa backfill ở `pending|confirmed|shipping` còn thiếu tiền (`effective_paid < total_vnd`, tự loại đơn `0đ` và đơn đã thanh toán đủ sau hoàn thu thừa).
 
 ### 4.5 Khách hàng
 | Method | Path | Quyền |
