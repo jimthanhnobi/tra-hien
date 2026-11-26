@@ -26,7 +26,7 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
         var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
             .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
-        Assert.Equal(115, totalOperations);
+        Assert.Equal(120, totalOperations);
         Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/payments", out var recordPaymentPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/payments/{id}/void", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/payments/awaiting", out var awaitingPaymentsPath));
@@ -49,6 +49,18 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/correct-identity", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/orders", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/interactions", out var interactionsPath));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/interactions/{iid}", out var interactionItemPath));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/interactions/{iid}/complete-follow-up", out var completeFollowUpPath));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/follow-ups", out var followUpsPath));
+        Assert.False(paths.TryGetProperty("/api/v1/admin/customers/{id}/campaigns", out _));
+        Assert.True(interactionsPath.TryGetProperty("get", out _));
+        Assert.True(interactionsPath.TryGetProperty("post", out _));
+        Assert.True(interactionItemPath.TryGetProperty("patch", out _));
+        Assert.True(completeFollowUpPath.TryGetProperty("post", out _));
+        var followUpParams = followUpsPath.GetProperty("get").GetProperty("parameters")
+            .EnumerateArray().ToDictionary(x => x.GetProperty("name").GetString()!);
+        AssertOpenApiEnum(followUpParams["due"].GetProperty("schema"), "today", "overdue", "week");
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/tags", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/addresses", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/addresses/{aid}", out _));
@@ -86,7 +98,7 @@ public sealed class OpenApiTests
                 Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase));
         }
 
-        foreach (var name in new[] { "CustomerSummaryView", "CustomerDetailView", "CustomerAccountSummaryView", "CustomerOrderSummaryView", "CustomerImportResult", "CustomerImportSummary", "CustomerImportRow" })
+        foreach (var name in new[] { "CustomerSummaryView", "CustomerDetailView", "CustomerAccountSummaryView", "CustomerOrderSummaryView", "CustomerImportResult", "CustomerImportSummary", "CustomerImportRow", "CustomerInteractionView", "FollowUpItemView" })
         {
             var props = schemas.GetProperty(name).GetProperty("properties");
             Assert.All(props.EnumerateObject(), prop =>
@@ -97,6 +109,26 @@ public sealed class OpenApiTests
                 Assert.DoesNotContain("securityStamp", prop.Name, StringComparison.OrdinalIgnoreCase);
             });
         }
+        var createInteractionSchema = schemas.GetProperty("CreateCustomerInteractionRequest");
+        Assert.False(createInteractionSchema.GetProperty("additionalProperties").GetBoolean());
+        Assert.False(createInteractionSchema.GetProperty("properties").TryGetProperty("campaignId", out _));
+        AssertOpenApiEnum(createInteractionSchema.GetProperty("properties").GetProperty("channel"),
+            "zalo_personal", "zalo_oa", "phone", "facebook", "in_person", "email", "web", "other");
+        AssertOpenApiEnum(createInteractionSchema.GetProperty("properties").GetProperty("kind"),
+            "inquiry", "consultation", "quote", "follow_up", "complaint", "note");
+        var patchInteractionSchema = schemas.GetProperty("PatchCustomerInteractionRequest");
+        Assert.False(patchInteractionSchema.GetProperty("additionalProperties").GetBoolean());
+        Assert.False(patchInteractionSchema.GetProperty("properties").TryGetProperty("campaignId", out _));
+        Assert.False(patchInteractionSchema.GetProperty("properties").TryGetProperty("followUpDoneAt", out _));
+        Assert.False(patchInteractionSchema.GetProperty("properties").TryGetProperty("followUpResult", out _));
+        AssertOpenApiEnum(patchInteractionSchema.GetProperty("properties").GetProperty("kind"),
+            "inquiry", "consultation", "quote", "follow_up", "complaint", "note");
+        AssertOpenApiEnum(schemas.GetProperty("CustomerInteractionView").GetProperty("properties").GetProperty("kind"),
+            "inquiry", "consultation", "quote", "follow_up", "complaint", "note", "campaign_message");
+        AssertOpenApiEnum(schemas.GetProperty("FollowUpItemView").GetProperty("properties").GetProperty("kind"),
+            "inquiry", "consultation", "quote", "follow_up", "complaint", "note", "campaign_message");
+        AssertOpenApiEnum(schemas.GetProperty("FollowUpItemView").GetProperty("properties").GetProperty("customerContactStatus"),
+            "active", "do_not_contact");
         AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("customerGroup"), "retail", "wholesale", "reseller");
         AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("origin"), "legacy_import", "web", "admin");
         AssertOpenApiEnum(schemas.GetProperty("CustomerDetailView").GetProperty("properties").GetProperty("contactStatus"), "active", "do_not_contact", "erased");

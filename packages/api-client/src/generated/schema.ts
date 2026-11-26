@@ -2145,6 +2145,353 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/customers/{id}/interactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogPageOfCustomerInteractionView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateCustomerInteractionRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerInteractionView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/interactions/{iid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    iid: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PatchCustomerInteractionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerInteractionView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/interactions/{iid}/complete-follow-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    iid: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CompleteFollowUpRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerInteractionView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/customers/{id}/orders": {
         parameters: {
             query?: never;
@@ -2409,6 +2756,72 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    due?: "today" | "overdue" | "week";
+                    page?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogPageOfFollowUpItemView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8545,6 +8958,15 @@ export interface components {
             /** Format: int64 */
             totalItems: number | string;
         };
+        CatalogPageOfCustomerInteractionView: {
+            items: components["schemas"]["CustomerInteractionView"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int64 */
+            totalItems: number | string;
+        };
         CatalogPageOfCustomerOrderSummaryView: {
             items: components["schemas"]["CustomerOrderSummaryView"][];
             /** Format: int32 */
@@ -8556,6 +8978,15 @@ export interface components {
         };
         CatalogPageOfCustomerSummaryView: {
             items: components["schemas"]["CustomerSummaryView"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int64 */
+            totalItems: number | string;
+        };
+        CatalogPageOfFollowUpItemView: {
+            items: components["schemas"]["FollowUpItemView"][];
             /** Format: int32 */
             page: number | string;
             /** Format: int32 */
@@ -8724,6 +9155,9 @@ export interface components {
             sortOrder?: null | number | string;
             status?: null | string;
         };
+        CompleteFollowUpRequest: {
+            result: string;
+        };
         ContentWarning: {
             /** Format: int32 */
             actualWords: number | string;
@@ -8759,6 +9193,19 @@ export interface components {
             rowVersion?: null | string;
             wardCode?: null | string;
             wardNameText?: null | string;
+        };
+        CreateCustomerInteractionRequest: {
+            /** @enum {string} */
+            channel: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "other";
+            content: string;
+            /** Format: date-time */
+            followUpAt?: null | string;
+            /** @enum {string} */
+            kind: "inquiry" | "consultation" | "quote" | "follow_up" | "complaint" | "note";
+            /** Format: date-time */
+            occurredAt?: null | string;
+            /** Format: uuid */
+            orderId?: null | string;
         };
         CreateCustomerRequest: {
             /** @enum {null|string} */
@@ -8968,6 +9415,34 @@ export interface components {
             /** Format: int32 */
             totalRows: number | string;
         };
+        CustomerInteractionView: {
+            /** Format: uuid */
+            campaignId: null | string;
+            /** @enum {string} */
+            channel: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "other";
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: date-time */
+            followUpAt: null | string;
+            /** Format: date-time */
+            followUpDoneAt: null | string;
+            followUpResult: null | string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "inquiry" | "consultation" | "quote" | "follow_up" | "complaint" | "note" | "campaign_message";
+            /** Format: date-time */
+            occurredAt: string;
+            orderCode: null | string;
+            /** Format: uuid */
+            orderId: null | string;
+            staffDisplayName: null | string;
+            /** Format: uuid */
+            staffId: string;
+        };
         CustomerInterestView: {
             /** Format: uuid */
             id: string;
@@ -9084,6 +9559,39 @@ export interface components {
             receivedAt?: null | string;
             rowVersion: string;
             supplierName?: null | string;
+        };
+        FollowUpItemView: {
+            /** @enum {string} */
+            channel: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "other";
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            customerCode: string;
+            /** @enum {string} */
+            customerContactStatus: "active" | "do_not_contact";
+            customerFullName: string;
+            /** @enum {string} */
+            customerGroup: "retail" | "wholesale" | "reseller";
+            /** Format: uuid */
+            customerId: string;
+            customerIsVip: boolean;
+            customerPhoneE164: null | string;
+            customerZaloName: null | string;
+            /** Format: date-time */
+            followUpAt: string;
+            /** Format: uuid */
+            interactionId: string;
+            isOverdue: boolean;
+            /** @enum {string} */
+            kind: "inquiry" | "consultation" | "quote" | "follow_up" | "complaint" | "note" | "campaign_message";
+            /** Format: date-time */
+            occurredAt: string;
+            orderCode: null | string;
+            /** Format: uuid */
+            orderId: null | string;
+            staffDisplayName: null | string;
+            /** Format: uuid */
+            staffId: string;
         };
         /** Format: binary */
         IFormFile: string;
@@ -9296,6 +9804,20 @@ export interface components {
             rowVersion?: null | string;
             wardCode?: null | string;
             wardNameText?: null | string;
+        };
+        /** @description Partial update (at least one field required). Omitted fields are preserved; null clears orderId or uncompleted followUpAt. Rows with kind=campaign_message are immutable on PATCH. */
+        PatchCustomerInteractionRequest: {
+            /** @enum {string} */
+            channel?: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "other";
+            content?: string;
+            /** Format: date-time */
+            followUpAt?: null | string;
+            /** @enum {string} */
+            kind?: "inquiry" | "consultation" | "quote" | "follow_up" | "complaint" | "note";
+            /** Format: date-time */
+            occurredAt?: string;
+            /** Format: uuid */
+            orderId?: null | string;
         };
         /** @description Omitted fields are preserved on partial updates. rowVersion is opaque; null clears nullable fields. */
         PatchCustomerRequest: {

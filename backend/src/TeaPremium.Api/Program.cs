@@ -41,6 +41,7 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer(InventoryDocumentEndpoints.TransformOpenApiAsync);
     options.AddDocumentTransformer(StoreCatalogOpenApi.TransformAsync);
     options.AddDocumentTransformer(CustomerOpenApi.TransformAsync);
+    options.AddDocumentTransformer(InteractionOpenApi.TransformAsync);
     options.AddDocumentTransformer(PaymentOpenApi.TransformAsync);
 });
 builder.Logging.ClearProviders();
@@ -129,6 +130,7 @@ app.MapInventory();
 app.MapInventoryDocuments();
 app.MapStoreCatalog();
 app.MapCustomers();
+app.MapCustomerInteractions();
 app.MapPayments();
 
 app.Run();

@@ -11,6 +11,8 @@ public static class CrmRegistration
         services.AddScoped<CustomerIdentityAudit>();
         services.AddScoped<ICustomerQueries, EfCustomerQueries>();
         services.AddScoped<ICustomerStore, EfCustomerStore>();
+        services.AddScoped<IInteractionQueries, EfInteractionQueries>();
+        services.AddScoped<IInteractionStore, EfInteractionStore>();
         services.AddScoped<ICustomerImportStore>(sp => new EfCustomerImportStore(
             sp.GetRequiredService<AppDbContext>(),
             sp.GetService<ICustomerImportSaveHook>()));

@@ -38,4 +38,26 @@ public sealed class EfCustomerOrderQueries(AppDbContext db) : ICustomerOrderQuer
 
         return new CatalogPage<CustomerOrderSummaryView>(items, page, pageSize, total);
     }
+
+    public Task<CustomerOrderReference?> FindOrderReferenceAsync(Guid orderId, CancellationToken ct)
+        => db.Set<Order>().AsNoTracking()
+            .Where(x => x.Id == orderId)
+            .Select(x => new CustomerOrderReference(x.Id, x.CustomerId, x.Code))
+            .SingleOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> ResolveOrderCodesAsync(IReadOnlyCollection<Guid> orderIds, CancellationToken ct)
+    {
+        if (orderIds.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        var distinct = orderIds.Distinct().ToArray();
+        var rows = await db.Set<Order>().AsNoTracking()
+            .Where(x => distinct.Contains(x.Id))
+            .Select(x => new { x.Id, x.Code })
+            .ToArrayAsync(ct);
+
+        return rows.ToDictionary(x => x.Id, x => x.Code);
+    }
 }
