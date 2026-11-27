@@ -138,3 +138,8 @@ public static class OrderEventTypes
     public static bool IsValid(string? value) => value is OrderPlaced or OrderConfirmed or OrderCancelled
         or OrderShipped or OrderDelivered or OrderDeliveryFailed;
 }
+
+public static class OrderDeliveredReasonCodes
+{
+    public const string Backfilled = "backfilled";
+}

@@ -172,6 +172,10 @@ public sealed class EfOrderRepository(AppDbContext db, IOrderCodeGenerator codeG
     public Task<bool> HasOrderShipmentAsync(Guid orderId, CancellationToken ct) =>
         HasActiveOrderShipmentAsync(orderId, ct);
 
+    public Task<bool> HasAnyDeliveredOrderAsync(Guid customerId, CancellationToken ct) =>
+        db.Set<PersistenceOrder>().AsNoTracking()
+            .AnyAsync(x => x.CustomerId == customerId && x.Status == OrderStatus.Delivered, ct);
+
     public async Task<string?> InsertAsync(DomainOrder order, DateOnly vietnamDate, CancellationToken ct)
     {
         var tx = db.Database.CurrentTransaction
@@ -229,12 +233,21 @@ public sealed class EfOrderRepository(AppDbContext db, IOrderCodeGenerator codeG
         row.Status = order.Status;
         row.PaymentStatus = order.PaymentStatus;
         row.PaymentDueAt = order.PaymentDueAt?.UtcDateTime;
+        row.ReceiverName = order.Contact.ReceiverName;
+        row.ReceiverPhone = order.Contact.ReceiverPhone;
+        row.ProvinceCode = order.Contact.ProvinceCode;
+        row.ProvinceName = order.Contact.ProvinceName;
+        row.WardCode = order.Contact.WardCode;
+        row.WardName = order.Contact.WardName;
+        row.AddressLine = order.Contact.AddressLine;
         row.SubtotalVnd = order.SubtotalVnd;
         row.DiscountVnd = order.DiscountVnd;
         row.ShippingFeeVnd = order.ShippingFeeVnd;
         row.TotalVnd = order.TotalVnd;
         row.DiscountNote = order.DiscountNote;
         row.VoucherId = order.VoucherId;
+        row.CustomerNote = order.CustomerNote;
+        row.InternalNote = order.InternalNote;
         row.StatusReason = order.StatusReason;
         row.ConfirmedAt = order.ConfirmedAt?.UtcDateTime;
         row.ShippedAt = order.ShippedAt?.UtcDateTime;

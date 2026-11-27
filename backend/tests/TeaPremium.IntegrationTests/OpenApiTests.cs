@@ -11,7 +11,7 @@ public sealed class OpenApiTests
     private static readonly string[] JsonTypes = ["array", "boolean", "null", "number", "object", "string"];
 
     [Fact]
-    public async Task StoreCatalogPublishesExactlyNineReadOperations()
+    public async Task StoreCatalogPublishesExactlyElevenReadOperations()
     {
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.UseEnvironment("CI").UseSetting("ConnectionStrings:Default", ""));
@@ -19,14 +19,45 @@ public sealed class OpenApiTests
         using var document = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
         var paths = document.RootElement.GetProperty("paths");
         var store = paths.EnumerateObject().Where(p => p.Name.StartsWith("/api/v1/store/", StringComparison.Ordinal)).ToArray();
-        Assert.Equal(9, store.Length);
+        Assert.Equal(11, store.Length);
         Assert.All(store, path => Assert.Equal("get", Assert.Single(path.Value.EnumerateObject()).Name));
+        Assert.True(paths.TryGetProperty("/api/v1/store/provinces", out var storeProvincesPath));
+        Assert.True(storeProvincesPath.TryGetProperty("get", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/store/provinces/{code}/wards", out var storeWardsPath));
+        Assert.True(storeWardsPath.TryGetProperty("get", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/alerts", out var alertsPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
         var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
             .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
-        Assert.Equal(123, totalOperations);
+        Assert.Equal(133, totalOperations);
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders", out var adminOrdersPath));
+        Assert.True(adminOrdersPath.TryGetProperty("get", out var listOrdersOp));
+        Assert.True(adminOrdersPath.TryGetProperty("post", out var createOrderOp));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}", out var adminOrderItemPath));
+        Assert.True(adminOrderItemPath.TryGetProperty("get", out _));
+        Assert.True(adminOrderItemPath.TryGetProperty("patch", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/confirm", out var confirmOrderPath));
+        Assert.True(confirmOrderPath.TryGetProperty("post", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/cancel", out var cancelOrderPath));
+        Assert.True(cancelOrderPath.TryGetProperty("post", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/reorder", out var reorderOrderPath));
+        Assert.True(reorderOrderPath.TryGetProperty("post", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/packing-slip", out var packingSlipPath));
+        Assert.True(packingSlipPath.TryGetProperty("get", out var packingSlipOp));
+        Assert.True(packingSlipOp.GetProperty("responses").GetProperty("200").GetProperty("content").TryGetProperty("text/html", out _));
+        // O6a = A: extend-payment stays in P3-03 (07-roadmap.md:125), MUST NOT exist in P2-06.
+        Assert.False(paths.TryGetProperty("/api/v1/admin/orders/{id}/extend-payment", out _));
+        Assert.Contains(createOrderOp.GetProperty("parameters").EnumerateArray(),
+            x => x.GetProperty("name").GetString() == "Idempotency-Key"
+                && x.GetProperty("in").GetString() == "header"
+                && x.GetProperty("required").GetBoolean());
+        var listOrderParams = listOrdersOp.GetProperty("parameters").EnumerateArray()
+            .ToDictionary(x => x.GetProperty("name").GetString()!);
+        AssertOpenApiEnum(listOrderParams["flag"].GetProperty("schema"), "needs_refund", "overpaid", "expiring");
+        AssertOpenApiEnum(listOrderParams["sort"].GetProperty("schema"),
+            "placedAt:desc", "placedAt:asc", "totalVnd:desc", "totalVnd:asc", "deliveredAt:desc", "deliveredAt:asc");
+        AssertOpenApiEnum(listOrderParams["origin"].GetProperty("schema"), "web", "admin");
         Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/shipments", out var createShipmentPath));
         Assert.True(createShipmentPath.TryGetProperty("post", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/shipments/{id}", out var patchShipmentPath));
@@ -214,6 +245,58 @@ public sealed class OpenApiTests
                 Assert.DoesNotContain("profit", prop.Name, StringComparison.OrdinalIgnoreCase);
             });
         }
+
+        // P2-06 Admin Orders & GAP-P214-01 Store Administrative schemas
+        foreach (var name in new[] { "CreateAdminOrderRequest", "PatchAdminOrderRequest", "ConfirmAdminOrderRequest", "CancelAdminOrderRequest", "ReorderAdminOrderRequest" })
+            Assert.False(schemas.GetProperty(name).GetProperty("additionalProperties").GetBoolean());
+
+        // POST /api/v1/admin/orders has 201 (AdminOrderCreatedView) as sole 2xx response and NO phantom 200
+        var adminOrdersPostResponses = paths.GetProperty("/api/v1/admin/orders").GetProperty("post").GetProperty("responses");
+        Assert.False(adminOrdersPostResponses.TryGetProperty("200", out _));
+        Assert.Equal("#/components/schemas/AdminOrderCreatedView",
+            adminOrdersPostResponses.GetProperty("201").GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+
+        // PatchAdminOrderRequest non-nullable vs nullable fields match runtime JsonDocument parser
+        var patchOrderProps = schemas.GetProperty("PatchAdminOrderRequest").GetProperty("properties");
+        Assert.Equal("string", patchOrderProps.GetProperty("rowVersion").GetProperty("type").GetString());
+        Assert.Equal("array", patchOrderProps.GetProperty("lines").GetProperty("type").GetString());
+        Assert.Equal("integer", patchOrderProps.GetProperty("discountVnd").GetProperty("type").GetString());
+        Assert.Equal("object", patchOrderProps.GetProperty("shipping").GetProperty("type").GetString());
+        foreach (var nullableField in new[] { "discountNote", "shippingFeeVnd", "internalNote" })
+            Assert.Contains("null", patchOrderProps.GetProperty(nullableField).GetProperty("type").EnumerateArray().Select(x => x.GetString()));
+        var patchShippingProps = patchOrderProps.GetProperty("shipping").GetProperty("properties");
+        foreach (var nonNullShippingField in new[] { "receiverName", "receiverPhone", "provinceCode", "addressLine" })
+            Assert.Equal("string", patchShippingProps.GetProperty(nonNullShippingField).GetProperty("type").GetString());
+        foreach (var nullableShippingField in new[] { "wardCode", "wardNameText", "customerNote" })
+            Assert.Contains("null", patchShippingProps.GetProperty(nullableShippingField).GetProperty("type").EnumerateArray().Select(x => x.GetString()));
+
+        foreach (var name in new[] { "AdminOrderListItemView", "AdminOrderCreatedView", "StoreProvinceListView", "StoreWardListView", "AdministrativeProvinceItem", "AdministrativeWardItem" })
+        {
+            var props = schemas.GetProperty(name).GetProperty("properties");
+            Assert.All(props.EnumerateObject(), prop =>
+            {
+                Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("profit", prop.Name, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        // AdminOrderCreatedView (stored in idempotency_keys) has 0 PII fields
+        var createdOrderProps = schemas.GetProperty("AdminOrderCreatedView").GetProperty("properties");
+        Assert.Equal(18, createdOrderProps.EnumerateObject().Count());
+        foreach (var piiField in new[] { "contactName", "contactPhone", "contactEmail", "receiverName", "receiverPhone", "addressLine", "customerNote", "internalNote", "discountNote" })
+            Assert.False(createdOrderProps.TryGetProperty(piiField, out _));
+
+        // AdminOrderLineView.unitCostVnd is optional (omitted when actor lacks costs.read)
+        var orderLineSchema = schemas.GetProperty("AdminOrderLineView");
+        Assert.True(orderLineSchema.GetProperty("properties").TryGetProperty("unitCostVnd", out _));
+        if (orderLineSchema.TryGetProperty("required", out var lineRequired))
+            Assert.DoesNotContain("unitCostVnd", lineRequired.EnumerateArray().Select(x => x.GetString()));
+
+        AssertOpenApiEnum(schemas.GetProperty("CreateAdminOrderRequest").GetProperty("properties").GetProperty("salesChannel"),
+            "zalo_personal", "zalo_oa", "facebook", "phone", "in_person", "other");
+        AssertOpenApiEnum(schemas.GetProperty("CreateAdminOrderRequest").GetProperty("properties").GetProperty("paymentMethod"),
+            "cod", "bank_transfer");
+        Assert.Equal("integer", schemas.GetProperty("AdministrativeProvinceItem").GetProperty("properties").GetProperty("sortOrder").GetProperty("type").GetString());
     }
 
     private static void AssertOpenApiEnum(JsonElement schema, params string[] values)

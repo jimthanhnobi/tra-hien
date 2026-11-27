@@ -419,6 +419,92 @@ public sealed partial class Order
         return order;
     }
 
+    // BR-ORD-09 / ASSUMPTION-P206-05 = A: historical backfilled order (owner-only).
+    // Starts directly in 'delivered' with is_backfilled=true, payment_status='unpaid', 0 reservations/movements/payments,
+    // no OrderPlaced event, and emits only OrderDelivered(ReasonCode="backfilled") for P2-11 CRM metrics/interests.
+    public static Order CreateBackfilled(
+        Guid id,
+        string code,
+        string salesChannel,
+        Guid customerId,
+        Guid createdByStaffId,
+        string paymentMethod,
+        OrderContactSnapshot contact,
+        IReadOnlyList<OrderLineItem> lines,
+        long subtotalVnd,
+        long discountVnd,
+        long shippingFeeVnd,
+        long totalVnd,
+        string? discountNote,
+        OrderAttributionSnapshot attribution,
+        string? customerNote,
+        string? internalNote,
+        DateTimeOffset deliveredAt,
+        DateTimeOffset now)
+    {
+        if (!Orders.SalesChannel.IsValidForAdmin(salesChannel))
+            throw new DomainException("invalid_sales_channel", "Đơn hàng tạo từ quản trị phải chọn kênh bán khác web.");
+        if (createdByStaffId == Guid.Empty)
+            throw new DomainException("invalid_actor", "Đơn hàng backfill bắt buộc có mã nhân viên tạo.");
+        if (deliveredAt > now)
+            throw new DomainException("invalid_delivered_at", "Thời điểm giao hàng backfill không được ở tương lai.");
+        if (lines.Any(l => l.UnitCostVnd is not null))
+            throw new DomainException("validation_failed", "Đơn lịch sử backfill không chốt giá vốn dòng hàng.");
+
+        var initialPayment = OrderPaymentStatusCalculator.Calculate(
+            confirmedPaidVnd: 0L,
+            refundedVnd: 0L,
+            overpaymentRefundedVnd: 0L,
+            totalVnd: totalVnd,
+            orderStatus: OrderStatus.Delivered,
+            isBackfilled: true);
+
+        ValidateCommon(id, code, customerId, paymentMethod, initialPayment.Status, contact, attribution,
+            lines, subtotalVnd, discountVnd, shippingFeeVnd, totalVnd, allowOverrideLines: true);
+
+        var order = new Order(
+            id,
+            code,
+            OrderOrigin.Admin,
+            salesChannel,
+            customerId,
+            null,
+            OrderStatus.Delivered,
+            paymentMethod,
+            initialPayment.Status,
+            null,
+            NormalizeContact(contact),
+            subtotalVnd,
+            discountVnd,
+            shippingFeeVnd,
+            totalVnd,
+            discountVnd > 0 ? NormalizeOptional(discountNote) : null,
+            null,
+            null,
+            attribution,
+            NormalizeOptional(customerNote),
+            NormalizeOptional(internalNote),
+            null,
+            deliveredAt,
+            null,
+            null,
+            deliveredAt,
+            null,
+            null,
+            null,
+            null,
+            true,
+            createdByStaffId,
+            now,
+            now,
+            0,
+            [.. lines]);
+
+        order.AppendHistory(null, OrderStatus.Delivered, OrderActorType.Staff, createdByStaffId, "backfill", now);
+        order.AppendEvent(OrderEventTypes.OrderDelivered, OrderStatus.Delivered, now, OrderDeliveredReasonCodes.Backfilled);
+        return order;
+    }
+
     public static Order Rehydrate(
         Guid id,
         string code,
@@ -724,6 +810,61 @@ public sealed partial class Order
         UpdatedAt = at;
 
         return new(added, removed, increased, decreased, unchangedQty);
+    }
+
+    public void UpdateAdminDetails(
+        string receiverName,
+        string receiverPhone,
+        string provinceCode,
+        string provinceName,
+        string? wardCode,
+        string wardName,
+        string addressLine,
+        string? customerNote,
+        string? internalNote,
+        DateTimeOffset at)
+    {
+        if (IsBackfilled || !OrderStatus.AllowsLineMutation(Status))
+            throw new DomainException("invalid_status_transition", "Chỉ được sửa thông tin đơn hàng khi đơn đang chờ hoặc đã xác nhận.");
+
+        var nextContact = new OrderContactSnapshot(
+            Contact.ContactName,
+            Contact.ContactPhone,
+            Contact.ContactEmail,
+            receiverName,
+            receiverPhone,
+            provinceCode,
+            provinceName,
+            wardCode,
+            wardName,
+            addressLine);
+
+        ValidateContact(nextContact);
+        Contact = NormalizeContact(nextContact);
+        CustomerNote = NormalizeOptional(customerNote);
+        InternalNote = NormalizeOptional(internalNote);
+        UpdatedAt = at;
+    }
+
+    public void UpdateAdminAdjustments(
+        long discountVnd,
+        long shippingFeeVnd,
+        Guid? voucherId,
+        string? discountNote,
+        DateTimeOffset at)
+    {
+        if (IsBackfilled || !OrderStatus.AllowsLineMutation(Status))
+            throw new DomainException("invalid_status_transition", "Chỉ được sửa chiết khấu hoặc phí giao hàng khi đơn đang chờ hoặc đã xác nhận.");
+
+        if (discountVnd < 0 || discountVnd > SubtotalVnd || shippingFeeVnd < 0)
+            throw new DomainException("validation_failed", "Số tiền giảm giá hoặc phí giao hàng không hợp lệ.");
+
+        DiscountVnd = discountVnd;
+        ShippingFeeVnd = shippingFeeVnd;
+        TotalVnd = checked(SubtotalVnd - discountVnd + shippingFeeVnd);
+        VoucherId = voucherId;
+        DiscountNote = discountVnd > 0 && voucherId is null ? NormalizeOptional(discountNote) : null;
+        UpdatedAt = at;
     }
 
     public void LockLineUnitCosts(IReadOnlyDictionary<Guid, long?> unitCostByLineId)

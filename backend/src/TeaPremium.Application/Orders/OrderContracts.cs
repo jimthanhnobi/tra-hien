@@ -31,6 +31,7 @@ public interface IOrderRepository
     Task<OrderLoadResult> LoadForUpdateAsync(Guid orderId, uint? expectedVersion, CancellationToken ct);
     Task<bool> HasActiveOrderShipmentAsync(Guid orderId, CancellationToken ct);
     Task<bool> HasOrderShipmentAsync(Guid orderId, CancellationToken ct);
+    Task<bool> HasAnyDeliveredOrderAsync(Guid customerId, CancellationToken ct);
     Task<string?> InsertAsync(Order order, DateOnly vietnamDate, CancellationToken ct);
     Task SaveUpdatedOrderAsync(Order order, OrderLineDelta? lineDelta, CancellationToken ct);
 }
