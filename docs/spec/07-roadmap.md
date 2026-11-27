@@ -120,7 +120,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 
 | ID | Task | Size | Phụ thuộc |
 |---|---|---|---|
-| P3-01 | Giỏ hàng (BR-CRT-01..04) | M | P2 |
+| P3-01 | Giỏ hàng (BR-CRT-01..04) + job nền DataRetentionJob (BR-CRM-12) đọc retention.* cho các bảng hiện có (không kích hoạt xóa dữ liệu thật cho tới khi chính sách lưu giữ nghiệp vụ, pháp lý và vận hành được phê duyệt) | M | P2 |
 | P3-02 | Checkout quote + đặt đơn web (BR-CRT-05..09), VietQR (02 §5.7), mã giới thiệu để sẵn (validate trả `referral_not_available` đến P5) | L | P3-01 |
 | P3-03 | Job tự hủy đơn quá hạn + gia hạn (BR-ORD-05/06), tự xác nhận khi đủ tiền (BR-PAY-03) | S | P3-02 |
 | P3-04 | Tra cứu đơn + khách hủy đơn pending (BR-IAM-05) | S | P3-02 |
@@ -132,7 +132,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 | P3-13 | Vòng đời trang sản phẩm: hàng độc bản đã bán, lưu trữ bắt buộc 301 (BR-SEO-20..23) | S | P3-09 |
 | P3-14 | Trang chủ đề + tác giả (BR-SEO-40..42, 73/74) + Admin UI | M | P3-07 |
 | P3-15 | Feed Google Merchant Center + cache và test khớp giá/tình trạng với trang (BR-SEO-80/81) | M | P3-09 |
-| P3-16 | Ảnh SEO (tên file, ALT, kích thước) + ngân sách tốc độ trong CI (Lighthouse CI) + Web Vitals thực tế (BR-SEO-82..88) | M | P3-08 |
+| P3-16 | Ảnh SEO (tên file, ALT, kích thước) + ngân sách tốc độ trong CI (Lighthouse CI) + Web Vitals thực tế (BR-SEO-82..88) + mở rộng DataRetentionJob (BR-CRM-12) cho platform.web_vitals_samples theo retention.web_vitals_days | M | P3-08 |
 | P3-17 | SEO Audit + Điểm SEO trong form + log 404 → tạo redirect (BR-SEO-60/61/96) | M | P3-09 |
 | P3-18 | GA4 sau consent + sự kiện thương mại điện tử (BR-SEO-94); xác minh Search Console, gửi sitemap, đăng ký Merchant Center (vận hành) | S | P3-09 |
 | P3-10 | Hạ tầng production: compose.prod, Caddy, roles DB, backup + restore drill, deploy workflow, uptime monitor (06) | M | song song |
@@ -184,7 +184,7 @@ P0 Nền móng ─▶ P1 Catalog + Kho ─▶ P2 CRM + Đơn nội bộ (dùng t
 
 | ID | Task | Size |
 |---|---|---|
-| P5-01 | Tracking links + `/r/{code}` + cookie phân bổ + UTM (BR-MKT-04/09) | M |
+| P5-01 | Tracking links + `/r/{code}` + cookie phân bổ + UTM (BR-MKT-04/09) + mở rộng DataRetentionJob (BR-CRM-12) cho marketing.link_clicks theo retention.link_clicks_days | M |
 | P5-02 | Chiến dịch: tạo, chọn sản phẩm, bộ lọc người nhận + preview loại trừ (BR-MKT-01), consent gate (BR-CRM-09) | L |
 | P5-03 | Màn hình gửi tay: danh sách người nhận với tin nhắn đã render + nút Sao chép/Mở Zalo (`https://zalo.me/<sđt>`) + Đã gửi/Bỏ qua (BR-MKT-02/03) | M |
 | P5-04 | Chỉ số chiến dịch (BR-MKT-10) | S |

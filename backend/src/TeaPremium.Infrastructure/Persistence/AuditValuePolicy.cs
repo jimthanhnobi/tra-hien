@@ -117,6 +117,37 @@ public static class AuditValuePolicy
             if (field is "occurred_at" or "follow_up_at" or "follow_up_done_at" or "created_at" && value is DateTime) return value;
             return Redacted;
         }
+        // P2-12 / NFR-04 / NFR-12: fail-closed classification for crm.consents, crm.data_requests and crm.customer_interests;
+        // free-text consent evidence and data request notes always stay redacted.
+        if (entityType == "crm.consents")
+        {
+            if (field is "customer_id" or "captured_by" && value is Guid) return value;
+            if (field == "channel" && value is string consentChannel && CustomerRules.ConsentChannels.Contains(consentChannel)) return consentChannel;
+            if (field == "purpose" && value is string purpose && CustomerRules.ConsentPurposes.Contains(purpose)) return purpose;
+            if (field == "status" && value is string consentStatus && CustomerRules.ConsentStatuses.Contains(consentStatus)) return consentStatus;
+            if (field == "source" && value is string consentSource && CustomerRules.ConsentSources.Contains(consentSource)) return consentSource;
+            if (field == "captured_at" && value is DateTime) return value;
+            return Redacted;
+        }
+        if (entityType == "crm.data_requests")
+        {
+            if (field is "customer_id" or "handled_by" && value is Guid) return value;
+            if (field == "request_type" && value is string requestType && CustomerRules.DataRequestTypes.Contains(requestType)) return requestType;
+            if (field == "status" && value is string requestStatus && CustomerRules.DataRequestStatuses.Contains(requestStatus)) return requestStatus;
+            if (field == "channel" && value is string requestChannel && CustomerRules.DataRequestChannels.Contains(requestChannel)) return requestChannel;
+            if (field is "requested_at" or "completed_at" && value is DateTime) return value;
+            return Redacted;
+        }
+        if (entityType == "crm.customer_interests")
+        {
+            if (field is "customer_id" or "ref_id" && value is Guid) return value;
+            if (field == "interest_type" && value is string interestType && CustomerRules.InterestTypes.Contains(interestType)) return interestType;
+            if (field == "price_band" && value is string priceBand && CustomerRules.PriceBands.Contains(priceBand)) return priceBand;
+            if (field == "source" && value is "order" or "manual") return value;
+            if (field == "score" && value is int) return value;
+            if (field == "updated_at" && value is DateTime) return value;
+            return Redacted;
+        }
 
         if (IsSensitive(field)) return Redacted;
         // P1-05: classify variant business fields by entity and runtime type. Names,

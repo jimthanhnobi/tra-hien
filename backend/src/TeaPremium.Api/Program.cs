@@ -136,6 +136,7 @@ app.MapStoreCatalog();
 app.MapStoreAdministrativeData();
 app.MapCustomers();
 app.MapCustomerInteractions();
+app.MapCustomerPrivacy();
 app.MapAdminOrders();
 app.MapPayments();
 app.MapShipments();

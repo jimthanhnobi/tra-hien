@@ -3802,6 +3802,74 @@
         ],
         "type": "object"
       },
+      "CustomerConsentItemView": {
+        "properties": {
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "capturedBy": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "channel": {
+            "enum": [
+              "zalo_personal",
+              "zalo_oa",
+              "sms",
+              "email",
+              "phone"
+            ],
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "marketing_new_products",
+              "marketing_promotions",
+              "customer_care"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "checkout",
+              "account",
+              "staff",
+              "import",
+              "link"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "granted",
+              "revoked"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "purpose",
+          "status",
+          "source",
+          "evidence",
+          "capturedAt",
+          "capturedBy"
+        ],
+        "type": "object"
+      },
       "CustomerConsentView": {
         "properties": {
           "capturedAt": {
@@ -3832,6 +3900,109 @@
           "status",
           "source",
           "capturedAt"
+        ],
+        "type": "object"
+      },
+      "CustomerConsentsResult": {
+        "properties": {
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerConsentItemView"
+            },
+            "type": "array"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "rowVersion": {
+            "type": "string"
+          },
+          "upserted": {
+            "$ref": "#/components/schemas/CustomerConsentItemView"
+          }
+        },
+        "required": [
+          "customerId",
+          "rowVersion",
+          "upserted",
+          "consents"
+        ],
+        "type": "object"
+      },
+      "CustomerDataExportView": {
+        "properties": {
+          "account": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CustomerExportAccountView"
+              }
+            ]
+          },
+          "addresses": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerAddressView"
+            },
+            "type": "array"
+          },
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerConsentItemView"
+            },
+            "type": "array"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerExportProfileView"
+          },
+          "dataRequests": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerExportDataRequestView"
+            },
+            "type": "array"
+          },
+          "exportedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "interactions": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerExportInteractionView"
+            },
+            "type": "array"
+          },
+          "interests": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerInterestView"
+            },
+            "type": "array"
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerExportOrderView"
+            },
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerTagView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "exportedAt",
+          "customer",
+          "tags",
+          "addresses",
+          "account",
+          "consents",
+          "interests",
+          "interactions",
+          "dataRequests",
+          "orders"
         ],
         "type": "object"
       },
@@ -4002,6 +4173,726 @@
           "interests",
           "consents",
           "accountSummary"
+        ],
+        "type": "object"
+      },
+      "CustomerEraseResult": {
+        "properties": {
+          "anonymizedOrdersCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "contactStatus": {
+            "enum": [
+              "erased"
+            ],
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "dataRequestId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "erasedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "rowVersion": {
+            "type": "string"
+          },
+          "scrubbedMergedStubsCount": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "customerId",
+          "code",
+          "contactStatus",
+          "erasedAt",
+          "rowVersion",
+          "dataRequestId",
+          "anonymizedOrdersCount",
+          "scrubbedMergedStubsCount"
+        ],
+        "type": "object"
+      },
+      "CustomerExportAccountView": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "emailVerifiedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "externalLogins": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerExportLoginView"
+            },
+            "type": "array"
+          },
+          "historyUnlockedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "loginPhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phoneVerifiedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "enum": [
+              "active",
+              "locked",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "loginPhone",
+          "email",
+          "emailVerifiedAt",
+          "phoneVerifiedAt",
+          "historyUnlockedAt",
+          "status",
+          "createdAt",
+          "lastLoginAt",
+          "externalLogins"
+        ],
+        "type": "object"
+      },
+      "CustomerExportDataRequestView": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "zalo_personal",
+              "zalo_oa",
+              "phone",
+              "facebook",
+              "in_person",
+              "email",
+              "web",
+              "account",
+              "other"
+            ],
+            "type": "string"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestType": {
+            "enum": [
+              "export",
+              "erase",
+              "correct",
+              "withdraw_consent"
+            ],
+            "type": "string"
+          },
+          "requestedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "completed",
+              "rejected"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "requestType",
+          "status",
+          "channel",
+          "note",
+          "requestedAt",
+          "completedAt"
+        ],
+        "type": "object"
+      },
+      "CustomerExportInteractionView": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "zalo_personal",
+              "zalo_oa",
+              "phone",
+              "facebook",
+              "in_person",
+              "email",
+              "web",
+              "other"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "followUpAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "followUpDoneAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "followUpResult": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "inquiry",
+              "consultation",
+              "quote",
+              "follow_up",
+              "complaint",
+              "note",
+              "campaign_message"
+            ],
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "orderId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "kind",
+          "content",
+          "occurredAt",
+          "orderId",
+          "followUpAt",
+          "followUpDoneAt",
+          "followUpResult",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "CustomerExportLoginView": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "provider": {
+            "enum": [
+              "google",
+              "zalo"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "email",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "CustomerExportOrderLineView": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lineTotalVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "listPriceVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "quantity": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "returnedQuantity": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "unitPriceVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "variantName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sku",
+          "productName",
+          "variantName",
+          "quantity",
+          "listPriceVnd",
+          "unitPriceVnd",
+          "lineTotalVnd",
+          "returnedQuantity"
+        ],
+        "type": "object"
+      },
+      "CustomerExportOrderView": {
+        "properties": {
+          "addressLine": {
+            "type": "string"
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "confirmedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "customerNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deliveredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "failedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isBackfilled": {
+            "type": "boolean"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerExportOrderLineView"
+            },
+            "type": "array"
+          },
+          "origin": {
+            "enum": [
+              "web",
+              "admin"
+            ],
+            "type": "string"
+          },
+          "paymentMethod": {
+            "enum": [
+              "cod",
+              "bank_transfer"
+            ],
+            "type": "string"
+          },
+          "paymentStatus": {
+            "enum": [
+              "unpaid",
+              "partially_paid",
+              "paid",
+              "partially_refunded",
+              "refunded"
+            ],
+            "type": "string"
+          },
+          "placedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "provinceCode": {
+            "type": "string"
+          },
+          "provinceName": {
+            "type": "string"
+          },
+          "receiverName": {
+            "type": "string"
+          },
+          "receiverPhone": {
+            "type": "string"
+          },
+          "salesChannel": {
+            "enum": [
+              "web",
+              "zalo_personal",
+              "zalo_oa",
+              "facebook",
+              "phone",
+              "in_person",
+              "other"
+            ],
+            "type": "string"
+          },
+          "shippedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shippingFeeVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "confirmed",
+              "shipping",
+              "delivered",
+              "delivery_failed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "subtotalVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "wardCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wardName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "origin",
+          "salesChannel",
+          "status",
+          "paymentMethod",
+          "paymentStatus",
+          "contactName",
+          "contactPhone",
+          "contactEmail",
+          "receiverName",
+          "receiverPhone",
+          "provinceCode",
+          "provinceName",
+          "wardCode",
+          "wardName",
+          "addressLine",
+          "subtotalVnd",
+          "discountVnd",
+          "shippingFeeVnd",
+          "totalVnd",
+          "customerNote",
+          "isBackfilled",
+          "placedAt",
+          "confirmedAt",
+          "shippedAt",
+          "deliveredAt",
+          "failedAt",
+          "cancelledAt",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "CustomerExportProfileView": {
+        "properties": {
+          "acquisitionSource": {
+            "enum": [
+              "unknown",
+              "legacy",
+              "google_organic",
+              "google_ads",
+              "facebook",
+              "zalo_personal",
+              "zalo_oa",
+              "referral",
+              "direct",
+              "offline",
+              "other"
+            ],
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "contactStatus": {
+            "enum": [
+              "active",
+              "do_not_contact",
+              "erased"
+            ],
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerGroup": {
+            "enum": [
+              "retail",
+              "wholesale",
+              "reseller"
+            ],
+            "type": "string"
+          },
+          "deliveredOrdersCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "erasedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firstDeliveredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "hadLegacyPurchase": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isVip": {
+            "type": "boolean"
+          },
+          "lastContactedAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastDeliveredAt": {
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lifetimeValueVnd": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "mergedIntoCustomerId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "noteSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "origin": {
+            "enum": [
+              "legacy_import",
+              "web",
+              "admin"
+            ],
+            "type": "string"
+          },
+          "phoneE164": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "referredByCustomerId": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "zaloName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "fullName",
+          "phoneE164",
+          "email",
+          "zaloName",
+          "customerGroup",
+          "isVip",
+          "origin",
+          "acquisitionSource",
+          "referredByCustomerId",
+          "contactStatus",
+          "noteSummary",
+          "hadLegacyPurchase",
+          "deliveredOrdersCount",
+          "lifetimeValueVnd",
+          "firstDeliveredAt",
+          "lastDeliveredAt",
+          "lastContactedAt",
+          "mergedIntoCustomerId",
+          "erasedAt",
+          "createdAt",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -4853,6 +5744,40 @@
         ],
         "type": "object"
       },
+      "EraseCustomerRequest": {
+        "additionalProperties": false,
+        "description": "Irreversibly anonymizes customer PII and linked merged stubs while preserving order financials (AC-P2-10). rowVersion is optional.",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "requestChannel": {
+            "enum": [
+              "zalo_personal",
+              "zalo_oa",
+              "phone",
+              "facebook",
+              "in_person",
+              "email",
+              "web",
+              "account",
+              "other"
+            ],
+            "type": "string"
+          },
+          "rowVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "requestChannel"
+        ],
+        "type": "object"
+      },
       "FollowUpItemView": {
         "properties": {
           "channel": {
@@ -5520,6 +6445,32 @@
           "page",
           "pageSize",
           "totalItems"
+        ],
+        "type": "object"
+      },
+      "MergeCustomersRequest": {
+        "additionalProperties": false,
+        "description": "Merges mergeCustomerId (B) into target customer {id} (A). rowVersion and mergeRowVersion are optional.",
+        "properties": {
+          "mergeCustomerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mergeRowVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rowVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "mergeCustomerId"
         ],
         "type": "object"
       },
@@ -7651,6 +8602,53 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "PutCustomerConsentRequest": {
+        "additionalProperties": false,
+        "description": "Upserts staff-recorded customer consent by (channel, purpose). source is fixed to 'staff'; rowVersion is optional.",
+        "properties": {
+          "channel": {
+            "enum": [
+              "zalo_personal",
+              "zalo_oa",
+              "sms",
+              "email",
+              "phone"
+            ],
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "marketing_new_products",
+              "marketing_promotions",
+              "customer_care"
+            ],
+            "type": "string"
+          },
+          "rowVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "enum": [
+              "granted",
+              "revoked"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "purpose",
+          "status",
+          "evidence"
+        ],
         "type": "object"
       },
       "PutCustomerTagsRequest": {
@@ -12249,6 +13247,106 @@
         ]
       }
     },
+    "/api/v1/admin/customers/{id}/consents": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutCustomerConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerConsentsResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          }
+        },
+        "tags": [
+          "CustomerPrivacy"
+        ]
+      }
+    },
     "/api/v1/admin/customers/{id}/correct-identity": {
       "post": {
         "parameters": [
@@ -12346,6 +13444,176 @@
         },
         "tags": [
           "Customers"
+        ]
+      }
+    },
+    "/api/v1/admin/customers/{id}/erase": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EraseCustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerEraseResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          }
+        },
+        "tags": [
+          "CustomerPrivacy"
+        ]
+      }
+    },
+    "/api/v1/admin/customers/{id}/export": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDataExportView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "CustomerPrivacy"
         ]
       }
     },
@@ -12758,6 +14026,106 @@
         },
         "tags": [
           "CustomerInteractions"
+        ]
+      }
+    },
+    "/api/v1/admin/customers/{id}/merge": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeCustomersRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetailView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          }
+        },
+        "tags": [
+          "CustomerPrivacy"
         ]
       }
     },
@@ -21008,6 +22376,9 @@
     },
     {
       "name": "CustomerTags"
+    },
+    {
+      "name": "CustomerPrivacy"
     }
   ]
 }

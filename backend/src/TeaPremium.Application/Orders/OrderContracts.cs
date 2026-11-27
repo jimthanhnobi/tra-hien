@@ -28,6 +28,7 @@ public sealed record OrderLoadResult(Order? Order, bool ConcurrencyConflict);
 // R-P201-06: sales.order_status_history is strictly append-only; no update or delete methods exist on this port.
 public interface IOrderRepository
 {
+    Task<Guid?> GetCustomerIdAsync(Guid orderId, CancellationToken ct);
     Task<OrderLoadResult> LoadForUpdateAsync(Guid orderId, uint? expectedVersion, CancellationToken ct);
     Task<bool> HasActiveOrderShipmentAsync(Guid orderId, CancellationToken ct);
     Task<bool> HasOrderShipmentAsync(Guid orderId, CancellationToken ct);

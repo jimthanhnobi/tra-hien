@@ -74,6 +74,12 @@ public sealed class EfOrderRepository(AppDbContext db, IOrderCodeGenerator codeG
 {
     private const int MaxCodeAttempts = 10;
 
+    public Task<Guid?> GetCustomerIdAsync(Guid orderId, CancellationToken ct) =>
+        db.Set<PersistenceOrder>().AsNoTracking()
+            .Where(x => x.Id == orderId)
+            .Select(x => (Guid?)x.CustomerId)
+            .SingleOrDefaultAsync(ct);
+
     public async Task<OrderLoadResult> LoadForUpdateAsync(Guid orderId, uint? expectedVersion, CancellationToken ct)
     {
         if (db.Database.CurrentTransaction is null)

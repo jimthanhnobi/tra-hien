@@ -30,7 +30,7 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
         var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
             .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
-        Assert.Equal(133, totalOperations);
+        Assert.Equal(137, totalOperations);
         Assert.True(paths.TryGetProperty("/api/v1/admin/orders", out var adminOrdersPath));
         Assert.True(adminOrdersPath.TryGetProperty("get", out var listOrdersOp));
         Assert.True(adminOrdersPath.TryGetProperty("post", out var createOrderOp));
@@ -86,6 +86,15 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/correct-identity", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/orders", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/consents", out var customerConsentsPath));
+        Assert.True(customerConsentsPath.TryGetProperty("put", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/merge", out var customerMergePath));
+        Assert.True(customerMergePath.TryGetProperty("post", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/erase", out var customerErasePath));
+        Assert.True(customerErasePath.TryGetProperty("post", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/export", out var customerExportPath));
+        Assert.True(customerExportPath.TryGetProperty("get", out var customerExportOp));
+        Assert.True(customerExportOp.GetProperty("responses").GetProperty("200").GetProperty("content").TryGetProperty("application/json", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/interactions", out var interactionsPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/interactions/{iid}", out var interactionItemPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/customers/{id}/interactions/{iid}/complete-follow-up", out var completeFollowUpPath));
@@ -297,6 +306,67 @@ public sealed class OpenApiTests
         AssertOpenApiEnum(schemas.GetProperty("CreateAdminOrderRequest").GetProperty("properties").GetProperty("paymentMethod"),
             "cod", "bank_transfer");
         Assert.Equal("integer", schemas.GetProperty("AdministrativeProvinceItem").GetProperty("properties").GetProperty("sortOrder").GetProperty("type").GetString());
+
+        // P2-12 Customer Privacy schemas (consents, merge, erase, export)
+        foreach (var name in new[] { "PutCustomerConsentRequest", "MergeCustomersRequest", "EraseCustomerRequest" })
+            Assert.False(schemas.GetProperty(name).GetProperty("additionalProperties").GetBoolean());
+
+        var putConsentSchema = schemas.GetProperty("PutCustomerConsentRequest");
+        AssertOpenApiEnum(putConsentSchema.GetProperty("properties").GetProperty("channel"), "zalo_personal", "zalo_oa", "sms", "email", "phone");
+        AssertOpenApiEnum(putConsentSchema.GetProperty("properties").GetProperty("purpose"), "marketing_new_products", "marketing_promotions", "customer_care");
+        AssertOpenApiEnum(putConsentSchema.GetProperty("properties").GetProperty("status"), "granted", "revoked");
+        var putConsentRequired = putConsentSchema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToHashSet(StringComparer.Ordinal);
+        Assert.DoesNotContain("rowVersion", putConsentRequired);
+
+        var mergeRequired = schemas.GetProperty("MergeCustomersRequest").GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("mergeCustomerId", mergeRequired);
+        Assert.DoesNotContain("rowVersion", mergeRequired);
+        Assert.DoesNotContain("mergeRowVersion", mergeRequired);
+
+        var eraseSchema = schemas.GetProperty("EraseCustomerRequest");
+        AssertOpenApiEnum(eraseSchema.GetProperty("properties").GetProperty("requestChannel"),
+            "zalo_personal", "zalo_oa", "phone", "facebook", "in_person", "email", "web", "account", "other");
+        var eraseRequired = eraseSchema.GetProperty("required").EnumerateArray().Select(x => x.GetString()).ToHashSet(StringComparer.Ordinal);
+        Assert.DoesNotContain("rowVersion", eraseRequired);
+
+        AssertOpenApiEnum(schemas.GetProperty("CustomerConsentItemView").GetProperty("properties").GetProperty("source"),
+            "checkout", "account", "staff", "import", "link");
+        AssertOpenApiEnum(schemas.GetProperty("CustomerEraseResult").GetProperty("properties").GetProperty("contactStatus"), "erased");
+        Assert.Equal("integer", schemas.GetProperty("CustomerEraseResult").GetProperty("properties").GetProperty("anonymizedOrdersCount").GetProperty("type").GetString());
+        Assert.Equal("integer", schemas.GetProperty("CustomerEraseResult").GetProperty("properties").GetProperty("scrubbedMergedStubsCount").GetProperty("type").GetString());
+        Assert.Equal("integer", schemas.GetProperty("CustomerExportProfileView").GetProperty("properties").GetProperty("lifetimeValueVnd").GetProperty("type").GetString());
+        Assert.Equal("integer", schemas.GetProperty("CustomerExportOrderView").GetProperty("properties").GetProperty("totalVnd").GetProperty("type").GetString());
+        Assert.Equal("integer", schemas.GetProperty("CustomerExportOrderLineView").GetProperty("properties").GetProperty("unitPriceVnd").GetProperty("type").GetString());
+
+        // ASSUMPTION-P212-02 = A / BR-CRM-13: ZERO secrets, costs, profit, priceOverrideReason, or internalNote anywhere in CustomerDataExportView tree
+        foreach (var exportSchemaName in new[]
+        {
+            "CustomerDataExportView",
+            "CustomerExportProfileView",
+            "CustomerExportAccountView",
+            "CustomerExportLoginView",
+            "CustomerExportInteractionView",
+            "CustomerExportDataRequestView",
+            "CustomerExportOrderView",
+            "CustomerExportOrderLineView",
+            "CustomerConsentItemView",
+            "CustomerInterestView",
+            "CustomerTagView",
+            "CustomerAddressView"
+        })
+        {
+            var props = schemas.GetProperty(exportSchemaName).GetProperty("properties");
+            Assert.All(props.EnumerateObject(), prop =>
+            {
+                Assert.DoesNotContain("cost", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("profit", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("password", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("securityStamp", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("providerKey", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("priceOverrideReason", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("internalNote", prop.Name, StringComparison.OrdinalIgnoreCase);
+            });
+        }
     }
 
     private static void AssertOpenApiEnum(JsonElement schema, params string[] values)

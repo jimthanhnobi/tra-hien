@@ -8,6 +8,7 @@ using TeaPremium.Application.Orders.Contracts;
 using TeaPremium.Application.Outbox;
 using TeaPremium.Application.Payments;
 using TeaPremium.Application.Pricing;
+using TeaPremium.Application.Pricing.Contracts;
 using TeaPremium.Domain.Orders;
 using TeaPremium.Infrastructure.Catalog;
 using TeaPremium.Infrastructure.Inventory;
@@ -34,6 +35,8 @@ public static class OrdersRegistration
         services.AddScoped<IOrderShipmentQueries, EfOrderShipmentQueries>();
         services.AddScoped<IOrderDeliveredHook, CodAwaitingSettlementDeliveredHook>();
         services.AddScoped<ICustomerOrderQueries, EfCustomerOrderQueries>();
+        services.AddScoped<IOrderCustomerPrivacyPort, EfOrderCustomerPrivacyPort>();
+        services.AddScoped<IPricingCustomerMergePort, EfPricingCustomerMergePort>();
         services.TryAddScoped<IOrderPaymentLedgerReader, EfOrderPaymentLedgerReader>();
         services.AddScoped<IVariantUsage, OrderVariantUsage>();
 
