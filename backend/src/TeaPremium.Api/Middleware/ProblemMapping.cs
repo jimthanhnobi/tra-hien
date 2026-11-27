@@ -8,7 +8,8 @@ public static class ProblemMapping
     private static readonly HashSet<string> ConflictBusinessCodes = new(StringComparer.Ordinal)
     {
         "invalid_status_transition", "out_of_stock", "price_changed", "customer_phone_exists",
-        "account_exists", "unique_piece_violation", "cart_has_unavailable_items"
+        "account_exists", "unique_piece_violation", "cart_has_unavailable_items",
+        "active_shipment_exists", "tracking_code_exists", "reservation_mismatch"
     };
 
     public static IResult ToProblem(this Error error, HttpContext context)

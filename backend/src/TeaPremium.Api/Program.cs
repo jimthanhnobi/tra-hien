@@ -18,6 +18,7 @@ using TeaPremium.Application.Inventory;
 using TeaPremium.Infrastructure.Inventory;
 using TeaPremium.Api.Crm;
 using TeaPremium.Infrastructure.Crm;
+using TeaPremium.Api.Orders;
 using TeaPremium.Infrastructure.Orders;
 using TeaPremium.Api.Payments;
 using TeaPremium.Infrastructure.Payments;
@@ -43,6 +44,7 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer(CustomerOpenApi.TransformAsync);
     options.AddDocumentTransformer(InteractionOpenApi.TransformAsync);
     options.AddDocumentTransformer(PaymentOpenApi.TransformAsync);
+    options.AddDocumentTransformer(ShipmentOpenApi.TransformAsync);
 });
 builder.Logging.ClearProviders();
 // Framework scopes include RequestPath. Keep them out of stdout and log only safe fields explicitly.
@@ -132,6 +134,7 @@ app.MapStoreCatalog();
 app.MapCustomers();
 app.MapCustomerInteractions();
 app.MapPayments();
+app.MapShipments();
 
 app.Run();
 

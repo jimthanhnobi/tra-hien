@@ -639,7 +639,8 @@ public sealed partial class Order
         string actorType,
         Guid? actorId,
         string? reason,
-        DateTimeOffset at)
+        DateTimeOffset failedAt,
+        DateTimeOffset? now = null)
     {
         if (Status != OrderStatus.Shipping)
             throw new DomainException("invalid_status_transition", "Chỉ đơn đang giao mới có thể đánh dấu giao thất bại.");
@@ -648,13 +649,17 @@ public sealed partial class Order
         if (trimmedReason is null)
             throw new DomainException("failure_reason_required", "Lý do giao thất bại là bắt buộc.");
 
+        var effectiveNow = now ?? failedAt;
+        if (failedAt > effectiveNow || (ShippedAt is { } shipped && failedAt < shipped))
+            throw new DomainException("invalid_event_time", "Thời điểm giao thất bại không hợp lệ.");
+
         var from = Status;
         Status = OrderStatus.DeliveryFailed;
-        FailedAt = at;
+        FailedAt = failedAt;
         StatusReason = trimmedReason;
-        UpdatedAt = at;
-        AppendHistory(from, Status, actorType, actorId, trimmedReason, at);
-        AppendEvent(OrderEventTypes.OrderDeliveryFailed, Status, at);
+        UpdatedAt = effectiveNow;
+        AppendHistory(from, Status, actorType, actorId, trimmedReason, effectiveNow);
+        AppendEvent(OrderEventTypes.OrderDeliveryFailed, Status, effectiveNow);
     }
 
     public OrderLineDelta ReplaceLines(

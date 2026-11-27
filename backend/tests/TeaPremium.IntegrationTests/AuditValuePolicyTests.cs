@@ -276,4 +276,46 @@ public sealed class AuditValuePolicyTests
     {
         Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, property, spoofedValue));
     }
+
+    [Theory]
+    [InlineData("CarrierName", "Xe om anh Minh 0901234567")]
+    [InlineData("TrackingCode", "GHN-SECRET-0901234567")]
+    [InlineData("Note", "Goi chi Hoa 0912345678 truoc khi giao")]
+    [InlineData("UnknownField", "PII text")]
+    public void SalesShipmentsAllowlistSafeMetadataAndRedactCarrierTrackingAndNote(string property, string secretValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter("sales.shipments", null, property, secretValue));
+
+        var now = new DateTime(2026, 11, 26, 7, 0, 0, DateTimeKind.Utc);
+        var id = Guid.CreateVersion7();
+
+        Assert.Equal(id, AuditValuePolicy.Filter("sales.shipments", null, "OrderId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("sales.shipments", null, "ReturnRequestId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("sales.shipments", null, "CreatedBy", id));
+        Assert.Equal("order", AuditValuePolicy.Filter("sales.shipments", null, "Purpose", "order"));
+        Assert.Equal("replacement", AuditValuePolicy.Filter("sales.shipments", null, "Purpose", "replacement"));
+        Assert.Equal("manual", AuditValuePolicy.Filter("sales.shipments", null, "Provider", "manual"));
+        Assert.Equal("created", AuditValuePolicy.Filter("sales.shipments", null, "Status", "created"));
+        Assert.Equal("delivered", AuditValuePolicy.Filter("sales.shipments", null, "Status", "delivered"));
+        Assert.Equal("returned", AuditValuePolicy.Filter("sales.shipments", null, "Status", "returned"));
+        Assert.Equal(1_500_000L, AuditValuePolicy.Filter("sales.shipments", null, "CodAmountVnd", 1_500_000L));
+        Assert.Equal(30_000L, AuditValuePolicy.Filter("sales.shipments", null, "ShippingCostVnd", 30_000L));
+        Assert.Equal(18_000L, AuditValuePolicy.Filter("sales.shipments", null, "ReturnCostVnd", 18_000L));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.shipments", null, "CreatedAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.shipments", null, "PickedUpAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.shipments", null, "DeliveredAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.shipments", null, "FailedAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("sales.shipments", null, "ReturnedAt", now));
+    }
+
+    [Theory]
+    [InlineData("Purpose", "0901234567")]
+    [InlineData("Provider", "secret@example.test")]
+    [InlineData("Status", "Nguyen Van A")]
+    [InlineData("CodAmountVnd", "500000")]
+    [InlineData("DeliveredAt", "2026-11-26 0901234567")]
+    public void SalesShipmentsRejectSpoofedStringsOnSafeFields(string property, string spoofedValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter("sales.shipments", null, property, spoofedValue));
+    }
 }

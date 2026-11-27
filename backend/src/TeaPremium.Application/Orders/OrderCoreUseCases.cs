@@ -190,15 +190,112 @@ public sealed class MarkOrderDeliveryFailedValidator : AbstractValidator<MarkOrd
     }
 }
 
+public sealed class OrderFulfillmentTransitions(
+    IOrderRepository orders,
+    IInventoryReservationService reservations,
+    IOrderPaymentLedgerReader paymentLedger,
+    IOutboxWriter outbox,
+    IEnumerable<IOrderDeliveredHook> deliveredHooks) : IOrderFulfillmentTransitions
+{
+    public async Task<Result<OrderSummary>> TransitionLoadedOrderToShippingAsync(
+        Order order,
+        Guid staffId,
+        string? note,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // BR-PAY-02 (O3a=C): self-heal/recalculate payment_status from ledger under L1 lock (handles legacy 0-VND rows).
+        if (!order.IsBackfilled)
+        {
+            var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
+            var paymentCalc = OrderPaymentStatusCalculator.Calculate(
+                ledger.ConfirmedPaidVnd,
+                ledger.RefundedVnd,
+                ledger.OverpaymentRefundedVnd,
+                order.TotalVnd,
+                order.Status,
+                order.IsBackfilled);
+            order.ApplyPaymentCalculation(paymentCalc, now);
+        }
+
+        var hasOrderShipment = await orders.HasOrderShipmentAsync(order.Id, ct);
+        order.MarkShipping(staffId, now, hasOrderShipment, note);
+
+        var consumed = await reservations.ConsumeForOrderAsync(order.Id, order.Lines, OrderActorType.Staff, staffId, ct);
+        if (!consumed.IsSuccess)
+            return Result.Failure<OrderSummary>(new(consumed.ErrorCode!, consumed.ErrorMessage!, ErrorType.Conflict));
+
+        order.LockLineUnitCosts(consumed.UnitCostByLineId);
+        await orders.SaveUpdatedOrderAsync(order, null, ct);
+        EnqueueEvents(order);
+        return Result.Success(OrderSummary.From(order));
+    }
+
+    public async Task<Result<OrderSummary>> TransitionLoadedOrderToDeliveredAsync(
+        Order order,
+        string actorType,
+        Guid? actorId,
+        DateTimeOffset deliveredAt,
+        DateTimeOffset now,
+        string? note,
+        CancellationToken ct)
+    {
+        order.MarkDelivered(actorType, actorId, deliveredAt, now, note);
+
+        await orders.SaveUpdatedOrderAsync(order, null, ct);
+        foreach (var hook in deliveredHooks)
+            await hook.OnOrderDeliveredAsync(order, ct);
+
+        EnqueueEvents(order);
+        return Result.Success(OrderSummary.From(order));
+    }
+
+    public async Task<Result<OrderSummary>> TransitionLoadedOrderToDeliveryFailedAsync(
+        Order order,
+        string actorType,
+        Guid? actorId,
+        string reason,
+        DateTimeOffset failedAt,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        order.MarkDeliveryFailed(actorType, actorId, reason, failedAt, now);
+
+        // BR-SHP-03 / BR-PAY-02 (O1=A / O3a=C): recalculate payment_status using delivery_failed precedence in the same transaction.
+        var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
+        var paymentCalc = OrderPaymentStatusCalculator.Calculate(
+            ledger.ConfirmedPaidVnd,
+            ledger.RefundedVnd,
+            ledger.OverpaymentRefundedVnd,
+            order.TotalVnd,
+            order.Status,
+            order.IsBackfilled);
+        order.ApplyPaymentCalculation(paymentCalc, now);
+
+        await orders.SaveUpdatedOrderAsync(order, null, ct);
+        EnqueueEvents(order);
+        return Result.Success(OrderSummary.From(order));
+    }
+
+    private void EnqueueEvents(Order order)
+    {
+        foreach (var evt in order.DrainEvents())
+        {
+            var payload = new OrderOutboxPayload(evt.OrderId, evt.OrderCode, evt.Status, evt.OccurredAt, evt.ReasonCode);
+            outbox.Enqueue(evt.EventType, OrderOutboxMessage.Serialize(payload));
+        }
+    }
+}
+
 public sealed class OrderCoreHandlers(
     IOrderRepository orders,
     IInventoryReservationService reservations,
     IVoucherRedemptionPort vouchers,
     IOrderPricingRead pricingRead,
     IOrderPaymentLedgerReader paymentLedger,
+    IOrderFulfillmentTransitions fulfillment,
     IOutboxWriter outbox,
-    IClock clock,
-    IEnumerable<IOrderDeliveredHook> deliveredHooks) :
+    IClock clock) :
     ICommandHandler<CreateWebOrder, OrderSummary>,
     ICommandHandler<CreateAdminOrder, OrderSummary>,
     ICommandHandler<ConfirmOrder, OrderSummary>,
@@ -594,31 +691,7 @@ public sealed class OrderCoreHandlers(
         if (loaded.ConcurrencyConflict) return ConcurrencyFailure();
         if (loaded.Order is not { } order) return NotFoundFailure();
 
-        // BR-PAY-02 (O3a=C): self-heal/recalculate payment_status from ledger under L1 lock (handles legacy 0-VND rows).
-        if (!order.IsBackfilled)
-        {
-            var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
-            var paymentCalc = OrderPaymentStatusCalculator.Calculate(
-                ledger.ConfirmedPaidVnd,
-                ledger.RefundedVnd,
-                ledger.OverpaymentRefundedVnd,
-                order.TotalVnd,
-                order.Status,
-                order.IsBackfilled);
-            order.ApplyPaymentCalculation(paymentCalc, now);
-        }
-
-        var hasOrderShipment = await orders.HasOrderShipmentAsync(order.Id, ct);
-        order.MarkShipping(command.StaffId, now, hasOrderShipment, command.Note);
-
-        var consumed = await reservations.ConsumeForOrderAsync(order.Id, order.Lines, OrderActorType.Staff, command.StaffId, ct);
-        if (!consumed.IsSuccess)
-            return Result.Failure<OrderSummary>(new(consumed.ErrorCode!, consumed.ErrorMessage!, ErrorType.Conflict));
-
-        order.LockLineUnitCosts(consumed.UnitCostByLineId);
-        await orders.SaveUpdatedOrderAsync(order, null, ct);
-        EnqueueEvents(order);
-        return Result.Success(OrderSummary.From(order));
+        return await fulfillment.TransitionLoadedOrderToShippingAsync(order, command.StaffId, command.Note, now, ct);
     }
 
     public async Task<Result<OrderSummary>> Handle(MarkOrderDelivered command, CancellationToken cancellationToken)
@@ -628,14 +701,8 @@ public sealed class OrderCoreHandlers(
         if (loaded.ConcurrencyConflict) return ConcurrencyFailure();
         if (loaded.Order is not { } order) return NotFoundFailure();
 
-        order.MarkDelivered(command.ActorType, command.ActorId, command.DeliveredAt, clock.UtcNow, command.Note);
-
-        await orders.SaveUpdatedOrderAsync(order, null, ct);
-        foreach (var hook in deliveredHooks)
-            await hook.OnOrderDeliveredAsync(order, ct);
-
-        EnqueueEvents(order);
-        return Result.Success(OrderSummary.From(order));
+        return await fulfillment.TransitionLoadedOrderToDeliveredAsync(
+            order, command.ActorType, command.ActorId, command.DeliveredAt, clock.UtcNow, command.Note, ct);
     }
 
     public async Task<Result<OrderSummary>> Handle(MarkOrderDeliveryFailed command, CancellationToken cancellationToken)
@@ -646,22 +713,8 @@ public sealed class OrderCoreHandlers(
         if (loaded.ConcurrencyConflict) return ConcurrencyFailure();
         if (loaded.Order is not { } order) return NotFoundFailure();
 
-        order.MarkDeliveryFailed(command.ActorType, command.ActorId, command.Reason, now);
-
-        // BR-SHP-03 / BR-PAY-02 (O1=A / O3a=C): recalculate payment_status using delivery_failed precedence in the same transaction.
-        var ledger = await paymentLedger.GetOrderLedgerTotalsAsync(order.Id, ct);
-        var paymentCalc = OrderPaymentStatusCalculator.Calculate(
-            ledger.ConfirmedPaidVnd,
-            ledger.RefundedVnd,
-            ledger.OverpaymentRefundedVnd,
-            order.TotalVnd,
-            order.Status,
-            order.IsBackfilled);
-        order.ApplyPaymentCalculation(paymentCalc, now);
-
-        await orders.SaveUpdatedOrderAsync(order, null, ct);
-        EnqueueEvents(order);
-        return Result.Success(OrderSummary.From(order));
+        return await fulfillment.TransitionLoadedOrderToDeliveryFailedAsync(
+            order, command.ActorType, command.ActorId, command.Reason, now, now, ct);
     }
 
     private static List<CheckoutLineInput>? BuildCheckoutLines(
