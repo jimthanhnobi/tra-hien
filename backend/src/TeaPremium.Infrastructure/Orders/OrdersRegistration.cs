@@ -27,6 +27,7 @@ public static class OrdersRegistration
         services.AddScoped<IOrderPricingRead, EfOrderPricingRead>();
         services.AddSingleton<IOrderCodeGenerator, RandomOrderCodeGenerator>();
         services.AddScoped<IOrderRepository, EfOrderRepository>();
+        services.AddScoped<IAdminOrderQueries, EfAdminOrderQueries>();
         services.AddScoped<IOrderFulfillmentTransitions, OrderFulfillmentTransitions>();
         services.AddSingleton<IShippingProvider, ManualShippingProvider>();
         services.AddScoped<IShipmentRepository, EfShipmentRepository>();

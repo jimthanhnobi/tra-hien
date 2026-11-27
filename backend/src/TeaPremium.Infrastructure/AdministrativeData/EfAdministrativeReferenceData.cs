@@ -63,4 +63,32 @@ public sealed class EfAdministrativeReferenceData(AppDbContext db, IConfiguratio
 
         return result;
     }
+
+    public async Task<IReadOnlyList<AdministrativeProvinceItem>> ListActiveProvincesAsync(CancellationToken ct) =>
+        await db.Provinces.AsNoTracking()
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Name)
+            .ThenBy(p => p.Code)
+            .Select(p => new AdministrativeProvinceItem(p.Code, p.Name, p.SortOrder))
+            .ToArrayAsync(ct);
+
+    public async Task<StoreWardListView?> ListActiveWardsByProvinceAsync(string provinceCode, CancellationToken ct)
+    {
+        var province = await db.Provinces.AsNoTracking()
+            .Where(p => p.Code == provinceCode && p.IsActive)
+            .Select(p => new { p.Code, p.Name })
+            .SingleOrDefaultAsync(ct);
+
+        if (province is null) return null;
+
+        var wards = await db.Wards.AsNoTracking()
+            .Where(w => w.ProvinceCode == province.Code && w.IsActive)
+            .OrderBy(w => w.Name)
+            .ThenBy(w => w.Code)
+            .Select(w => new AdministrativeWardItem(w.Code, w.ProvinceCode, w.Name))
+            .ToArrayAsync(ct);
+
+        return new StoreWardListView(province.Code, province.Name, wards);
+    }
 }

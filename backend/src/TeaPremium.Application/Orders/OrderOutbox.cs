@@ -17,7 +17,8 @@ public static class OrderOutboxMessage
     private static readonly HashSet<string> AllowedReasonCodes = new(StringComparer.Ordinal)
     {
         "payment_expired",
-        OrderConfirmReasonCodes.AutoConfirmedOnFullPayment
+        OrderConfirmReasonCodes.AutoConfirmedOnFullPayment,
+        OrderDeliveredReasonCodes.Backfilled
     };
 
     private static readonly JsonSerializerOptions WriteOptions = new(JsonSerializerDefaults.Web);

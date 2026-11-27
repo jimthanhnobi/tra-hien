@@ -3852,6 +3852,604 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    channel?: "web" | "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other";
+                    customerId?: string;
+                    flag?: "needs_refund" | "overpaid" | "expiring";
+                    from?: string;
+                    origin?: "web" | "admin";
+                    page?: number | string;
+                    pageSize?: number | string;
+                    paymentStatus?: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+                    q?: string;
+                    sort?: "placedAt:desc" | "placedAt:asc" | "totalVnd:desc" | "totalVnd:asc" | "deliveredAt:desc" | "deliveredAt:asc";
+                    status?: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+                    to?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CatalogPageOfAdminOrderListItemView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateAdminOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrderCreatedView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrderDetailView"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PatchAdminOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrderDetailView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CancelAdminOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrderDetailView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ConfirmAdminOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrderDetailView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{id}/packing-slip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    hidePrices?: boolean;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders/{id}/payments": {
         parameters: {
             query?: never;
@@ -3991,6 +4589,110 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["RefundRecordedView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{id}/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ReorderAdminOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminOrderDetailView"];
                     };
                 };
                 /** @description Bad Request */
@@ -9077,6 +9779,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/store/provinces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreProvinceListView"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store/provinces/{code}/wards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StoreWardListView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -9090,6 +9900,326 @@ export interface components {
             quantityDelta: number | string;
             /** Format: uuid */
             variantId: string;
+        };
+        AdministrativeProvinceItem: {
+            code: string;
+            name: string;
+            /** Format: int32 */
+            sortOrder: number;
+        };
+        AdministrativeWardItem: {
+            code: string;
+            name: string;
+            provinceCode: string;
+        };
+        AdminOrderCreatedView: {
+            code: string;
+            /** Format: date-time */
+            confirmedAt: null | string;
+            customerCode: string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: date-time */
+            deliveredAt: null | string;
+            /** Format: int64 */
+            discountVnd: number;
+            /** Format: uuid */
+            id: string;
+            isBackfilled: boolean;
+            /** @enum {string} */
+            origin: "web" | "admin";
+            /** @enum {string} */
+            paymentMethod: "cod" | "bank_transfer";
+            /** @enum {string} */
+            paymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            /** Format: date-time */
+            placedAt: string;
+            rowVersion: string;
+            /** @enum {string} */
+            salesChannel: "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other";
+            /** Format: int64 */
+            shippingFeeVnd: number;
+            /** @enum {string} */
+            status: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** Format: int64 */
+            subtotalVnd: number;
+            /** Format: int64 */
+            totalVnd: number;
+        };
+        AdminOrderDetailView: {
+            acquisitionSource: string;
+            addressLine: string;
+            /** Format: date-time */
+            cancelledAt: null | string;
+            code: string;
+            /** Format: date-time */
+            confirmedAt: null | string;
+            contactEmail: null | string;
+            contactName: string;
+            contactPhone: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            createdByStaffId: null | string;
+            customerCode: null | string;
+            /** Format: uuid */
+            customerId: string;
+            customerNote: null | string;
+            /** Format: date-time */
+            deliveredAt: null | string;
+            discountNote: null | string;
+            /** Format: int64 */
+            discountVnd: number;
+            /** Format: int64 */
+            effectivePaidVnd: number;
+            /** Format: date-time */
+            failedAt: null | string;
+            history: components["schemas"]["AdminOrderHistoryView"][];
+            /** Format: uuid */
+            id: string;
+            internalNote: null | string;
+            isBackfilled: boolean;
+            isExpiring: boolean;
+            isFirstPurchase: boolean;
+            isOverpaid: boolean;
+            lines: components["schemas"]["AdminOrderLineView"][];
+            needsRefund: boolean;
+            /** Format: int64 */
+            netPaidVnd: number;
+            /** @enum {string} */
+            origin: "web" | "admin";
+            /** Format: int64 */
+            overpaidVnd: number;
+            /** Format: int64 */
+            overpaymentRefundedVnd: number;
+            /** Format: int64 */
+            paidVnd: number;
+            /** Format: date-time */
+            paymentDueAt: null | string;
+            /** @enum {string} */
+            paymentMethod: "cod" | "bank_transfer";
+            payments: components["schemas"]["AdminOrderPaymentView"][];
+            /** @enum {string} */
+            paymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            /** Format: date-time */
+            placedAt: string;
+            provinceCode: string;
+            provinceName: string;
+            receiverName: string;
+            receiverPhone: string;
+            referralCode: null | string;
+            /** Format: int64 */
+            refundedVnd: number;
+            refunds: components["schemas"]["AdminOrderRefundView"][];
+            /** Format: int64 */
+            remainingToPayVnd: number;
+            returns: components["schemas"]["AdminOrderReturnView"][];
+            rowVersion: string;
+            /** @enum {string} */
+            salesChannel: "web" | "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other";
+            shipments: components["schemas"]["ShipmentDetailView"][];
+            /** Format: date-time */
+            shippedAt: null | string;
+            /** Format: int64 */
+            shippingFeeVnd: number;
+            /** @enum {string} */
+            status: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            statusReason: null | string;
+            /** Format: int64 */
+            subtotalVnd: number;
+            /** Format: int64 */
+            totalVnd: number;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            voucherId: null | string;
+            wardCode: null | string;
+            wardName: string;
+            warnings: components["schemas"]["AdminOrderWarningView"][];
+        };
+        AdminOrderHistoryView: {
+            /** Format: uuid */
+            actorId: null | string;
+            /** @enum {string} */
+            actorType: "staff" | "customer" | "system";
+            /** @enum {null|string} */
+            fromStatus: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled" | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            occurredAt: string;
+            reason: null | string;
+            /** @enum {string} */
+            toStatus: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+        };
+        AdminOrderLineView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            lineTotalVnd: number;
+            /** Format: int64 */
+            listPriceVnd: number;
+            priceOverrideReason: null | string;
+            /** @enum {string} */
+            priceSource: "list" | "sale" | "override";
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            /** Format: int32 */
+            quantity: number;
+            /** Format: int32 */
+            returnedQuantity: number;
+            sku: string;
+            /** Format: int64 */
+            unitCostVnd?: null | number;
+            /** Format: int64 */
+            unitPriceVnd: number;
+            /** Format: uuid */
+            variantId: string;
+            variantName: null | string;
+        };
+        AdminOrderListItemView: {
+            /** Format: date-time */
+            cancelledAt: null | string;
+            code: string;
+            /** Format: date-time */
+            confirmedAt: null | string;
+            contactName: string;
+            contactPhone: string;
+            customerCode: null | string;
+            /** Format: uuid */
+            customerId: string;
+            /** Format: date-time */
+            deliveredAt: null | string;
+            /** Format: int64 */
+            discountVnd: number;
+            /** Format: date-time */
+            failedAt: null | string;
+            /** Format: uuid */
+            id: string;
+            isBackfilled: boolean;
+            isExpiring: boolean;
+            isOverpaid: boolean;
+            /** Format: int32 */
+            itemCount: number;
+            needsRefund: boolean;
+            /** Format: int64 */
+            netPaidVnd: number;
+            /** @enum {string} */
+            origin: "web" | "admin";
+            /** Format: int64 */
+            paidVnd: number;
+            /** Format: date-time */
+            paymentDueAt: null | string;
+            /** @enum {string} */
+            paymentMethod: "cod" | "bank_transfer";
+            /** @enum {string} */
+            paymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            /** Format: date-time */
+            placedAt: string;
+            receiverName: string;
+            receiverPhone: string;
+            /** Format: int64 */
+            refundedVnd: number;
+            rowVersion: string;
+            /** @enum {string} */
+            salesChannel: "web" | "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other";
+            /** Format: date-time */
+            shippedAt: null | string;
+            /** Format: int64 */
+            shippingFeeVnd: number;
+            /** @enum {string} */
+            status: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** Format: int64 */
+            subtotalVnd: number;
+            /** Format: int64 */
+            totalVnd: number;
+        };
+        AdminOrderPaymentView: {
+            /** Format: int64 */
+            amountVnd: number;
+            bankReference: null | string;
+            /** Format: uuid */
+            codSettlementId: null | string;
+            /** Format: date-time */
+            confirmedAt: null | string;
+            /** Format: uuid */
+            confirmedBy: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            createdBy: null | string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            method: "bank_transfer" | "cod" | "cash";
+            note: null | string;
+            /** @enum {string} */
+            provider: "manual" | "sepay";
+            /** Format: date-time */
+            receivedAt: null | string;
+            /** @enum {string} */
+            status: "awaiting_settlement" | "confirmed" | "voided";
+            voidReason: null | string;
+        };
+        AdminOrderRefundView: {
+            /** Format: int64 */
+            amountVnd: number;
+            bankReference: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            createdBy: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "overpayment" | "return" | "cancellation" | "adjustment";
+            /** @enum {string} */
+            method: "bank_transfer" | "cash";
+            reason: string;
+            /** Format: date-time */
+            refundedAt: string;
+            /** Format: uuid */
+            returnRequestId: null | string;
+            /** Format: int64 */
+            shippingAmountVnd: number;
+        };
+        AdminOrderReturnLineView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            orderLineId: string;
+            /** Format: int32 */
+            quantity: number;
+            restockable: boolean;
+        };
+        AdminOrderReturnView: {
+            code: string;
+            /** Format: uuid */
+            createdBy: null | string;
+            /** Format: date-time */
+            decidedAt: null | string;
+            /** Format: uuid */
+            decidedBy: null | string;
+            decisionNote: null | string;
+            description: string;
+            /** Format: uuid */
+            id: string;
+            lines: components["schemas"]["AdminOrderReturnLineView"][];
+            /** @enum {string} */
+            reason: "damaged_in_transit" | "defective" | "wrong_item";
+            /** Format: date-time */
+            requestedAt: string;
+            /** @enum {null|string} */
+            resolution: "refund" | "replacement" | null;
+            /** Format: date-time */
+            resolvedAt: null | string;
+            /** @enum {string} */
+            status: "requested" | "approved" | "rejected" | "resolved";
+        };
+        AdminOrderWarningView: {
+            code: string;
+            message: string;
         };
         ArtisanWriteRequest: {
             bioHtml?: null | string;
@@ -9252,6 +10382,10 @@ export interface components {
             /** @enum {string} */
             type: "bank_transfer" | "cod";
         };
+        CancelAdminOrderRequest: {
+            reason: string;
+            rowVersion: string;
+        };
         CatalogPage: {
             items: components["schemas"]["CatalogView"][];
             /** Format: int32 */
@@ -9260,6 +10394,15 @@ export interface components {
             pageSize: number | string;
             /** Format: int64 */
             totalItems: number | string;
+        };
+        CatalogPageOfAdminOrderListItemView: {
+            items: components["schemas"]["AdminOrderListItemView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int64 */
+            totalItems: number;
         };
         CatalogPageOfAttributeView: {
             items: components["schemas"]["AttributeView"][];
@@ -9470,6 +10613,12 @@ export interface components {
         CompleteFollowUpRequest: {
             result: string;
         };
+        ConfirmAdminOrderRequest: {
+            callConfirmed?: boolean;
+            callNote?: null | string;
+            note?: null | string;
+            rowVersion: string;
+        };
         ContentWarning: {
             /** Format: int32 */
             actualWords: number | string;
@@ -9493,6 +10642,48 @@ export interface components {
             /** Format: int32 */
             countedQty: number;
             rowVersion: string;
+        };
+        CreateAdminOrderRequest: {
+            callConfirmed?: boolean;
+            callNote?: null | string;
+            confirmNow?: boolean;
+            /** Format: uuid */
+            customerId?: null | string;
+            /** Format: date-time */
+            deliveredAt?: null | string;
+            discountNote?: null | string;
+            /** Format: int64 */
+            discountVnd?: null | number;
+            internalNote?: null | string;
+            isBackfilled?: boolean;
+            lines: {
+                priceOverrideReason?: null | string;
+                /** Format: int32 */
+                quantity: number;
+                /** Format: int64 */
+                unitPriceVnd?: null | number;
+                /** Format: uuid */
+                variantId: string;
+            }[];
+            newCustomer?: {
+                fullName: string;
+                phone: string;
+            };
+            /** @enum {string} */
+            paymentMethod: "cod" | "bank_transfer";
+            /** @enum {string} */
+            salesChannel: "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other";
+            shipping: {
+                addressLine: string;
+                customerNote?: null | string;
+                provinceCode: string;
+                receiverName: string;
+                receiverPhone: string;
+                wardCode?: null | string;
+                wardNameText?: null | string;
+            };
+            /** Format: int64 */
+            shippingFeeVnd?: null | number;
         };
         CreateCustomerAddressRequest: {
             addressLine: string;
@@ -10112,6 +11303,33 @@ export interface components {
             currentPassword: string;
             newPassword: string;
         };
+        PatchAdminOrderRequest: {
+            discountNote?: null | string;
+            /** Format: int64 */
+            discountVnd?: number;
+            internalNote?: null | string;
+            lines?: {
+                priceOverrideReason?: null | string;
+                /** Format: int32 */
+                quantity: number;
+                /** Format: int64 */
+                unitPriceVnd?: null | number;
+                /** Format: uuid */
+                variantId: string;
+            }[];
+            rowVersion: string;
+            shipping?: {
+                addressLine?: string;
+                customerNote?: null | string;
+                provinceCode?: string;
+                receiverName?: string;
+                receiverPhone?: string;
+                wardCode?: null | string;
+                wardNameText?: null | string;
+            };
+            /** Format: int64 */
+            shippingFeeVnd?: null | number;
+        };
         /** @description Omitted fields are preserved on partial updates; null clears nullable fields. */
         PatchCustomerAddressRequest: {
             addressLine?: string;
@@ -10646,6 +11864,13 @@ export interface components {
             /** Format: int64 */
             shippingAmountVnd: number;
         };
+        ReorderAdminOrderRequest: {
+            internalNote?: null | string;
+            /** @enum {null|string} */
+            paymentMethod?: "cod" | "bank_transfer" | null;
+            /** @enum {null|string} */
+            salesChannel?: "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other" | null;
+        };
         SalePriceList: {
             items: components["schemas"]["SalePriceView"][];
             rowVersion: string;
@@ -10892,6 +12117,9 @@ export interface components {
             thinDescription: boolean;
             title: null | string;
         };
+        StoreProvinceListView: {
+            items: components["schemas"]["AdministrativeProvinceItem"][];
+        };
         StoreReference: {
             name: string;
             slug: string;
@@ -10927,6 +12155,11 @@ export interface components {
             name: null | string;
             price: components["schemas"]["StorePrice"];
             sku: string;
+        };
+        StoreWardListView: {
+            items: components["schemas"]["AdministrativeWardItem"][];
+            provinceCode: string;
+            provinceName: string;
         };
         TotpRequest: {
             code: string;

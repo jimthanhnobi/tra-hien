@@ -178,9 +178,9 @@ Người đọc hạn chế (inventory.read không inventory.write) chỉ thấy
 |---|---|---|
 | GET | `admin/orders?status=&paymentStatus=&channel=&origin=&from=&to=&q=&customerId=&flag=needs_refund\|overpaid\|expiring` | `orders.read` |
 | GET | `admin/orders/{id}` (dòng, tiền, payments, refunds, shipments, returns, history) | `orders.read` |
-| POST | `admin/orders` **[idem]** `{customerId \| newCustomer{fullName, phone}, salesChannel, paymentMethod, lines[{variantId, quantity, unitPriceVnd?, priceOverrideReason?}], discountVnd?, discountNote?, shippingFeeVnd?, shipping{...}, internalNote?, confirmNow, isBackfilled?, deliveredAt?}` | `orders.write` (+ `orders.override_price` nếu có giá tay; backfill: owner) |
+| POST | `admin/orders` **[idem]** `{customerId \| newCustomer{fullName, phone}, salesChannel, paymentMethod, lines[{variantId, quantity, unitPriceVnd?, priceOverrideReason?}], discountVnd?, discountNote?, shippingFeeVnd?, shipping{...}, internalNote?, confirmNow, callConfirmed?, callNote?, isBackfilled?, deliveredAt?}` | `orders.write` (+ `orders.override_price` nếu có giá tay; backfill: owner) |
 | PATCH | `admin/orders/{id}` (BR-ORD-08) `{rowVersion, lines?, shipping?, discountVnd?, shippingFeeVnd?, internalNote?}` | `orders.write` |
-| POST | `admin/orders/{id}/confirm` `{rowVersion, note?}` | `orders.write` |
+| POST | `admin/orders/{id}/confirm` `{rowVersion, callConfirmed?, callNote?, note?}` | `orders.write` |
 | POST | `admin/orders/{id}/cancel` `{rowVersion, reason}` | `orders.write` |
 | POST | `admin/orders/{id}/extend-payment` `{rowVersion, hours ≤ 72, reason}` | `orders.write` |
 | POST | `admin/orders/{id}/shipments` `{carrierName, trackingCode?, shippingCostVnd?, note?}` → đơn `shipping` | `orders.write` |
