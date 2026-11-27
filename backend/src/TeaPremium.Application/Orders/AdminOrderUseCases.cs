@@ -1044,6 +1044,16 @@ public sealed class AdminOrderCommandHandlers(
         var ct = cancellationToken;
         var now = clock.UtcNow;
 
+        // Lock customer FOR SHARE (L0) BEFORE locking source order (L1) so lock order strictly matches
+        // Erase/Merge (crm.customers -> sales.orders) with zero AB-BA deadlock risk.
+        var sourceCustomerId = await orders.GetCustomerIdAsync(command.OrderId, ct);
+        if (sourceCustomerId is null) return NotFoundFailure();
+
+        var customerResult = await customerResolver.ResolveExistingAsync(sourceCustomerId.Value, ct);
+        if (!customerResult.IsSuccess)
+            return Result.Failure<AdminOrderDetailView>(customerResult.Error);
+        var customer = customerResult.Value;
+
         // Lock source order (L1) to read a consistent snapshot of its status, lines, customer, and address.
         var loaded = await orders.LoadForUpdateAsync(command.OrderId, expectedVersion: null, ct);
         if (loaded.Order is not { } source) return NotFoundFailure();
@@ -1051,11 +1061,6 @@ public sealed class AdminOrderCommandHandlers(
         // ASSUMPTION-P206-03 = A: allow reorder from all 3 terminal states; reject pending/confirmed/shipping with 409.
         if (!OrderStatus.IsTerminal(source.Status))
             return Result.Failure<AdminOrderDetailView>(new("invalid_status_transition", "Chỉ được tạo lại đơn từ đơn ở trạng thái cuối.", ErrorType.Conflict));
-
-        var customerResult = await customerResolver.ResolveExistingAsync(source.CustomerId, ct);
-        if (!customerResult.IsSuccess)
-            return Result.Failure<AdminOrderDetailView>(customerResult.Error);
-        var customer = customerResult.Value;
 
         if (!await adminRef.IsReadyAsync(ct))
             return Result.Failure<AdminOrderDetailView>(Error.BusinessRule("administrative_data_not_ready", "Danh mục địa giới hành chính chưa sẵn sàng."));

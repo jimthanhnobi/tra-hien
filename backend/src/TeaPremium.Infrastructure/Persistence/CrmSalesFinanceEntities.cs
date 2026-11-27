@@ -110,6 +110,7 @@ public sealed class Interaction
     public DateTime CreatedAt { get; set; }
 }
 
+[Audited]
 public sealed class CustomerInterest
 {
     public Guid Id { get; set; }
@@ -122,6 +123,7 @@ public sealed class CustomerInterest
     public DateTime UpdatedAt { get; set; }
 }
 
+[Audited]
 public sealed class Consent
 {
     public Guid Id { get; set; }
@@ -135,6 +137,7 @@ public sealed class Consent
     public Guid? CapturedBy { get; set; }
 }
 
+[Audited]
 public sealed class DataRequest
 {
     public Guid Id { get; set; }

@@ -2050,6 +2050,101 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/admin/customers/{id}/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PutCustomerConsentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerConsentsResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/customers/{id}/correct-identity": {
         parameters: {
             query?: never;
@@ -2139,6 +2234,174 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EraseCustomerRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerEraseResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerDataExportView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2428,6 +2691,101 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["CustomerInteractionView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MergeCustomersRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CustomerDetailView"];
                     };
                 };
                 /** @description Bad Request */
@@ -10827,6 +11185,30 @@ export interface components {
             wardName: null | string;
             wardNameText: null | string;
         };
+        CustomerConsentItemView: {
+            /** Format: date-time */
+            capturedAt: string;
+            /** Format: uuid */
+            capturedBy: null | string;
+            /** @enum {string} */
+            channel: "zalo_personal" | "zalo_oa" | "sms" | "email" | "phone";
+            evidence: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            purpose: "marketing_new_products" | "marketing_promotions" | "customer_care";
+            /** @enum {string} */
+            source: "checkout" | "account" | "staff" | "import" | "link";
+            /** @enum {string} */
+            status: "granted" | "revoked";
+        };
+        CustomerConsentsResult: {
+            consents: components["schemas"]["CustomerConsentItemView"][];
+            /** Format: uuid */
+            customerId: string;
+            rowVersion: string;
+            upserted: components["schemas"]["CustomerConsentItemView"];
+        };
         CustomerConsentView: {
             /** Format: date-time */
             capturedAt: string;
@@ -10836,6 +11218,19 @@ export interface components {
             purpose: string;
             source: string;
             status: string;
+        };
+        CustomerDataExportView: {
+            account: null | components["schemas"]["CustomerExportAccountView"];
+            addresses: components["schemas"]["CustomerAddressView"][];
+            consents: components["schemas"]["CustomerConsentItemView"][];
+            customer: components["schemas"]["CustomerExportProfileView"];
+            dataRequests: components["schemas"]["CustomerExportDataRequestView"][];
+            /** Format: date-time */
+            exportedAt: string;
+            interactions: components["schemas"]["CustomerExportInteractionView"][];
+            interests: components["schemas"]["CustomerInterestView"][];
+            orders: components["schemas"]["CustomerExportOrderView"][];
+            tags: components["schemas"]["CustomerTagView"][];
         };
         CustomerDetailView: {
             accountSummary: components["schemas"]["CustomerAccountSummaryView"];
@@ -10869,6 +11264,188 @@ export interface components {
             rowVersion: string;
             stats: components["schemas"]["CustomerStatsView"];
             tags: components["schemas"]["CustomerTagView"][];
+            /** Format: date-time */
+            updatedAt: string;
+            zaloName: null | string;
+        };
+        CustomerEraseResult: {
+            /** Format: int32 */
+            anonymizedOrdersCount: number;
+            code: string;
+            /** @enum {string} */
+            contactStatus: "erased";
+            /** Format: uuid */
+            customerId: string;
+            /** Format: uuid */
+            dataRequestId: string;
+            /** Format: date-time */
+            erasedAt: string;
+            rowVersion: string;
+            /** Format: int32 */
+            scrubbedMergedStubsCount: number;
+        };
+        CustomerExportAccountView: {
+            /** Format: date-time */
+            createdAt: string;
+            email: null | string;
+            /** Format: date-time */
+            emailVerifiedAt: null | string;
+            externalLogins: components["schemas"]["CustomerExportLoginView"][];
+            /** Format: date-time */
+            historyUnlockedAt: null | string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lastLoginAt: null | string;
+            loginPhone: null | string;
+            /** Format: date-time */
+            phoneVerifiedAt: null | string;
+            /** @enum {string} */
+            status: "active" | "locked" | "disabled";
+        };
+        CustomerExportDataRequestView: {
+            /** @enum {string} */
+            channel: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "account" | "other";
+            /** Format: date-time */
+            completedAt: null | string;
+            /** Format: uuid */
+            id: string;
+            note: null | string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** @enum {string} */
+            requestType: "export" | "erase" | "correct" | "withdraw_consent";
+            /** @enum {string} */
+            status: "open" | "completed" | "rejected";
+        };
+        CustomerExportInteractionView: {
+            /** @enum {string} */
+            channel: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "other";
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            followUpAt: null | string;
+            /** Format: date-time */
+            followUpDoneAt: null | string;
+            followUpResult: null | string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "inquiry" | "consultation" | "quote" | "follow_up" | "complaint" | "note" | "campaign_message";
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: uuid */
+            orderId: null | string;
+        };
+        CustomerExportLoginView: {
+            /** Format: date-time */
+            createdAt: string;
+            email: null | string;
+            /** @enum {string} */
+            provider: "google" | "zalo";
+        };
+        CustomerExportOrderLineView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            lineTotalVnd: number;
+            /** Format: int64 */
+            listPriceVnd: number;
+            productName: string;
+            /** Format: int32 */
+            quantity: number;
+            /** Format: int32 */
+            returnedQuantity: number;
+            sku: string;
+            /** Format: int64 */
+            unitPriceVnd: number;
+            variantName: null | string;
+        };
+        CustomerExportOrderView: {
+            addressLine: string;
+            /** Format: date-time */
+            cancelledAt: null | string;
+            code: string;
+            /** Format: date-time */
+            confirmedAt: null | string;
+            contactEmail: null | string;
+            contactName: string;
+            contactPhone: string;
+            customerNote: null | string;
+            /** Format: date-time */
+            deliveredAt: null | string;
+            /** Format: int64 */
+            discountVnd: number;
+            /** Format: date-time */
+            failedAt: null | string;
+            /** Format: uuid */
+            id: string;
+            isBackfilled: boolean;
+            lines: components["schemas"]["CustomerExportOrderLineView"][];
+            /** @enum {string} */
+            origin: "web" | "admin";
+            /** @enum {string} */
+            paymentMethod: "cod" | "bank_transfer";
+            /** @enum {string} */
+            paymentStatus: "unpaid" | "partially_paid" | "paid" | "partially_refunded" | "refunded";
+            /** Format: date-time */
+            placedAt: string;
+            provinceCode: string;
+            provinceName: string;
+            receiverName: string;
+            receiverPhone: string;
+            /** @enum {string} */
+            salesChannel: "web" | "zalo_personal" | "zalo_oa" | "facebook" | "phone" | "in_person" | "other";
+            /** Format: date-time */
+            shippedAt: null | string;
+            /** Format: int64 */
+            shippingFeeVnd: number;
+            /** @enum {string} */
+            status: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** Format: int64 */
+            subtotalVnd: number;
+            /** Format: int64 */
+            totalVnd: number;
+            wardCode: null | string;
+            wardName: string;
+        };
+        CustomerExportProfileView: {
+            /** @enum {string} */
+            acquisitionSource: "unknown" | "legacy" | "google_organic" | "google_ads" | "facebook" | "zalo_personal" | "zalo_oa" | "referral" | "direct" | "offline" | "other";
+            code: string;
+            /** @enum {string} */
+            contactStatus: "active" | "do_not_contact" | "erased";
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            customerGroup: "retail" | "wholesale" | "reseller";
+            /** Format: int32 */
+            deliveredOrdersCount: number;
+            email: null | string;
+            /** Format: date-time */
+            erasedAt: null | string;
+            /** Format: date-time */
+            firstDeliveredAt: null | string;
+            fullName: string;
+            hadLegacyPurchase: boolean;
+            /** Format: uuid */
+            id: string;
+            isVip: boolean;
+            /** Format: date-time */
+            lastContactedAt: null | string;
+            /** Format: date-time */
+            lastDeliveredAt: null | string;
+            /** Format: int64 */
+            lifetimeValueVnd: number;
+            /** Format: uuid */
+            mergedIntoCustomerId: null | string;
+            noteSummary: null | string;
+            /** @enum {string} */
+            origin: "legacy_import" | "web" | "admin";
+            phoneE164: null | string;
+            /** Format: uuid */
+            referredByCustomerId: null | string;
             /** Format: date-time */
             updatedAt: string;
             zaloName: null | string;
@@ -11070,6 +11647,13 @@ export interface components {
             rowVersion: string;
             supplierName?: null | string;
         };
+        /** @description Irreversibly anonymizes customer PII and linked merged stubs while preserving order financials (AC-P2-10). rowVersion is optional. */
+        EraseCustomerRequest: {
+            reason: string;
+            /** @enum {string} */
+            requestChannel: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "account" | "other";
+            rowVersion?: null | string;
+        };
         FollowUpItemView: {
             /** @enum {string} */
             channel: "zalo_personal" | "zalo_oa" | "phone" | "facebook" | "in_person" | "email" | "web" | "other";
@@ -11239,6 +11823,13 @@ export interface components {
             pageSize: number | string;
             /** Format: int64 */
             totalItems: number | string;
+        };
+        /** @description Merges mergeCustomerId (B) into target customer {id} (A). rowVersion and mergeRowVersion are optional. */
+        MergeCustomersRequest: {
+            /** Format: uuid */
+            mergeCustomerId: string;
+            mergeRowVersion?: null | string;
+            rowVersion?: null | string;
         };
         OpeningError: {
             code: string;
@@ -11769,6 +12360,17 @@ export interface components {
             shortDescription?: null | string;
             slug?: string;
             subtitle?: null | string;
+        };
+        /** @description Upserts staff-recorded customer consent by (channel, purpose). source is fixed to 'staff'; rowVersion is optional. */
+        PutCustomerConsentRequest: {
+            /** @enum {string} */
+            channel: "zalo_personal" | "zalo_oa" | "sms" | "email" | "phone";
+            evidence: string;
+            /** @enum {string} */
+            purpose: "marketing_new_products" | "marketing_promotions" | "customer_care";
+            rowVersion?: null | string;
+            /** @enum {string} */
+            status: "granted" | "revoked";
         };
         PutCustomerTagsRequest: {
             rowVersion?: null | string;

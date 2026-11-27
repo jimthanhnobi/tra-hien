@@ -10,9 +10,11 @@ public static class CrmRegistration
     public static IServiceCollection AddCrm(this IServiceCollection services)
     {
         services.AddScoped<CustomerIdentityAudit>();
+        services.AddScoped<CustomerPrivacyAudit>();
         services.AddScoped<ICustomerQueries, EfCustomerQueries>();
         services.AddScoped<ICustomerStore, EfCustomerStore>();
         services.AddScoped<ICustomerOrderResolver, EfCustomerOrderResolver>();
+        services.AddScoped<ICustomerPrivacyStore, EfCustomerPrivacyStore>();
         services.AddScoped<IInteractionQueries, EfInteractionQueries>();
         services.AddScoped<IInteractionStore, EfInteractionStore>();
         services.AddScoped<ICustomerImportStore>(sp => new EfCustomerImportStore(

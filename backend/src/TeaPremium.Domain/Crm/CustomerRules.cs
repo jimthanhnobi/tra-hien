@@ -4,8 +4,9 @@ namespace TeaPremium.Domain.Crm;
 
 public static class CustomerRules
 {
-    // BR-CRM-11 (P2-12): anonymized sentinel matches DB regex ^\+84[0-9]{9}$ while remaining rejected as user input.
+    // BR-CRM-11 (P2-12): anonymized sentinels match DB constraints while remaining rejected as normal user input.
     public const string AnonymizedOrderPhone = "+84000000000";
+    public const string AnonymizedText = "[Đã xóa]";
 
     public const int MaxImportRows = 2000;
     public const int MaxFullNameLength = 150;
@@ -13,6 +14,10 @@ public static class CustomerRules
     public const int MaxTagNameLength = 60;
     public const int MaxTagsPerCustomer = 50;
     public const int MaxInteractionContentLength = 4000;
+    public const int MinConsentEvidenceLength = 3;
+    public const int MaxConsentEvidenceLength = 1000;
+    public const int MinEraseReasonLength = 3;
+    public const int MaxEraseReasonLength = 500;
 
     public static readonly IReadOnlySet<string> CustomerGroups = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -58,6 +63,31 @@ public static class CustomerRules
     public static readonly IReadOnlySet<string> ConsentPurposes = new HashSet<string>(StringComparer.Ordinal)
     {
         "marketing_new_products", "marketing_promotions", "customer_care"
+    };
+
+    public static readonly IReadOnlySet<string> ConsentStatuses = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "granted", "revoked"
+    };
+
+    public static readonly IReadOnlySet<string> ConsentSources = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "checkout", "account", "staff", "import", "link"
+    };
+
+    public static readonly IReadOnlySet<string> DataRequestTypes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "export", "erase", "correct", "withdraw_consent"
+    };
+
+    public static readonly IReadOnlySet<string> DataRequestStatuses = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "open", "completed", "rejected"
+    };
+
+    public static readonly IReadOnlySet<string> DataRequestChannels = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "zalo_personal", "zalo_oa", "phone", "facebook", "in_person", "email", "web", "account", "other"
     };
 
     public static readonly IReadOnlySet<string> InteractionChannels = new HashSet<string>(StringComparer.Ordinal)
@@ -417,6 +447,122 @@ public static class CustomerRules
 
         tags = [.. list];
         return true;
+    }
+
+    // BR-CRM-05 (P2-12): deterministic consent winner selection on merge.
+    // Keeps the newer captured_at; on an exact microsecond tie, prefers 'revoked' for privacy safety, then keeps first (target).
+    public static bool FirstConsentWins(DateTime firstCapturedAt, string firstStatus, DateTime secondCapturedAt, string secondStatus)
+    {
+        if (firstCapturedAt > secondCapturedAt)
+        {
+            return true;
+        }
+
+        if (secondCapturedAt > firstCapturedAt)
+        {
+            return false;
+        }
+
+        var firstRevoked = string.Equals(firstStatus, "revoked", StringComparison.Ordinal);
+        var secondRevoked = string.Equals(secondStatus, "revoked", StringComparison.Ordinal);
+        if (firstRevoked && !secondRevoked)
+        {
+            return true;
+        }
+
+        if (secondRevoked && !firstRevoked)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    // BR-IAM-04 / G28 (P2-12): when transferring a customer account to a target customer, reset history unlock
+    // if phone differs or target already had orders/addresses; reset phone verification when phone differs.
+    public static (bool ResetHistoryUnlock, bool ResetPhoneVerified) ShouldResetMergedAccountUnlock(
+        string? accountLoginPhone,
+        string? targetCustomerPhoneE164,
+        bool targetHasOrders,
+        bool targetHasAddresses)
+    {
+        var phoneMismatch = string.IsNullOrEmpty(accountLoginPhone)
+            || !string.Equals(accountLoginPhone, targetCustomerPhoneE164, StringComparison.Ordinal);
+        var resetHistoryUnlock = phoneMismatch || targetHasOrders || targetHasAddresses;
+        return (resetHistoryUnlock, phoneMismatch);
+    }
+
+    // BR-IAM-04 (P2-12): PostgreSQL timestamptz stores microsecond precision (1 us = 10 ticks).
+    // Truncate accountCreatedAt to microseconds and subtract 1 microsecond so clamped addresses stay strictly < account.CreatedAt in PG17.
+    public static DateTime ClampAddressCreatedAtBeforeAccount(DateTime addressCreatedAt, DateTime accountCreatedAt)
+    {
+        var accountMicro = new DateTime(
+            accountCreatedAt.Ticks - (accountCreatedAt.Ticks % TimeSpan.TicksPerMicrosecond),
+            DateTimeKind.Utc);
+        var addressUtc = addressCreatedAt.Kind == DateTimeKind.Utc
+            ? addressCreatedAt
+            : DateTime.SpecifyKind(addressCreatedAt, DateTimeKind.Utc);
+        return addressUtc >= accountMicro ? accountMicro.AddMicroseconds(-1) : addressUtc;
+    }
+
+    // BR-CRM-11 / R-P204-01 (P2-12): scrub interaction PII and close ONLY open follow-ups,
+    // preserving ck_interactions_row (follow_up_done_at IS NULL OR follow_up_at IS NOT NULL).
+    public static (string Content, string? FollowUpResult, DateTime? FollowUpDoneAt) ComputeInteractionScrubState(
+        DateTime? followUpAt,
+        DateTime? followUpDoneAt,
+        DateTime nowUtc)
+    {
+        var nextDoneAt = followUpAt is not null && followUpDoneAt is null ? nowUtc : followUpDoneAt;
+        return (AnonymizedText, null, nextDoneAt);
+    }
+
+    // ASSUMPTION-P212-03 = A (P2-12): iteratively resolve all merged stub IDs pointing to rootCustomerId at any depth (D -> C -> B -> A),
+    // cycle-safe and deterministically ordered by PostgreSQL UUID lexical byte order.
+    public static IReadOnlyList<Guid> ResolveMergedStubClosure(
+        Guid rootCustomerId,
+        IReadOnlyList<(Guid Id, Guid? MergedIntoCustomerId)> links)
+    {
+        var childrenByParent = new Dictionary<Guid, List<Guid>>();
+        foreach (var (id, parentId) in links)
+        {
+            if (parentId is not { } parent || id == parent)
+            {
+                continue;
+            }
+
+            if (!childrenByParent.TryGetValue(parent, out var children))
+            {
+                children = [];
+                childrenByParent[parent] = children;
+            }
+
+            children.Add(id);
+        }
+
+        var result = new HashSet<Guid>();
+        var queue = new Queue<Guid>();
+        queue.Enqueue(rootCustomerId);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (!childrenByParent.TryGetValue(current, out var children))
+            {
+                continue;
+            }
+
+            foreach (var child in children)
+            {
+                if (child != rootCustomerId && result.Add(child))
+                {
+                    queue.Enqueue(child);
+                }
+            }
+        }
+
+        return result
+            .OrderBy(id => id.ToString("D"), StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static bool IsVietnameseMobilePrefix(char ch) => ch is '3' or '5' or '7' or '8' or '9';

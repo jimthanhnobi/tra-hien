@@ -318,4 +318,65 @@ public sealed class AuditValuePolicyTests
     {
         Assert.Equal("[redacted]", AuditValuePolicy.Filter("sales.shipments", null, property, spoofedValue));
     }
+
+    [Theory]
+    [InlineData("crm.consents", "Evidence", "Khách anh Hiên 0901234567 đồng ý qua Zalo")]
+    [InlineData("crm.consents", "UnknownField", "PII text")]
+    [InlineData("crm.data_requests", "Note", "Anh Minh 0909888777 nhắn yêu cầu xóa")]
+    [InlineData("crm.data_requests", "UnknownField", "PII text")]
+    [InlineData("crm.customer_interests", "UnknownField", "PII text")]
+    public void P212EntitiesAllowlistStructuredFieldsAndRedactConsentEvidenceAndDataRequestNotes(
+        string entityType,
+        string sensitiveProperty,
+        string sensitiveValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, sensitiveProperty, sensitiveValue));
+
+        var now = new DateTime(2026, 11, 27, 8, 0, 0, DateTimeKind.Utc);
+        var id = Guid.CreateVersion7();
+
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.consents", null, "CustomerId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.consents", null, "CapturedBy", id));
+        Assert.Equal("zalo_personal", AuditValuePolicy.Filter("crm.consents", null, "Channel", "zalo_personal"));
+        Assert.Equal("marketing_new_products", AuditValuePolicy.Filter("crm.consents", null, "Purpose", "marketing_new_products"));
+        Assert.Equal("granted", AuditValuePolicy.Filter("crm.consents", null, "Status", "granted"));
+        Assert.Equal("revoked", AuditValuePolicy.Filter("crm.consents", null, "Status", "revoked"));
+        Assert.Equal("staff", AuditValuePolicy.Filter("crm.consents", null, "Source", "staff"));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.consents", null, "CapturedAt", now));
+
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.data_requests", null, "CustomerId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.data_requests", null, "HandledBy", id));
+        Assert.Equal("erase", AuditValuePolicy.Filter("crm.data_requests", null, "RequestType", "erase"));
+        Assert.Equal("completed", AuditValuePolicy.Filter("crm.data_requests", null, "Status", "completed"));
+        Assert.Equal("zalo_personal", AuditValuePolicy.Filter("crm.data_requests", null, "Channel", "zalo_personal"));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.data_requests", null, "RequestedAt", now));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.data_requests", null, "CompletedAt", now));
+
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.customer_interests", null, "CustomerId", id));
+        Assert.Equal(id, AuditValuePolicy.Filter("crm.customer_interests", null, "RefId", id));
+        Assert.Equal("material", AuditValuePolicy.Filter("crm.customer_interests", null, "InterestType", "material"));
+        Assert.Equal("3m_10m", AuditValuePolicy.Filter("crm.customer_interests", null, "PriceBand", "3m_10m"));
+        Assert.Equal("order", AuditValuePolicy.Filter("crm.customer_interests", null, "Source", "order"));
+        Assert.Equal("manual", AuditValuePolicy.Filter("crm.customer_interests", null, "Source", "manual"));
+        Assert.Equal(7, AuditValuePolicy.Filter("crm.customer_interests", null, "Score", 7));
+        Assert.Equal(now, AuditValuePolicy.Filter("crm.customer_interests", null, "UpdatedAt", now));
+    }
+
+    [Theory]
+    [InlineData("crm.consents", "Channel", "0901234567")]
+    [InlineData("crm.consents", "Purpose", "secret@example.test")]
+    [InlineData("crm.consents", "Status", "Nguyen Van A")]
+    [InlineData("crm.consents", "Source", "0901234567")]
+    [InlineData("crm.consents", "CapturedAt", "2026-11-27 0901234567")]
+    [InlineData("crm.data_requests", "RequestType", "secret")]
+    [InlineData("crm.data_requests", "Status", "0901234567")]
+    [InlineData("crm.data_requests", "Channel", "Nguyen Van A")]
+    [InlineData("crm.customer_interests", "InterestType", "secret")]
+    [InlineData("crm.customer_interests", "PriceBand", "0901234567")]
+    [InlineData("crm.customer_interests", "Source", "Nguyen Van A")]
+    [InlineData("crm.customer_interests", "Score", "999")]
+    public void P212EntitiesRejectSpoofedStringsOnSafeFields(string entityType, string property, string spoofedValue)
+    {
+        Assert.Equal("[redacted]", AuditValuePolicy.Filter(entityType, null, property, spoofedValue));
+    }
 }

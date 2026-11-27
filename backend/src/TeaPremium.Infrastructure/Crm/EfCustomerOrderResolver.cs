@@ -14,22 +14,21 @@ public sealed class EfCustomerOrderResolver(AppDbContext db, IClock clock) : ICu
 {
     public async Task<Result<ResolvedOrderCustomer>> ResolveExistingAsync(Guid customerId, CancellationToken ct)
     {
-        var row = await db.Set<Customer>().AsNoTracking()
-            .Where(x => x.Id == customerId)
-            .Select(x => new
-            {
-                x.Id,
-                x.Code,
-                x.FullName,
-                x.PhoneE164,
-                x.Email,
-                x.AcquisitionSource,
-                x.HadLegacyPurchase,
-                x.DeliveredOrdersCount,
-                x.ContactStatus,
-                x.MergedIntoCustomerId
-            })
-            .SingleOrDefaultAsync(ct);
+        // Lock crm.customers FOR SHARE inside an active transaction so concurrent Erase/Merge (FOR NO KEY UPDATE)
+        // strictly serialize against order creation without blocking parallel orders for the same customer.
+        Customer? row;
+        if (db.Database.CurrentTransaction is not null)
+        {
+            row = (await db.Set<Customer>()
+                .FromSqlInterpolated($"SELECT *, xmin FROM crm.customers WHERE id = {customerId} FOR SHARE")
+                .AsNoTracking()
+                .ToArrayAsync(ct)).SingleOrDefault();
+        }
+        else
+        {
+            row = await db.Set<Customer>().AsNoTracking()
+                .SingleOrDefaultAsync(x => x.Id == customerId, ct);
+        }
 
         if (row is null)
             return Result.Failure<ResolvedOrderCustomer>(new("not_found", "Không tìm thấy khách hàng.", ErrorType.NotFound));
