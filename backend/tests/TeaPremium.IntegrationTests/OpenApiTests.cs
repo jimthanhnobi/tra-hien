@@ -26,7 +26,13 @@ public sealed class OpenApiTests
         Assert.True(paths.TryGetProperty("/api/v1/admin/inventory/opening-import", out _));
         var totalOperations = paths.EnumerateObject().Sum(p => p.Value.EnumerateObject()
             .Count(o => o.Name is "get" or "post" or "patch" or "put" or "delete"));
-        Assert.Equal(120, totalOperations);
+        Assert.Equal(123, totalOperations);
+        Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/shipments", out var createShipmentPath));
+        Assert.True(createShipmentPath.TryGetProperty("post", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/shipments/{id}", out var patchShipmentPath));
+        Assert.True(patchShipmentPath.TryGetProperty("patch", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/admin/shipments/{id}/events", out var shipmentEventsPath));
+        Assert.True(shipmentEventsPath.TryGetProperty("post", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/orders/{id}/payments", out var recordPaymentPath));
         Assert.True(paths.TryGetProperty("/api/v1/admin/payments/{id}/void", out _));
         Assert.True(paths.TryGetProperty("/api/v1/admin/payments/awaiting", out var awaitingPaymentsPath));
@@ -180,6 +186,34 @@ public sealed class OpenApiTests
         Assert.Equal("integer", schemas.GetProperty("RefundRecordedView").GetProperty("properties").GetProperty("shippingAmountVnd").GetProperty("type").GetString());
         Assert.Equal("integer", schemas.GetProperty("AwaitingBankTransferItem").GetProperty("properties").GetProperty("effectivePaidVnd").GetProperty("type").GetString());
         AssertOpenApiEnum(schemas.GetProperty("PaymentVoidedView").GetProperty("properties").GetProperty("status"), "voided");
+
+        foreach (var name in new[] { "CreateOrderShipmentRequest", "PatchShipmentRequest", "RecordShipmentEventRequest" })
+            Assert.False(schemas.GetProperty(name).GetProperty("additionalProperties").GetBoolean());
+        AssertOpenApiEnum(
+            schemas.GetProperty("RecordShipmentEventRequest").GetProperty("properties").GetProperty("status"),
+            "picked_up", "in_transit", "delivered", "failed", "returned");
+        AssertOpenApiEnum(
+            schemas.GetProperty("ShipmentDetailView").GetProperty("properties").GetProperty("purpose"),
+            "order", "replacement");
+        AssertOpenApiEnum(
+            schemas.GetProperty("ShipmentDetailView").GetProperty("properties").GetProperty("provider"),
+            "manual", "ghn", "ghtk");
+        AssertOpenApiEnum(
+            schemas.GetProperty("ShipmentDetailView").GetProperty("properties").GetProperty("status"),
+            "created", "picked_up", "in_transit", "delivered", "failed", "returned", "cancelled");
+        AssertOpenApiEnum(
+            schemas.GetProperty("ShipmentEventView").GetProperty("properties").GetProperty("source"),
+            "manual", "webhook");
+        foreach (var name in new[] { "ShipmentDetailView", "ShipmentEventView" })
+        {
+            var props = schemas.GetProperty(name).GetProperty("properties");
+            Assert.All(props.EnumerateObject(), prop =>
+            {
+                Assert.DoesNotContain("unitCost", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("avgCost", prop.Name, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("profit", prop.Name, StringComparison.OrdinalIgnoreCase);
+            });
+        }
     }
 
     private static void AssertOpenApiEnum(JsonElement schema, params string[] values)

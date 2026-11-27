@@ -8,6 +8,7 @@ using TeaPremium.Domain.Orders;
 using TeaPremium.Infrastructure.Persistence;
 using DomainOrder = TeaPremium.Domain.Orders.Order;
 using PersistenceOrder = TeaPremium.Infrastructure.Persistence.Order;
+using PersistenceShipment = TeaPremium.Infrastructure.Persistence.Shipment;
 
 namespace TeaPremium.Infrastructure.Orders;
 
@@ -161,7 +162,7 @@ public sealed class EfOrderRepository(AppDbContext db, IOrderCodeGenerator codeG
 
     // Matches ux_shipment_active_order predicate: purpose = 'order' AND status NOT IN ('cancelled','failed','returned').
     public Task<bool> HasActiveOrderShipmentAsync(Guid orderId, CancellationToken ct) =>
-        db.Set<Shipment>().AsNoTracking()
+        db.Set<PersistenceShipment>().AsNoTracking()
             .AnyAsync(x => x.OrderId == orderId
                 && x.Purpose == "order"
                 && x.Status != "cancelled"

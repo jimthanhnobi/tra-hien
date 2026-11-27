@@ -41,6 +41,36 @@ public interface IOrderDeliveredHook
     Task OnOrderDeliveredAsync(Order order, CancellationToken ct);
 }
 
+// Shared transition port used by OrderCoreHandlers (P2-05) and ShipmentHandlers (P2-08)
+// inside an already-open transaction without nesting EfUnitOfWork (R-P208-01).
+public interface IOrderFulfillmentTransitions
+{
+    Task<Result<OrderSummary>> TransitionLoadedOrderToShippingAsync(
+        Order order,
+        Guid staffId,
+        string? note,
+        DateTimeOffset now,
+        CancellationToken ct);
+
+    Task<Result<OrderSummary>> TransitionLoadedOrderToDeliveredAsync(
+        Order order,
+        string actorType,
+        Guid? actorId,
+        DateTimeOffset deliveredAt,
+        DateTimeOffset now,
+        string? note,
+        CancellationToken ct);
+
+    Task<Result<OrderSummary>> TransitionLoadedOrderToDeliveryFailedAsync(
+        Order order,
+        string actorType,
+        Guid? actorId,
+        string reason,
+        DateTimeOffset failedAt,
+        DateTimeOffset now,
+        CancellationToken ct);
+}
+
 public sealed record OrderLineSummary(
     Guid Id,
     Guid VariantId,

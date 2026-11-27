@@ -368,6 +368,7 @@ public sealed class Refund
     public DateTime CreatedAt { get; set; }
 }
 
+[TeaPremium.Domain.Audited]
 public sealed class Shipment
 {
     public Guid Id { get; set; }

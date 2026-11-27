@@ -4064,6 +4064,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders/{id}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateOrderShipmentRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ShipmentDetailView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/payments/{id}/void": {
         parameters: {
             query?: never;
@@ -7168,6 +7272,214 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/shipments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PatchShipmentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ShipmentDetailView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RecordShipmentEventRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ShipmentDetailView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/staff": {
         parameters: {
             query?: never;
@@ -9243,6 +9555,13 @@ export interface components {
             /** Format: int64 */
             shippingAmountVnd?: number;
         };
+        CreateOrderShipmentRequest: {
+            carrierName: string;
+            note?: null | string;
+            /** Format: int64 */
+            shippingCostVnd?: null | number;
+            trackingCode?: null | string;
+        };
         CreateReceiptLineRequest: {
             /** Format: int32 */
             quantity: number;
@@ -9834,6 +10153,13 @@ export interface components {
             rowVersion: string;
             zaloName?: null | string;
         };
+        PatchShipmentRequest: {
+            /** Format: int64 */
+            returnCostVnd?: null | number;
+            /** Format: int64 */
+            shippingCostVnd?: null | number;
+            trackingCode?: null | string;
+        };
         PatchStaffRequest: {
             isActive: null | boolean;
             locked: null | boolean;
@@ -10277,6 +10603,15 @@ export interface components {
             /** Format: date-time */
             receivedAt: string;
         };
+        RecordShipmentEventRequest: {
+            note?: null | string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: int64 */
+            returnCostVnd?: null | number;
+            /** @enum {string} */
+            status: "picked_up" | "in_transit" | "delivered" | "failed" | "returned";
+        };
         RefundRecordedView: {
             /** Format: int64 */
             amountVnd: number;
@@ -10337,6 +10672,59 @@ export interface components {
             version: string;
         };
         SettingsJsonValue: SettingsJsonValue;
+        ShipmentDetailView: {
+            carrierName: string;
+            /** Format: int64 */
+            codAmountVnd: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            createdBy: null | string;
+            /** Format: date-time */
+            deliveredAt: null | string;
+            events: components["schemas"]["ShipmentEventView"][];
+            /** Format: date-time */
+            failedAt: null | string;
+            /** Format: uuid */
+            id: string;
+            note: null | string;
+            orderCode: string;
+            /** Format: uuid */
+            orderId: string;
+            orderRowVersion: string;
+            /** @enum {string} */
+            orderStatus: "pending" | "confirmed" | "shipping" | "delivered" | "delivery_failed" | "cancelled";
+            /** Format: date-time */
+            pickedUpAt: null | string;
+            /** @enum {string} */
+            provider: "manual" | "ghn" | "ghtk";
+            /** @enum {string} */
+            purpose: "order" | "replacement";
+            /** Format: int64 */
+            returnCostVnd: null | number;
+            /** Format: date-time */
+            returnedAt: null | string;
+            /** Format: uuid */
+            returnRequestId: null | string;
+            /** Format: int64 */
+            shippingCostVnd: null | number;
+            /** @enum {string} */
+            status: "created" | "picked_up" | "in_transit" | "delivered" | "failed" | "returned" | "cancelled";
+            trackingCode: null | string;
+        };
+        ShipmentEventView: {
+            /** Format: uuid */
+            createdBy: null | string;
+            /** Format: uuid */
+            id: string;
+            note: null | string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** @enum {string} */
+            source: "manual" | "webhook";
+            /** @enum {string} */
+            status: "created" | "picked_up" | "in_transit" | "delivered" | "failed" | "returned" | "cancelled";
+        };
         StaffPage: {
             items: components["schemas"]["StaffView"][];
             /** Format: int32 */

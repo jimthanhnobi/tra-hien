@@ -4,6 +4,7 @@ using TeaPremium.Application.Payments;
 using TeaPremium.Domain.Orders;
 using TeaPremium.Infrastructure.Persistence;
 using PersistenceOrder = TeaPremium.Infrastructure.Persistence.Order;
+using PersistenceShipment = TeaPremium.Infrastructure.Persistence.Shipment;
 
 namespace TeaPremium.Infrastructure.Payments;
 
@@ -375,7 +376,7 @@ public sealed class EfPaymentQueries(AppDbContext db) : IPaymentQueries
         var carrierPattern = string.IsNullOrWhiteSpace(carrier) ? null : EscapeLike(carrier.Trim());
         var codQuery = from p in db.Set<Payment>().AsNoTracking()
                        join o in db.Set<PersistenceOrder>().AsNoTracking() on p.OrderId equals o.Id
-                       let deliveredShipment = db.Set<Shipment>().AsNoTracking()
+                       let deliveredShipment = db.Set<PersistenceShipment>().AsNoTracking()
                            .Where(s => s.OrderId == p.OrderId && s.Purpose == "order" && s.Status == "delivered")
                            .OrderByDescending(s => s.DeliveredAt)
                            .ThenByDescending(s => s.CreatedAt)

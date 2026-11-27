@@ -205,6 +205,18 @@ public static class AuditValuePolicy
             if (field is "requested_at" or "decided_at" or "resolved_at" && value is DateTime) return value;
             return Redacted;
         }
+        // P2-08 / NFR-04: explicit fail-closed allowlist for sales.shipments; carrier_name, tracking_code
+        // and note stay redacted to avoid leaking driver phone/names or free-text PII in manual shipping.
+        if (entityType == "sales.shipments")
+        {
+            if (field is "order_id" or "return_request_id" or "created_by" && value is Guid) return value;
+            if (field == "purpose" && value is string purpose && ShipmentPurpose.IsValid(purpose)) return purpose;
+            if (field == "provider" && value is string provider && ShippingProviderCode.IsValid(provider)) return provider;
+            if (field == "status" && value is string shipmentStatus && ShipmentStatus.IsValid(shipmentStatus)) return shipmentStatus;
+            if (field is "cod_amount_vnd" or "shipping_cost_vnd" or "return_cost_vnd" && value is long) return value;
+            if (field is "created_at" or "picked_up_at" or "delivered_at" or "failed_at" or "returned_at" && value is DateTime) return value;
+            return Redacted;
+        }
         // P1-04 entity/path classification. Never whitelist names/biographies/HTML globally.
         if (entityType is "catalog.categories" or "catalog.collections" or "catalog.materials" or "catalog.artisans")
         {
